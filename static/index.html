@@ -145,8 +145,9 @@ button{font:inherit;color:inherit}
 #tilt.on{color:var(--accent)}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:2}
 #locbtn.busy svg{animation:spin 1s linear infinite}
-#toast{position:fixed;left:50%;top:20px;transform:translate(-50%,-20px);z-index:30;max-width:min(440px,90vw);padding:11px 16px;border-radius:14px;background:var(--glass2);border:1px solid var(--line2);font-size:13.5px;line-height:1.4;opacity:0;pointer-events:none;transition:all .25s}
-#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast{position:fixed;right:64px;top:62px;transform:translate(0,-12px);z-index:30;max-width:min(440px,90vw);padding:11px 16px;border-radius:14px;background:var(--glass2);border:1px solid var(--line2);font-size:13.5px;line-height:1.4;opacity:0;pointer-events:none;transition:all .25s}
+#toast.show{opacity:1;transform:translate(0,0)}
+@media (max-width:640px){#toast{right:8px;left:8px;top:auto;bottom:16px;max-width:none}}
 @media (max-width:640px){
   .top{left:8px;top:8px;width:calc(100vw - 16px);gap:6px}
   .search{border-radius:16px;padding:5px 5px 5px 7px}
@@ -242,7 +243,7 @@ const I18N = {
   steps:["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"], down:"Сервер не ответил. Проверь, что он запущен.",
   howT:"Как «Окно» поняло запрос", from:"откуда", to:"куда", loop:"потом обратно", win:"окно", lang:"язык", out:"на улице", maxOut:"макс. подряд", km:"км", walkKm:"пешком",
   cands:"мест рассмотрено", plans:"вариантов маршрута", tUnd:"понял / посчитал", dataT:"Данные и оговорки", copy:"Скопировать план", copied:"Скопировано ✓", close:"Закрыть",
-  tryT:"Попробуй, например:", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
+  tryT:"Попробуй, например:", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
   quick:[["ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа","Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре"],
    ["Турист, вылет в 18:30","посмотреть город до самолёта","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["Прогулка 45 минут","от Mega Silk Way и обратно","Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"],
@@ -259,7 +260,7 @@ const I18N = {
   steps:["Understanding your request","Finding places on the way","Checking time, opening hours, weather","Writing why it's worth it"], down:"The server didn't respond.",
   howT:"How Okno understood you", from:"from", to:"to", loop:"then back", win:"window", lang:"language", out:"outdoors", maxOut:"longest outdoor", km:"km", walkKm:"walking",
   cands:"places considered", plans:"route options", tUnd:"understood / planned", dataT:"Data and caveats", copy:"Copy plan", copied:"Copied ✓", close:"Close",
-  tryT:"Try, for example:", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
+  tryT:"Try, for example:", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
   quick:[["EXPO → Khan Shatyr by 7 pm","evening meeting, 1.5 h free","I'm at EXPO, need to be at Khan Shatyr by 19:00"],
    ["Tourist, flight at 6:30 pm","see the city before the flight","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45-minute walk","from Mega Silk Way and back","I'm at Mega Silk Way, want a 45 minute walk and come back"],
@@ -278,7 +279,7 @@ const I18N = {
   steps:["Сұрауды түсініп жатырмын","Жолдағы орындарды іздеп жатырмын","Уақыт, жұмыс кестесі, ауа райын тексеріп жатырмын","Неге баруға тұрарлық екенін жазып жатырмын"], down:"Сервер жауап бермеді.",
   howT:"«Окно» сұрауды қалай түсінді", from:"қайдан", to:"қайда", loop:"сосын кері", win:"терезе", lang:"тіл", out:"далада", maxOut:"ең ұзақ далада", km:"км", walkKm:"жаяу",
   cands:"орын қаралды", plans:"бағыт нұсқасы", tUnd:"түсінді / есептеді", dataT:"Деректер мен ескертулер", copy:"Жоспарды көшіру", copied:"Көшірілді ✓", close:"Жабу",
-  tryT:"Мысалы, былай жазып көр:", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
+  tryT:"Мысалы, былай жазып көр:", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
   quick:[["ЭКСПО → Хан Шатыр 19:00-ге","кешкі кездесу, 1,5 сағат бар","Мен ЭКСПО-дамын, 19:00-ге Хан Шатырда болуым керек"],
    ["Турист, ұшақ 18:30-да","ұшар алдында қаланы көру","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45 минут серуен","Mega Silk Way-ден және кері","Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"],
@@ -548,6 +549,7 @@ function render(r){
     <div class="links">
       <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">${T("open2gis")}</a>
       <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps</a>
+      <button id="shareLink" title="${T("shareT")}">${svg("Share2",14)}</button>
       <button class="ghost" id="how">${T("how")}</button>
     </div>`;
   // карточки: у каждой остановки сверху — как до неё добраться
@@ -585,6 +587,17 @@ function render(r){
     run({parsed:r.parsed, exclude:[...(state.lastReq.exclude||[]), b.dataset.ex], keep:b.dataset.keep?b.dataset.keep.split("|"):[]}); });
   deck.querySelectorAll(".card").forEach(c => c.onclick = () => focusCard(c));
   $("#how").onclick = () => showHow(r);
+  $("#shareLink").onclick = () => {
+    // ссылка на тот же запрос: текст, время старта, погода; точная точка пользователя в ссылку не попадает
+    const u = new URL(location.origin + location.pathname);
+    u.searchParams.set("q", state.lastReq?.text || $("#q").value);
+    u.searchParams.set("t", state.nowOverride || r.now);
+    if(state.weather === "cold") u.searchParams.set("w", "cold");
+    const link = u.toString();
+    const native = mobile() && navigator.share;  // на телефоне — системное «Поделиться», на компьютере — в буфер
+    (native ? navigator.share({title:"Окно", text:r.headline, url:link}) : navigator.clipboard.writeText(link)).catch(()=>{});
+    if(!native) toast(T("shared"));
+  };
   drawRoute(r);
 }
 function focusCard(c){
