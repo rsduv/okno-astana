@@ -183,6 +183,12 @@ class Ctx:
         self.w = w
         self.cold = geo.cold_level(w)
         self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
+        # темп: коляска / трудно ходить — медленнее и короче отрезки; с ребёнком — тоже медленнее
+        self.pace = 1.0
+        if intent.get("mobility") == "limited":
+            self.pace, self.max_leg = 1.35, min(self.max_leg, 15)
+        elif intent.get("with_kids"):
+            self.pace = 1.15
         self.prefs = set(intent.get("prefs") or [])
         if intent.get("with_kids"):
             self.prefs.add("kids")
@@ -282,7 +288,7 @@ def stay_of(p: dict, ctx: "Ctx") -> int:
 
 
 def _leg(a, b, t: datetime, ctx: Ctx) -> dict:
-    walk = geo.walk_min_est(a, b)
+    walk = geo.walk_min_est(a, b) * ctx.pace
     if walk <= ctx.max_leg or ctx.walk_only:
         return {"mode": "walk", "min": walk, "outdoor": walk}
     car = geo.car_min_est(a, b, t) + geo.TAXI_WAIT_MIN
@@ -456,14 +462,16 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
         lg = _leg(pos, pt, t, ctx)
         if lg["mode"] == "walk":
             r = geo.route(pos, pt, "foot", fallback=True)
-            if r and r["min"] > ctx.max_leg and not ctx.walk_only and r["min"] > geo.walk_min_est(pos, pt) * 1.25:
+            if r:
+                r = {**r, "min": r["min"] * ctx.pace}
+            if r and r["min"] > ctx.max_leg and not ctx.walk_only and r["min"] > geo.walk_min_est(pos, pt) * ctx.pace * 1.25:
                 lg = {"mode": "taxi"}  # реальный путь оказался сильно длиннее (река, развязки) — подвезём
             elif r:
                 leg = {"type": "leg", "mode": "walk", "min": round(r["min"]), "km": round(r["km"], 2),
                        "coords": r["coords"], "estimated": False}
             else:
-                m = geo.walk_min_est(pos, pt)
-                leg = {"type": "leg", "mode": "walk", "min": round(m), "km": round(m / 60 * geo.WALK_KMH, 2),
+                m = geo.walk_min_est(pos, pt) * ctx.pace
+                leg = {"type": "leg", "mode": "walk", "min": round(m), "km": round(m / ctx.pace / 60 * geo.WALK_KMH, 2),
                        "coords": [[pos[1], pos[0]], [pt[1], pt[0]]], "estimated": True}
                 estimated = True
         if lg["mode"] == "taxi":
@@ -649,6 +657,10 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             notes.append(f"Пешком напрямую {dw} мин из {round(window)}: на остановки времени мало, часть пути — на такси.")
     if not best:
         return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes}
+    if ctx.pace > 1.2:
+        notes.append("Время пешком посчитано для спокойного темпа (≈3,3 км/ч) и коротких отрезков — с коляской или когда трудно ходить.")
+    elif ctx.pace > 1:
+        notes.append("С ребёнком шаг медленнее — время пешком посчитано с запасом (≈3,9 км/ч).")
     if (w.get("aqi") or 0) > 150:
         notes.append(f"Воздух сейчас плохой (индекс AQI {w['aqi']}, Open-Meteo): меньше улицы, больше крытых мест.")
     if ctx.cold != "ok" and ((w.get("apparent") or 0) <= -7 or (w.get("wind") or 0) >= 30 or (w.get("precip") or 0) > 0.5):
