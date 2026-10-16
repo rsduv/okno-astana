@@ -42,7 +42,7 @@ def explicit_cats(text: str) -> list[str]:
     return [c for rx, c in EXPLICIT if re.search(rx, t)]
 
 
-KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид")
+KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -132,26 +132,40 @@ def make_plan(req: PlanReq, request: Request):
             return {"error": llm.translate([f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе."], lang)[0],
                     "parsed": parsed}
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
+    if not parsed.get("deadline") and not parsed.get("duration_min") and \
+            set(explicit_cats(req.text)) & {"боулинг", "кино", "театр", "каток", "музей"}:
+        parsed = {**parsed, "duration_min": 150}  # долгое занятие без названного времени — окно шире, чем 90 мин
+        parsed["_default_window"] = True
     deadline, window_label = llm.resolve_times(parsed, now)
     travel_note = None
-    if dest and parsed.get("deadline"):
-        if "Аэропорт" in dest["label"]:
+    end = dest or origin  # «прилетел, рейс дальше в 14:00» — петля из аэропорта, но правило «за 1,5 часа» то же
+    if end and parsed.get("deadline"):
+        if "Аэропорт" in end["label"]:
             deadline -= timedelta(minutes=90)
             travel_note = f"Вылет в {parsed['deadline']}: в аэропорту нужно быть за 1,5 часа — к {deadline:%H:%M}."
-        elif "Вокзал" in dest["label"]:
+        elif "Вокзал" in end["label"]:
             deadline -= timedelta(minutes=20)
             travel_note = f"Поезд в {parsed['deadline']}: на вокзале лучше быть за 20 минут — к {deadline:%H:%M}."
         elif parsed.get("event") in EVENT_BUFFER:
             m, what, why = EVENT_BUFFER[parsed["event"]]
             deadline -= timedelta(minutes=m)
             travel_note = f"{what} в {parsed['deadline']}: лучше прийти за {m} минут ({why}) — к {deadline:%H:%M}."
-    if not parsed.get("deadline") and not parsed.get("duration_min"):
-        travel_note = (travel_note + " " if travel_note else "") + "Ты не назвал время — взял окно 90 минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
-    if parsed.get("deadline") and parsed.get("duration_min"):
+    if parsed.get("_default_window") or (not parsed.get("deadline") and not parsed.get("duration_min")):
+        mins = parsed.get("duration_min") or 90
+        travel_note = (travel_note + " " if travel_note else "") + \
+            f"Ты не назвал время — взял окно {mins} минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
+    if parsed.get("deadline") and parsed.get("duration_min") and not travel_note:
         deadline = min(deadline, now + timedelta(minutes=parsed["duration_min"]))
     timings["geocode"] = round((time.time() - t1) * 1000)
 
-    w = geo.weather({"apparent": -25, "wind": 30} if req.weather == "cold" else None)
+    said = parsed.get("temp_c")
+    if req.weather == "cold":
+        w = geo.weather({"apparent": -25, "wind": 30})
+    elif isinstance(said, (int, float)) and said <= -10:
+        w = geo.weather({"apparent": said, "wind": 20})  # человек сам написал, какой мороз
+        w["source"] = f"со слов пользователя: {said:+.0f}°"
+    else:
+        w = geo.weather()
     intent = {"origin": origin, "destination": destination, "deadline": deadline.isoformat(),
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),

@@ -169,6 +169,8 @@ PREF_CATS = {
     "romantic": {"смотровая", "ресторан", "фонтан", "парк", "театр", "кафе", "памятник"},
     "view": {"смотровая", "памятник", "достопримечательность"},
     "quiet": {"библиотека", "галерея", "музей", "сад", "парк", "кафе", "книжный"},
+    "indoor": {"торговый центр", "музей", "галерея", "кафе", "развлечения", "кино", "библиотека", "океанариум",
+               "батутный парк", "аквапарк", "каток", "боулинг", "книжный"},
 }
 UNMET = {"coffee": "Кафе", "food": "Места поесть", "work": "Места для работы", "culture": "Музея или галереи",
          "cinema": "Кино", "kids": "Детского места", "night": "Бара или ночного места"}
@@ -200,7 +202,9 @@ class Ctx:
         far = geo.haversine_km((intent["origin"]["lat"], intent["origin"]["lon"]),
                                (intent["destination"]["lat"], intent["destination"]["lon"])) > 3
         # «погулять» по пути в аэропорт не значит «идти до аэропорта пешком»
-        self.walk_only = intent.get("transport") == "walk" or ("walk" in self.prefs and not far)
+        at_hub = re.search(r"Аэропорт|Вокзал", (intent.get("origin") or {}).get("label", "")) is not None
+        # из аэропорта/вокзала в город пешком не гуляют — там нужно такси, даже если человек хочет «погулять»
+        self.walk_only = intent.get("transport") == "walk" or ("walk" in self.prefs and not far and not at_hub)
         self.work = "work" in self.prefs
         self.work_stay = 60
         self.real_now = datetime.now(timezone(timedelta(hours=5))).replace(tzinfo=None)
@@ -221,6 +225,8 @@ class Ctx:
         return t >= self.dark_from or t.hour < 7
 
 
+# короткий заход (10 мин) имеет смысл для парка или памятника, но не для боулинга или кино
+SHORT_OK = {"парк", "сад", "памятник", "достопримечательность", "смотровая", "мечеть", "собор", "галерея", "музей", "фонтан"}
 VIEW_POINTS = {"Байтерек"}  # смотровая площадка на высоте 97 м (Википедия); в OSM размечен как памятник
 GENERIC = {"сквер", "парк", "фонтан", "памятник", "скульптура", "монумент", "кафе", "столовая", "бар", "ресторан",
            "кофейня", "кафетерий", "буфет", "сад", "аллея"}
@@ -240,10 +246,14 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         s += 3.0  # человек прямо назвал тип места
     if "view" in ctx.prefs and p["name"] in VIEW_POINTS:
         s += 2.5  # смотровая площадка — именно «вид на город»
+    if "indoor" in ctx.prefs and cat in OUTDOOR:
+        return None  # просили под крышу
     if "quiet" in ctx.prefs and cat in ("торговый центр", "бар", "ночной клуб", "фастфуд"):
         return None  # просили тихо — не ведём в шумные места
     if "unusual" in ctx.prefs and cat in ("квест", "океанариум", "арт-центр", "развлечения"):
         s += 1.0
+    if "food" in ctx.prefs and cat == "ресторан" and ("romantic" in ctx.prefs or (arrive and arrive.hour >= 18)):
+        s += 1.2  # ужин — это ресторан, а не кофейня
     s += min(p.get("richness", 0), 10) * 0.08
     sightseeing = not ctx.prefs or bool(ctx.prefs & {"sights", "culture", "walk", "nature"})
     if "wikidata" in tags:
@@ -274,8 +284,8 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
             return None  # глубокая ночь: в сквер не зовём, фонтаны выключены
     if arrive is not None and outdoor and ctx.is_dark(arrive):
         if cat in ("детская площадка", "сад", "парк"):
-            if "kids" in ctx.prefs or cat == "детская площадка":
-                return None
+            if "kids" in ctx.prefs or cat == "детская площадка" or not p.get("wiki"):
+                return None  # в темноте — только известные центральные парки
             s -= 0.8
     if tags.get("brand"):
         s -= 0.15  # чуть выше местные места, чем сети
@@ -604,11 +614,32 @@ def _prefetch(results, A, B):
         list(ex.map(lambda j: geo.route(*j), jobs))
 
 
+def _nearest_explicit(A, start, ctx) -> str | None:
+    """«Хочу в боулинг», а не успеть: назвать ближайший и сколько до него ехать — это полезнее, чем «нет мест»."""
+    best = None
+    for p in POIS:
+        if p["category"] in ctx.explicit:
+            d = geo.haversine_km(A, (p["lat"], p["lon"]))
+            if best is None or d < best[0]:
+                best = (d, p)
+    if not best:
+        return None
+    d, p = best
+    taxi = round(geo.car_min_est(A, (p["lat"], p["lon"]), start) + geo.TAXI_WAIT_MIN)
+    need = 2 * taxi + STAY.get(p["category"], 30)
+    return (f"Ближайшее место «{p['category']}» — {p['name']}, {d:.1f} км, на такси ~{taxi} мин в одну сторону (оценка). "
+            f"Туда, {STAY.get(p['category'], 30)} мин там и обратно — около {need} мин: в это окно не помещается. "
+            f"Напиши, сколько у тебя времени, — например «есть 3 часа».").replace(".0 км", " км")
+
+
 def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
     """Честный и полезный отказ: почему не вышло и что делать вместо этого."""
     if geo.haversine_km(A, B) < 0.3:
         if window < 25:
             return f"Окно {round(window)} мин — на остановку с возвращением не хватает. Можно просто выйти подышать на 10 минут."
+        near = _nearest_explicit(A, start, ctx)
+        if near:
+            return near
         return ("Рядом нет подходящих мест, до которых можно дойти и вернуться за это время"
                 + (" с учётом твоих пожеланий" if ctx.prefs else "") + ". Попробуй убрать пожелания или увеличить окно.")
     walk = round(direct_walk["min"]) if direct_walk else round(geo.walk_min_est(A, B))
@@ -632,14 +663,15 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     direct_walk = geo.route(A, B, "foot") if geo.haversine_km(A, B) > 0.3 else None
     if window < 10:
         return {"error": "Окно слишком короткое: меньше 10 минут. Лучше просто идти к цели."}
-    if geo.haversine_km(A, B) < 0.3 and window < 120:
+    if geo.haversine_km(A, B) < 0.3 and window < 120 and not ctx.explicit and \
+            not (ctx.prefs & {"active", "cinema", "kids", "night", "culture", "food"}):
         ctx.walk_only = True  # прогулка по кругу — такси туда-обратно бессмысленно
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
     if ctx.work:
         max_stops = 1
         ctx.work_stay = int(max(30, min(150, window * 0.6)) // 10 * 10)
     results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
-    if ctx.explicit and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
+    if ctx.explicit & SHORT_OK and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
         ctx.short_explicit = True  # названное место не помещается — пробуем короткий заход (10 мин), а не подмену
         r2, n2 = search(A, B, start, deadline, ctx, exclude, required, max_stops)
         if any(any(p["category"] in ctx.explicit for p in r[1]) for r in r2[:5]):
@@ -689,7 +721,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         f, label = geo.traffic_factor(now)
         notes.append(f"Время на такси — оценка с поправкой на пробки ({label}, ×{f}) и подачу машины ~{geo.TAXI_WAIT_MIN} мин.")
     if ctx.is_dark(now + timedelta(minutes=window / 2)):
-        notes.append("Будет темно: парки и площадки не предлагаю, только освещённые и крытые места.")
+        notes.append("Будет темно: площадки и малоизвестные парки не предлагаю — только освещённые центральные и крытые места.")
     stops = [s for s in best["steps"] if s["type"] == "stop"]
     got = {s["category"] for s in stops}
     names = {s["name"] for s in stops}
@@ -701,7 +733,11 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
                         "предлагаю лучшее из того, что успеешь.")
     hit_any = any(got & PREF_CATS.get(pr, set()) for pr in ctx.prefs if pr in UNMET and pr not in ("view", "unusual"))
     for cat in ctx.explicit - got:
-        notes.insert(0, f"Просил «{cat}» — подходящего по времени и часам работы не нашёл, предлагаю ближайшее похожее.")
+        near = min((p for p in POIS if p["category"] == cat),
+                   key=lambda p: geo.haversine_km(A, (p["lat"], p["lon"])), default=None)
+        where = f" Ближайшее — {near['name']}, {geo.haversine_km(A, (near['lat'], near['lon'])):.1f} км: " \
+                "туда и обратно с остановкой в это окно не помещается." if near else ""
+        notes.insert(0, f"Просил «{cat}», но по времени не получается.{where} Предлагаю, что успеешь рядом.")
         hit_any = True
     for pref, word in UNMET.items():
         if pref in ctx.prefs and not (got & PREF_CATS[pref]) and not hit_any:

@@ -28,7 +28,7 @@ GEMINI_MAIN = os.getenv("GEMINI_MAIN", "gemini-3.5-flash")   # тексты «п
 EFFORT = {"gemini-3.5-flash-lite": "low", "gemini-3.1-flash-lite": "low"}  # ключ Google AI Studio: если есть — идём к Gemini напрямую, OpenRouter — запасной
 MODEL = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
 PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "night", "work", "active", "cinema", "walk",
-         "unusual", "romantic", "view", "quiet"]
+         "unusual", "romantic", "view", "quiet", "indoor"]
 
 
 FAST = "google/gemini-2.5-flash-lite"
@@ -105,12 +105,15 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
  "mobility": "limited" если коляска/трудно ходить/пожилой, иначе "normal",
  "transport": "walk" если человек явно хочет только пешком, иначе "any",
  "language": "ru" | "kk" | "en" — язык запроса,
- "event": "concert" | "match" | "theatre" | "cinema" | "meeting" | null — если человек идёт на событие (концерт, матч, спектакль, сеанс, встреча)}
+ "event": "concert" | "match" | "theatre" | "cinema" | "meeting" | null — если человек идёт на событие (концерт, матч, спектакль, сеанс, встреча),
+ "temp_c": число °C, если человек сам назвал погоду («сейчас −30», «мороз 25») — иначе null}
 Подсказки: «до вылета/рейса» = destination «аэропорт»; «до поезда» = destination «вокзал Нурлы Жол»;
 «кофе» -> coffee; «поесть» -> food; «погулять, прогуляться» -> walk; «посмотреть город, турист» -> sights;
 «посидеть, отдохнуть, передохнуть» -> coffee (а не walk); «ночью, тусоваться, бар» -> night; «поработать, розетка, ноутбук» -> work; «с ребёнком/детьми» -> kids.
 «необычное, удивить, что-то новое» -> unusual; «романтично, свидание, с девушкой/парнем» -> romantic;
 «вид, панорама, посмотреть на город сверху» -> view; «тихо, спокойно, без шума» -> quiet.
+«в помещение, внутри, под крышей, на улице холодно/дождь» -> indoor; «поужинать, ужин» -> food.
+«Прилетел, рейс дальше в 14:00, хочу в город» = origin «аэропорт», destination «аэропорт», deadline "14:00" (рейс), event null.
 «на час» = 60, «полтора часа» = 90. «Через 30 минут надо быть в X» = destination X и duration_min 30 (deadline null).
 «До 7 вечера» = deadline "19:00". «Концерт в Барыс Арене в 20:00» = destination «Барыс Арена», deadline "20:00", event "concert". Сейчас %s. Известные ориентиры: %s.
 %s
