@@ -121,6 +121,15 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
 
 
 def understand(text: str, now: datetime, has_point: bool = False, saved: list[str] | None = None) -> dict:
+    try:
+        return _understand(text, now, has_point, saved)
+    except Exception:
+        d = _rules(text)  # что бы ни вернула модель — запрос всё равно будет понят правилами
+        d["prefs"], d["llm"] = [p for p in d["prefs"] if p in PREFS], False
+        return d
+
+
+def _understand(text: str, now: datetime, has_point: bool = False, saved: list[str] | None = None) -> dict:
     names = ", ".join(lm["name"] for lm in geo.LANDMARKS)
     ctx = ("Где пользователь сейчас — уже известно по карте/геолокации: если в фразе названо одно место («в мну универ», "
            "«к тёте Гуле», «домой») — это destination, origin = null, return_to_origin = false." if has_point else "")
@@ -226,10 +235,14 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
                    "доп_факты": s["facts"]} for s in stops],
     }
     d = _chat(EXPLAIN % (lang, tr), json.dumps(facts, ensure_ascii=False), max_tokens=1200, temperature=0.4)
+    if isinstance(d, list):  # модель иногда отдаёт сразу список мест
+        d = {"stops": d}
+    if not isinstance(d, dict):
+        d = None
     if tr and isinstance((d or {}).get("notes"), list) and len(d["notes"]) == len(result.get("notes") or []):
         result["notes_original"] = result["notes"]
         result["notes"] = [str(x) for x in d["notes"]]
-    by_id = {x.get("id"): x for x in (d or {}).get("stops", [])}
+    by_id = {x.get("id"): x for x in ((d or {}).get("stops") or []) if isinstance(x, dict)}
     for s in stops:
         x = by_id.get(s["id"]) or {}
         s["why"] = x.get("why") or _why_fallback(s, intent.get("language"))

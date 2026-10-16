@@ -39,7 +39,10 @@ EXPLICIT = [(r"музе|museum|мұражай", "музей"), (r"театр|the
 
 def explicit_cats(text: str) -> list[str]:
     t = (text or "").lower()
-    return [c for rx, c in EXPLICIT if re.search(rx, t)]
+    out = [c for rx, c in EXPLICIT if re.search(rx, t)]
+    if "бар" in out and re.search(r"[әіңғүұқөһ]", t) and not re.search(r"\bbars?\b|паб|pub|\bбарға\b|\bбарына\b", t):
+        out.remove("бар")  # по-казахски «бар» = «есть» («бір сағат бар»), это не бар
+    return out
 
 
 KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил")
@@ -100,6 +103,15 @@ def _too_many(ip: str, limit=25, per=600) -> bool:
 
 @app.post("/api/plan")
 def make_plan(req: PlanReq, request: Request):
+    try:
+        return _make_plan(req, request)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return {"error": "Что-то пошло не так при расчёте. Попробуй ещё раз или переформулируй запрос — например «я у Байтерека, есть час»."}
+
+
+def _make_plan(req: PlanReq, request: Request):
     ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0]
     if ip not in ("127.0.0.1", "::1") and _too_many(ip):
         return {"error": "Слишком много запросов подряд — подожди пару минут. Это защита демо от перерасхода."}

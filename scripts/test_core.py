@@ -54,6 +54,7 @@ check("ориентир Барыс Арена", (geo.find_place("Барыс Ар
 check("явный тип: музей", explicit_cats("хочу в музей") == ["музей"])
 check("«Барыс» — не бар", explicit_cats("концерт в Барыс Арене") == [])
 check("«в баре» — бар", explicit_cats("посидеть в баре") == ["бар"])
+check("казахское «бар» = «есть», не бар", "бар" not in explicit_cats("бір сағат бар, кофе ішкім келеді"))
 check("парк", "парк" in explicit_cats("погулять в парке"))
 check("другой город", bool(OTHER_CITIES.match("Москве")) and not OTHER_CITIES.match("БЦ Москва"))
 check("«полтора часа» без ИИ", llm._rules("с ребёнком у Керуена, полтора часа")["duration_min"] == 90)
