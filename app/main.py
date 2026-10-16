@@ -30,6 +30,18 @@ class PlanReq(BaseModel):
     saved: dict = {}                 # свои места пользователя {"Дом": {"lat","lon"}} — живут только в его браузере
 
 
+# тип места, прямо названный в запросе, — главный приоритет («хочу в музей» → сначала музеи, а не просто известные места)
+EXPLICIT = [(r"музе|museum|мұражай", "музей"), (r"театр|theat|спектакл", "театр"), (r"кино|cinema|movie|фильм", "кино"),
+            (r"галере|gallery|выставк", "галерея"), (r"мечет|mosque|мешіт", "мечеть"), (r"собор|церк|church|cathedral", "собор"),
+            (r"библиотек|library", "библиотека"), (r"\bбар(?:а|е|ы|ов|ам)?\b|\bbars?\b|\bпаб|\bpub", "бар"), (r"боулинг|bowling", "боулинг"),
+            (r"каток|skating", "каток"), (r"коворкинг|coworking", "коворкинг"), (r"смотров|viewpoint|observation", "смотровая")]
+
+
+def explicit_cats(text: str) -> list[str]:
+    t = (text or "").lower()
+    return [c for rx, c in EXPLICIT if re.search(rx, t)]
+
+
 KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
@@ -131,7 +143,7 @@ def make_plan(req: PlanReq, request: Request):
     intent = {"origin": origin, "destination": destination, "deadline": deadline.isoformat(),
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
-              "language": parsed.get("language")}
+              "language": parsed.get("language"), "explicit": explicit_cats(req.text)}
     t2 = time.time()
     result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
     timings["plan"] = round((time.time() - t2) * 1000)

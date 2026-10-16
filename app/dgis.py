@@ -44,7 +44,7 @@ _stamps = {"route": [], "places": []}
 
 
 # Демо-ключ: Routing API — 50 запросов в СУТКИ (письмо 2GIS). Тесты не должны съедать демо: держим свой счётчик.
-PER_DAY = {"route": int(os.getenv("DGIS_ROUTE_PER_DAY", "40")), "places": int(os.getenv("DGIS_PLACES_PER_DAY", "400"))}
+PER_DAY = {"route": int(os.getenv("DGIS_ROUTE_PER_DAY", "40")), "places": int(os.getenv("DGIS_PLACES_PER_DAY", "60"))}
 
 
 def _day_ok(service: str) -> bool:
@@ -160,6 +160,11 @@ def _fetch(p: dict) -> dict | None:
     it = _pick(items, p)
     if not it:
         return {"match": False}
+    return parse(it)
+
+
+def parse(it: dict) -> dict:
+    """Ответ 2GIS -> наши поля: рейтинг, число оценок, часы в формате OSM, полезные отметки."""
     rv = it.get("reviews") or {}
     attrs = [a.get("name", "") for g in it.get("attribute_groups") or [] for a in g.get("attributes") or []]
     return {"match": True, "id": it.get("id"), "name": it.get("name"),

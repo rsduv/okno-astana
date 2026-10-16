@@ -15,7 +15,7 @@ for i, (text, now, w) in enumerate(PHRASES):
     if sel is not None and i != sel:
         continue
     t = time.time()
-    r = httpx.post("http://localhost:8000/api/plan", json={"text": text, "now": now, "weather": w}, timeout=120).json()
+    r = httpx.post("http://127.0.0.1:8000/api/plan", json={"text": text, "now": now, "weather": w}, timeout=120).json()
     print(f"\n### {text}  [{now}, {w}]  {time.time()-t:.1f}c  {r.get('timings')}")
     p = r.get("parsed", {})
     print("  понял:", {k: p.get(k) for k in ("origin", "destination", "deadline", "duration_min", "prefs", "language", "llm")})

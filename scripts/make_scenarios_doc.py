@@ -16,7 +16,7 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-API = "http://localhost:8000"
+API = "http://127.0.0.1:8000"
 OUTDOOR = {"парк", "сад", "памятник", "фонтан", "смотровая", "детская площадка", "достопримечательность"}
 KIDS = {"детская площадка", "парк развлечений", "развлечения", "батутный парк", "океанариум", "зоопарк", "каток",
         "аквапарк", "парк", "торговый центр"}
@@ -62,7 +62,7 @@ def chk_open(r):
 def chk_labels(r):
     st = stops(r)
     return ("У каждого места есть пометка надёжности часов и ссылка на OSM",
-            bool(st) and all(s["hours"]["confidence"] in ("verified", "estimate", "outdoor") and "openstreetmap.org" in s["source"] for s in st))
+            bool(st) and all(s["hours"]["confidence"] in ("verified", "estimate", "outdoor") and re.search(r"openstreetmap\.org|2gis\.kz", s["source"]) for s in st))
 
 
 def chk_why(r):

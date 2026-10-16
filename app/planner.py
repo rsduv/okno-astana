@@ -19,6 +19,90 @@ ROOT = Path(__file__).resolve().parent.parent
 POIS: list[dict] = json.loads((ROOT / "data" / "poi.json").read_text(encoding="utf-8"))
 
 
+def _merge_2gis() -> int:
+    """Популярные места из 2GIS (scripts/collect_2gis.py, локальный файл): если место уже есть в OSM — даём ему
+    рейтинг и свежие часы; если нет — добавляем как новое с источником 2GIS. Без файла система работает на одном OSM."""
+    f = ROOT / "data" / "dgis_pois.json"
+    if not f.exists():
+        return 0
+    grid: dict[tuple, list] = {}
+    for p in POIS:
+        grid.setdefault((round(p["lat"], 2), round(p["lon"], 2)), []).append(p)
+    added = 0
+    for it in json.loads(f.read_text(encoding="utf-8")).values():
+        d = dgis.parse(it)
+        name = it["name"].split(",")[0].strip()
+        if not name:
+            continue
+        n = dgis._norm(name)
+        best = None
+        for dy in (-0.01, 0, 0.01):
+            for dx in (-0.01, 0, 0.01):
+                for p in grid.get((round(it["lat"] + dy, 2), round(it["lon"] + dx, 2)), []):
+                    m = dgis._norm(p["name"])
+                    if geo.haversine_km((p["lat"], p["lon"]), (it["lat"], it["lon"])) <= 0.1 and n and m and (
+                            n in m or m in n or n[:5] == m[:5]):
+                        best = p
+        if best is None:
+            best = {"id": "2gis/" + it["id"].split("_")[0], "name": name, "name_en": None, "name_kk": None,
+                    "lat": it["lat"], "lon": it["lon"], "category": it["category"], "osm_tag": None, "tags": {},
+                    "richness": 3, "source": f"https://2gis.kz/astana/firm/{it['id'].split('_')[0]}"}
+            POIS.append(best)
+            added += 1
+        best["dgis"] = d
+        if d.get("hours"):
+            best.setdefault("osm_hours", best["tags"].get("opening_hours"))
+            best["tags"] = {**best["tags"], "opening_hours": d["hours"]}
+            best["hours_src"] = "2GIS"
+    return added
+
+
+DGIS_ADDED = _merge_2gis()
+
+
+def _grp(cat: str) -> str:
+    return {"памятник": "s", "достопримечательность": "s", "смотровая": "s", "мечеть": "w", "собор": "w",
+            "музей": "c", "театр": "c", "галерея": "c", "библиотека": "c", "кино": "c"}.get(cat, cat)
+
+
+def _merge_wiki() -> int:
+    """Известные места из Wikidata/Википедии (scripts/collect_wiki.py): сигнал известности (на скольких языках
+    есть статья) и короткое описание — факты для «почему». Нет места в OSM — добавляем с источником Википедия."""
+    f = ROOT / "data" / "wiki.json"
+    if not f.exists():
+        return 0
+    added = 0
+    for w in json.loads(f.read_text(encoding="utf-8")).values():
+        if w["name"].startswith("Q") or w["name"].lower().startswith("ограждение") or (w["sitelinks"] < 1 and not w.get("extract")):
+            continue
+        n = dgis._norm(w["name"])
+        best, bd = None, 9.0
+        for p in POIS:
+            d = geo.haversine_km((p["lat"], p["lon"]), (w["lat"], w["lon"]))
+            if d > 0.35:
+                continue
+            m = dgis._norm(p["name"])
+            same = (p["tags"].get("wikidata") == w["qid"]) or (
+                _grp(p["category"]) == _grp(w["category"]) and len(m) >= 5 and n and (n[:6] in m or m[:6] in n))
+            if same and d < bd:
+                best, bd = p, d
+        name = re.sub(r"\s*\([^)]*\)", "", w["name"]).strip()  # «Ак орда (резиденция)» → «Ак орда»
+        if best is None:
+            if w["sitelinks"] < 2 or any(q.get("id") == "wikidata/" + w["qid"] for q in POIS):
+                continue
+            best = {"id": "wikidata/" + w["qid"], "name": name, "name_en": None, "name_kk": None, "lat": w["lat"],
+                    "lon": w["lon"], "category": w["category"], "osm_tag": None, "tags": {"wikidata": w["qid"]},
+                    "richness": 4, "source": w.get("article") or f"https://www.wikidata.org/wiki/{w['qid']}"}
+            POIS.append(best)
+            added += 1
+        best["wiki"] = {"sitelinks": w["sitelinks"], "extract": w.get("extract"), "article": w.get("article")}
+        best["tags"].setdefault("wikidata", w["qid"])
+    return added
+
+
+WIKI_ADDED = _merge_wiki()
+
+
 def _inside_malls():
     """Аттракционы, отмеченные в OSM точками внутри ТРЦ (горки в Хан Шатыре и т.п.), — это не уличные
     достопримечательности: они работают по часам ТРЦ. Переносим часы ТРЦ и помечаем «внутри»."""
@@ -115,6 +199,8 @@ class Ctx:
             h, m = map(int, sunset.split(":"))
             self.dark_from = now.replace(hour=h, minute=m, second=0, microsecond=0)
         self.wanted = set().union(*(PREF_CATS[p] for p in self.prefs if p in PREF_CATS)) if self.prefs else set(DEFAULT_CATS)
+        self.explicit = set(intent.get("explicit") or [])
+        self.wanted |= self.explicit
         if self.prefs and not (self.prefs & {"kids", "night", "work", "cinema", "active"}):
             self.wanted |= {"кафе", "достопримечательность", "памятник"}  # всегда есть чем «добить» окно
 
@@ -124,17 +210,27 @@ class Ctx:
         return t >= self.dark_from or t.hour < 7
 
 
+GENERIC = {"сквер", "парк", "фонтан", "памятник", "скульптура", "монумент", "кафе", "столовая", "бар", "ресторан",
+           "кофейня", "кафетерий", "буфет", "сад", "аллея"}
+
+
 def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | None:
     cat = p["category"]
     tags = p.get("tags", {})
     if cat not in ctx.wanted:
         return None
+    if p["name"].strip().lower() in GENERIC:
+        return None  # «Сквер» без названия: человек не найдёт и не поймёт, куда идти
     s = 1.0
     if ctx.prefs and any(cat in PREF_CATS.get(pr, ()) for pr in ctx.prefs):
         s += 1.5
+    if cat in ctx.explicit:
+        s += 3.0  # человек прямо назвал тип места
     s += min(p.get("richness", 0), 10) * 0.08
     if "wikidata" in tags:
         s += 0.8
+    if p.get("wiki"):
+        s += min(p["wiki"]["sitelinks"], 30) * 0.03  # статьи на 30 языках — +0,9: символ города важнее безымянного сквера
     if "kids" in ctx.prefs and cat in ("детская площадка", "развлечения", "батутный парк", "океанариум", "зоопарк",
                                        "парк развлечений", "каток", "аквапарк"):
         s += 1.2  # именно детские места важнее «просто ТРЦ»
@@ -251,6 +347,8 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
         cold_mult = -0.04  # человек хочет именно пройтись — ходьба в плюс, а не в минус
     score -= outdoor * cold_mult + taxis * 0.9 + abs(used / window - 0.88) * 2.0
     score += 0.35 * len(seq)
+    if ctx.explicit and not any(p["category"] in ctx.explicit for p in seq):
+        score -= 5.0  # «хочу в музей» — план без музея только если музей никак не помещается
     return {"score": score, "finish": t, "legs": legs, "stops": stops, "slack": slack}
 
 
@@ -421,7 +519,13 @@ def _facts(p: dict) -> dict:
     out = {k: t[k] for k in keep if k in t}
     if p.get("inside"):
         out["внутри"] = f"внутри ТРЦ «{p['inside']}»" + (" (часы — по ТРЦ)" if p.get("hours_from_mall") else "")
-    if "wikidata" in t or "wikipedia" in t:
+    if p.get("wiki"):
+        w = p["wiki"]
+        if w["sitelinks"] >= 3:
+            out["известность"] = f"статьи о месте есть в Википедии на {w['sitelinks']} языках"
+        if w.get("extract"):
+            out["википедия"] = w["extract"]
+    elif "wikidata" in t or "wikipedia" in t:
         out["известность"] = "есть статья в Википедии — известное место города"
     d = p.get("dgis")
     if d:
@@ -551,6 +655,9 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     stops = [s for s in best["steps"] if s["type"] == "stop"]
     got = {s["category"] for s in stops}
     hit_any = any(got & PREF_CATS.get(pr, set()) for pr in ctx.prefs if pr in UNMET)
+    for cat in ctx.explicit - got:
+        notes.insert(0, f"Просил «{cat}» — подходящего по времени и часам работы не нашёл, предлагаю ближайшее похожее.")
+        hit_any = True
     for pref, word in UNMET.items():
         if pref in ctx.prefs and not (got & PREF_CATS[pref]) and not hit_any:
             notes.insert(0, f"{word} по пути, открытых к твоему приходу, не нашёл — предлагаю то, что работает. Это честно, а не сбой.")
