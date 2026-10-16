@@ -17,6 +17,28 @@ from .hours import OUTDOOR, interval_status
 ROOT = Path(__file__).resolve().parent.parent
 POIS: list[dict] = json.loads((ROOT / "data" / "poi.json").read_text(encoding="utf-8"))
 
+
+def _inside_malls():
+    """Аттракционы, отмеченные в OSM точками внутри ТРЦ (горки в Хан Шатыре и т.п.), — это не уличные
+    достопримечательности: они работают по часам ТРЦ. Переносим часы ТРЦ и помечаем «внутри»."""
+    malls = [p for p in POIS if p["category"] == "торговый центр"]
+    for p in POIS:
+        if p["category"] not in ("достопримечательность", "развлечения", "парк развлечений", "кафе", "ресторан",
+                                 "фастфуд", "кино"):
+            continue
+        for m in malls:
+            if geo.haversine_km((p["lat"], p["lon"]), (m["lat"], m["lon"])) < 0.15:
+                p["inside"] = m["name"]
+                if p["category"] == "достопримечательность":
+                    p["category"] = "развлечения"
+                if "opening_hours" not in p["tags"] and "opening_hours" in m["tags"]:
+                    p["tags"]["opening_hours"] = m["tags"]["opening_hours"]
+                    p["hours_from_mall"] = True
+                break
+
+
+_inside_malls()
+
 # Сколько обычно проводят времени в месте, минут
 STAY = {
     "кафе": 25, "ресторан": 50, "фастфуд": 20, "бар": 45, "ночной клуб": 90, "торговый центр": 30,
@@ -171,7 +193,7 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     legs.append(lg)
     t += timedelta(minutes=lg["min"])
     window = (deadline - start).total_seconds() / 60
-    buffer = max(5.0, window * 0.07)
+    buffer = max(7.0, window * 0.09)  # запас на то, что реальный путь по улицам длиннее оценки
     slack = (deadline - t).total_seconds() / 60
     if slack < buffer:
         return None
@@ -299,7 +321,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                           "hours": {"status": st, "confidence": conf, "text": text},
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
-                                                "внутри": p["category"] not in OUTDOOR},
+                                                "в_помещении": p["category"] not in OUTDOOR},
                           "source": p["source"]})
             t = leave
         pos = pt
@@ -323,6 +345,8 @@ def _facts(p: dict) -> dict:
     keep = ("cuisine", "outdoor_seating", "internet_access", "wheelchair", "description", "description:ru",
             "website", "contact:instagram", "fee", "brand")
     out = {k: t[k] for k in keep if k in t}
+    if p.get("inside"):
+        out["внутри"] = f"внутри ТРЦ «{p['inside']}»" + (" (часы — по ТРЦ)" if p.get("hours_from_mall") else "")
     if "wikidata" in t or "wikipedia" in t:
         out["известность"] = "есть статья в Википедии — известное место города"
     return out
@@ -375,9 +399,17 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         max_stops = 1
         ctx.work_stay = int(max(30, min(150, window * 0.6)))
     results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
-    _prefetch(results[:2], A, B)
+    distinct, seen = [], set()
+    for item in results:  # убираем дубли: тот же набор мест в другом порядке или одноимённые точки
+        key = frozenset((p["name"], round(p["lat"], 3)) for p in item[1])
+        if key not in seen:
+            seen.add(key)
+            distinct.append(item)
+        if len(distinct) >= 8:
+            break
+    _prefetch(distinct[:4], A, B)
     best = None
-    for score, seq, _ in results[:4]:
+    for score, seq, _ in distinct:
         best = refine(seq, A, B, start, deadline, ctx)
         if best:
             break

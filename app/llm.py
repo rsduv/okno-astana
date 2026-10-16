@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import httpx
@@ -26,11 +28,24 @@ PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "n
 FAST = "google/gemini-2.5-flash-lite"
 
 
-def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False) -> dict | None:
+_pool = ThreadPoolExecutor(max_workers=4)
+
+
+def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, budget=11.0) -> dict | None:
+    """Ответ ИИ с жёстким лимитом времени: если модель тормозит — пробуем вторую, потом шаблон.
+    На демо важнее ответить за секунды, чем дождаться идеального текста."""
     if not KEY:
         return None
-    for model in ((FAST, MODEL) if fast else (MODEL, FAST)):  # вторая попытка — более быстрая модель
-        d = _chat_once(model, system, user, max_tokens, temperature)
+    deadline = time.time() + budget
+    for model in ((FAST, MODEL) if fast else (MODEL, FAST)):
+        left = deadline - time.time()
+        if left < 1.5:
+            break
+        fut = _pool.submit(_chat_once, model, system, user, max_tokens, temperature)
+        try:
+            d = fut.result(timeout=left if model == FAST else min(left, budget * 0.6))
+        except Exception:
+            d = None
         if d is not None:
             return d
     return None
@@ -69,7 +84,7 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
 
 def understand(text: str, now: datetime) -> dict:
     names = ", ".join(lm["name"] for lm in geo.LANDMARKS)
-    d = _chat(UNDERSTAND % (PREFS, now.strftime("%H:%M"), names), text, max_tokens=300, fast=True) or _rules(text)
+    d = _chat(UNDERSTAND % (PREFS, now.strftime("%H:%M"), names), text, max_tokens=300, fast=True, budget=8) or _rules(text)
     d["prefs"] = [p for p in (d.get("prefs") or []) if p in PREFS]
     d["llm"] = "rules" not in d
     return d

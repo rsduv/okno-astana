@@ -19,7 +19,7 @@ import httpx
 ROOT = Path(__file__).resolve().parent.parent
 UA = {"User-Agent": "okno-astana-hackathon/0.1 (github.com/rsduv/okno-astana)"}
 WALK_KMH = 4.5
-DETOUR = 1.3          # улицы не идут по прямой: реальный путь ≈ прямая × 1.3 (замер в Астане: 1.07–1.35)
+DETOUR = 1.35         # улицы не идут по прямой: реальный путь ≈ прямая × 1.3 (замер в Астане: 1.07–1.35)
 TAXI_WAIT_MIN = 6     # подача такси — оценка
 _client = httpx.Client(timeout=12, headers=UA)
 _route_client = httpx.Client(timeout=5, headers=UA)

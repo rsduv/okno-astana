@@ -18,7 +18,7 @@ h = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
 (ROOT / "shots").mkdir(exist_ok=True)
 with sync_playwright() as p:
     b = p.chromium.launch(channel="chrome", headless=True,
-                          args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+                          args=[])
     pg = b.new_page(viewport={"width": 1536, "height": h})
     for name, (q, t, w) in SC.items():
         if flt not in name:
