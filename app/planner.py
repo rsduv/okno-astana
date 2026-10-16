@@ -8,6 +8,7 @@ from __future__ import annotations
 import itertools
 from concurrent.futures import ThreadPoolExecutor
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -171,7 +172,11 @@ def stay_of(p: dict, ctx: "Ctx") -> int:
         return ctx.work_stay
     if "walk" in ctx.prefs and p["category"] in ("парк", "сад", "фонтан", "памятник", "достопримечательность", "смотровая"):
         return 10  # прогулка: место — точка маршрута, а не цель
-    return STAY.get(p["category"], 20)
+    st = STAY.get(p["category"], 20)
+    w = getattr(ctx, "window", None)
+    if w and w <= 45 and p["category"] not in LONG_STAYS:
+        st = max(10, min(st, int(w * 0.5) // 5 * 5))  # короткое окно — короткая остановка, а не отказ
+    return st
 
 
 def _leg(a, b, t: datetime, ctx: Ctx) -> dict:
@@ -186,6 +191,10 @@ def _leg(a, b, t: datetime, ctx: Ctx) -> dict:
 
 def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ctx):
     """Быстрая оценка плана (без внешних запросов). None — если план не годится."""
+    malls = [p for p in seq if p["category"] == "торговый центр"]
+    if malls and any(q.get("inside") and geo.haversine_km((q["lat"], q["lon"]), (m["lat"], m["lon"])) < 0.25
+                     for q in seq for m in malls):
+        return None  # «ТРЦ» и «кафе внутри этого ТРЦ» — одна остановка, а не две
     t = start
     pos = A
     legs, stops = [], []
@@ -241,18 +250,38 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     return {"score": score, "finish": t, "legs": legs, "stops": stops, "slack": slack}
 
 
+def _nm(s: str) -> str:
+    return re.sub(r"[^a-zа-яёәіңғүұқөһ0-9]", "", (s or "").lower().split("(")[0])
+
+
+def _same_place(p: dict, label: str) -> bool:
+    """«Хан Шатыр» как остановка, когда человек и так в Хан Шатыре, — бессмысленно."""
+    a, b = _nm(p["name"]), _nm(label)
+    return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
+
+
 def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
     window = (deadline - start).total_seconds() / 60
+    loop = geo.haversine_km(A, B) < 0.3
+    o_label = (ctx.i.get("origin") or {}).get("label", "")
+    d_label = (ctx.i.get("destination") or {}).get("label", "")
     out = []
     for p in POIS:
         if p["id"] in exclude:
             continue
         pt0 = (p["lat"], p["lon"])
+        if p["id"] not in required and (_same_place(p, o_label) or (not loop and _same_place(p, d_label))):
+            continue
+        if loop and p["id"] not in required:
+            # прогулка «и обратно»: кафе внутри своего же ТРЦ — отличный вариант на короткое окно
+            if geo.haversine_km(pt0, A) < 0.06 and not p.get("inside"):
+                continue
+            if not (p.get("inside") and geo.haversine_km(pt0, A) < 0.3) and geo.haversine_km(pt0, B) < 0.2:
+                continue
         if p["id"] not in required and p.get("inside") and geo.haversine_km(A, B) >= 0.3 and geo.haversine_km(pt0, B) < 0.4:
             continue  # кафе внутри ТРЦ-финиша — это уже «на месте», а не остановка по пути
         # остановка «по пути» не может быть самим финишем или стартом
-        if p["id"] not in required and (geo.haversine_km(pt0, B) < (0.25 if geo.haversine_km(A, B) >= 0.3 else 0.2) or
-                                        (geo.haversine_km(A, B) >= 0.3 and geo.haversine_km(pt0, A) < 0.15)):
+        if not loop and p["id"] not in required and (geo.haversine_km(pt0, B) < 0.25 or geo.haversine_km(pt0, A) < 0.15):
             continue
         if p["category"] in LONG_STAYS and window < STAY[p["category"]] + 30 and p["id"] not in required:
             continue
@@ -458,6 +487,7 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
 
 def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     ctx = Ctx(intent, now, w)
+    ctx.window = (datetime.fromisoformat(intent["deadline"]) - now).total_seconds() / 60
     A = (intent["origin"]["lat"], intent["origin"]["lon"])
     B = (intent["destination"]["lat"], intent["destination"]["lon"])
     start = now
@@ -472,7 +502,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
     if ctx.work:
         max_stops = 1
-        ctx.work_stay = int(max(30, min(150, window * 0.6)))
+        ctx.work_stay = int(max(30, min(150, window * 0.6)) // 10 * 10)
     results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
     distinct, seen = [], set()
     for item in results:  # убираем дубли: тот же набор мест в другом порядке или одноимённые точки
@@ -516,8 +546,9 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         notes.append("Будет темно: парки и площадки не предлагаю, только освещённые и крытые места.")
     stops = [s for s in best["steps"] if s["type"] == "stop"]
     got = {s["category"] for s in stops}
+    hit_any = any(got & PREF_CATS.get(pr, set()) for pr in ctx.prefs if pr in UNMET)
     for pref, word in UNMET.items():
-        if pref in ctx.prefs and not (got & PREF_CATS[pref]):
+        if pref in ctx.prefs and not (got & PREF_CATS[pref]) and not hit_any:
             notes.insert(0, f"{word} по пути, открытых к твоему приходу, не нашёл — предлагаю то, что работает. Это честно, а не сбой.")
             break
     est = sum(1 for s in stops if s["hours"]["confidence"] == "estimate")

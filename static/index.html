@@ -428,7 +428,8 @@ function render(r){
     sum.innerHTML = `<div class="err">${esc(r.error)}${tips}</div>`;
     deck.innerHTML = ""; clearRoute(); return;
   }
-  const s = r.summary, notes = r.notes||[], key = notes.filter(x=>KEY.test(x));
+  const s = r.summary, notes = r.notes||[], isKey = (x,i) => r.notes_key ? r.notes_key[i] : KEY.test(x);
+  const key = notes.filter(isKey);
   const back = r.destination.label.startsWith("обратно");
   sum.innerHTML = `
     <div class="l1"><b>${s.arrive}</b><span>${back?"обратно":"на месте"}</span><span class="buf ${s.buffer_min<8?"warn":""}">запас ${s.buffer_min} мин</span></div>
@@ -493,7 +494,7 @@ function showHow(r){
     <div class="kv"><div><b>${s.outdoor_min} мин</b>на улице</div><div><b>${s.max_outdoor_leg} мин</b>макс. подряд</div><div><b>${String(s.walk_km).replace(".",",")} км</b>пешком</div></div>
     <div class="kv"><div><b>${c.candidates??"—"}</b>мест рассмотрено</div><div><b>${c.plans??"—"}</b>вариантов маршрута</div><div><b>${sec("understand")} / ${sec("plan")}</b>понял / посчитал</div></div>
     <h4>Данные и оговорки</h4>
-    <ul>${(r.notes||[]).filter(x=>!KEY.test(x)).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    <ul>${(r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x))).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     <div class="links"><button id="share">Скопировать план</button><button class="ghost" id="closeHow">Закрыть</button></div>`;
   $("#share").onclick = () => { navigator.clipboard?.writeText(planText(r)); $("#share").textContent = "Скопировано ✓"; };
   $("#closeHow").onclick = () => $("#sheet").classList.remove("show");

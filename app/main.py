@@ -1,6 +1,7 @@
 """Сервер «Окна». Запуск: python -m uvicorn app.main:app --port 8000  →  http://localhost:8000"""
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,6 +28,9 @@ class PlanReq(BaseModel):
     keep: list[str] = []             # оставить остальные остановки
     parsed: dict | None = None       # уже разобранный запрос (чтобы не звать ИИ повторно)
     saved: dict = {}                 # свои места пользователя {"Дом": {"lat","lon"}} — живут только в его браузере
+
+
+KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух")
 
 
 def _now(s: str | None) -> datetime:
@@ -116,7 +120,7 @@ def make_plan(req: PlanReq, request: Request):
     w = geo.weather({"apparent": -25, "wind": 30} if req.weather == "cold" else None)
     intent = {"origin": origin, "destination": destination, "deadline": deadline.isoformat(),
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
-              "mobility": parsed.get("mobility"), "transport": parsed.get("transport"),
+              "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
               "language": parsed.get("language")}
     t2 = time.time()
     result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
@@ -128,6 +132,8 @@ def make_plan(req: PlanReq, request: Request):
     if result.get("error"):
         return {**base, **result, "timings": timings}
     t3 = time.time()
+    # какие заметки важные (показываем сразу, остальные — в «как посчитано»); отмечаем до перевода на язык запроса
+    result["notes_key"] = [bool(KEY_NOTE.search(n)) for n in result.get("notes") or []]
     result = llm.explain(req.text, intent, result, w)
     timings["explain"] = round((time.time() - t3) * 1000)
     return {**base, **result, "timings": timings,

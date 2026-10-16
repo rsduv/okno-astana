@@ -25,7 +25,8 @@ BUDGET = int(os.getenv("DGIS_BUDGET", "800"))  # демо-ключ: ~1000 зап
 URL = "https://catalog.api.2gis.com/3.0/items"
 FIELDS = "items.point,items.schedule,items.reviews,items.attribute_groups"
 SKIP = {"парк", "сад", "памятник", "фонтан", "смотровая", "детская площадка", "достопримечательность"}
-USEFUL = re.compile(r"ноутбук|wi-?fi|розетк|детск|английск|чек|завтрак|круглосуточ|тихо|коворк|веган|халял", re.I)
+USEFUL = re.compile(r"ноутбук|wi-?fi|розетк|детск|английск|чек|завтрак|круглосуточ|тихо|коворк|веган|халял|"
+                    r"пандус|инвалид|колясоч|маломобильн|лифт|доступн", re.I)
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 OSM_DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 

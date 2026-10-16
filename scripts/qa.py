@@ -1,0 +1,53 @@
+"""Широкий прогон живых фраз через API: python scripts/qa.py [фильтр]. Печатает кратко, что ответила система."""
+import json, sys, time, httpx
+
+CASES = [
+    # (фраза, время, погода, точка)
+    ("Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "17:20", "now", None),
+    ("я у байтерека есть 40 минут хочу поесть", "13:00", "now", None),
+    ("Хан Шатырда тұрмын, бір сағат бар, кофе ішкім келеді", "16:00", "now", None),
+    ("I'm at Khan Shatyr with 2 kids, we have 1.5 hours", "11:00", "now", None),
+    ("я на коляске у Керуена, час свободен", "12:00", "now", None),
+    ("нас 5 человек, у Mega Silk Way, 2 часа до 21:00, хотим потусить", "19:00", "now", None),
+    ("Поезд в 20:10, я в Хан Шатыре, есть что посмотреть по пути?", "18:00", "now", None),
+    ("мне нужно в Назарбаев Университет к 9 утра, я у Байтерека", "07:30", "now", None),
+    ("есть пол часа у Абу Даби Плаза", "15:00", "now", None),
+    ("хочу в музей, я у Байтерека, 2 часа", "14:00", "now", None),
+    ("я у ЭКСПО хочу в кино вечером часа на 3", "18:30", "now", None),
+    ("ночью у байтерека, бар какой нибудь на час", "00:30", "now", None),
+    ("хочу погулять в парке час", "13:00", "now", {"lat": 51.128, "lon": 71.43}),
+    ("в мну универ к 10", "09:00", "now", {"lat": 51.128, "lon": 71.43}),
+    ("Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "17:20", "cold", None),
+    ("я у хан шатыра, вылет в 22:00", "18:00", "cold", None),
+    ("кафешка с вайфаем поработать до обеда, я у Керуена", "09:00", "now", None),
+    ("бабушка с палочкой, хотим тихо посидеть, у Байтерека, час", "15:00", "now", None),
+    ("jdjdjd", "15:00", "now", None),
+    ("я в Москве, есть час", "15:00", "now", None),
+]
+flt = sys.argv[1] if len(sys.argv) > 1 else ""
+c = httpx.Client(timeout=60)
+for q, t, w, pt in CASES:
+    if flt and flt not in q:
+        continue
+    t0 = time.time()
+    r = c.post("http://localhost:8000/api/plan", json={"text": q, "now": t, "weather": w, "point": pt}).json()
+    dt = time.time() - t0
+    p = r.get("parsed") or {}
+    print(f"\n### {q}  [{t}{', −25' if w == 'cold' else ''}]  {dt:.1f}s")
+    print(f"   понял: {p.get('origin')} → {p.get('destination')} | dl {p.get('deadline')} dur {p.get('duration_min')} | {p.get('prefs')} kids={p.get('with_kids')} mob={p.get('mobility')} grp={p.get('group_size')} lang={p.get('language')}")
+    if r.get("error"):
+        print("   ОТКАЗ:", r["error"])
+        for n in r.get("notes") or []:
+            print("     ·", n)
+        continue
+    s = r["summary"]
+    print(f"   {r['origin']['label']} → {r['destination']['label']} | {r['now']}–{r['deadline']} | прибытие {s['arrive']} запас {s['buffer_min']}")
+    print("   »", r.get("headline"))
+    for st in r["steps"]:
+        if st["type"] == "stop":
+            print(f"   * {st['arrive']} {st['name']} [{st['category']}] {st['stay']}м | {st['hours']['text']} | ★{st.get('rating')}")
+            print(f"       why: {st['why']}\n       todo: {st['todo']}")
+        if st["type"] == "leg" and st["mode"] == "taxi":
+            print(f"     🚕 {st['min']} мин ({st['traffic']})")
+    for n in r.get("notes") or []:
+        print("     ·", n)
