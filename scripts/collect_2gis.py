@@ -44,6 +44,8 @@ def main():
                 code = r.get("meta", {}).get("code")
                 if code != 200:
                     print("стоп:", code, r.get("meta", {}).get("error", {}).get("message"))
+                    if n == 1:
+                        sys.exit("первый запрос пустой — похоже, дневной лимит ещё не сбросился; ничего не тратим")
                     if code in (403, 429):
                         OUT.write_text(json.dumps(found, ensure_ascii=False), encoding="utf-8")
                         return
@@ -57,7 +59,7 @@ def main():
                                        "lon": pt["lon"], "address": it.get("address_name"), "reviews": it.get("reviews"),
                                        "schedule": it.get("schedule"), "attribute_groups": it.get("attribute_groups"),
                                        "rubrics": [x.get("name") for x in it.get("rubrics") or []]}
-                print(f"{q:30} {lat},{lon} p{page}: +{len(items)}  всего {len(found)}")
+                print(f"{q:30} {lat},{lon} p{page}: +{len(items)}  всего {len(found)}", flush=True)
                 if len(items) < 10:
                     break
                 time.sleep(3.2)  # демо-ключ: держим ~18 запросов в минуту
