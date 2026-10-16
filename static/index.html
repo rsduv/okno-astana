@@ -113,10 +113,12 @@ button{font:inherit;color:inherit}
 .ico i{position:absolute;right:-5px;bottom:-5px;width:19px;height:19px;border-radius:50%;background:var(--accent2);color:#fff;font-size:10.5px;font-style:normal;font-weight:800;display:grid;place-items:center;border:2px solid #141b24}
 .ch h3{margin:0;font-size:16px;font-weight:700;line-height:1.25}
 .ch .sub{font-size:12px;color:var(--muted);margin-top:2px}
-.open{font-size:12.5px;font-weight:700;margin-top:8px}
+.open{font-size:12px;font-weight:700;margin-top:7px}
 .open.ok{color:var(--ok)}.open.est{color:var(--warn)}.open.out{color:var(--cold)}
-.why{font-size:13.5px;line-height:1.45;margin-top:8px;color:#dfe5ec}
-.todo{font-size:13px;line-height:1.45;margin-top:6px;color:var(--muted)}
+.why{font-size:13.5px;line-height:1.45;margin-top:9px;color:#dfe5ec}
+.why .todo{color:var(--muted)}
+.src{font-size:11px;color:var(--dim);margin-top:7px}.src a{color:var(--dim)}.src a:hover{color:var(--text)}
+.ch .swap{margin-left:0;flex:none;width:32px;height:32px;padding:0;font-size:15px}
 .todo b{color:var(--text);font-weight:700}
 .cf{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
 .tag{font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.06);color:var(--dim);text-decoration:none}
@@ -130,6 +132,7 @@ a.tag:hover{color:var(--text)}
 .actions .wide{grid-column:1/-1}
 details.data{margin-top:12px;background:var(--card);border-radius:14px;padding:11px 13px;font-size:12.5px;line-height:1.5}
 details.data summary{cursor:pointer;font-weight:700}
+details.data .understood,details.data .stats{margin:10px 0 8px}
 details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
 .empty{color:var(--muted);font-size:13.5px;line-height:1.6;padding:4px 2px}
 .empty b{color:var(--text)}
@@ -157,7 +160,7 @@ details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
 </head>
 <body>
 <div id="map"></div>
-<div class="mlegend"><span><i style="background:var(--accent)"></i>пешком</span><span><i style="background:repeating-linear-gradient(90deg,var(--taxi) 0 3px,transparent 3px 7px)"></i>такси (оценка)</span><span><i style="height:6px;width:6px;border-radius:50%;background:#6b7a8e"></i>1289 мест из OSM</span></div>
+<div class="mlegend"><span><i style="background:var(--accent)"></i>пешком</span><span><i style="background:repeating-linear-gradient(90deg,var(--taxi) 0 3px,transparent 3px 7px)"></i>такси (оценка)</span></div>
 
 <aside class="panel">
   <div class="head">
@@ -177,13 +180,7 @@ details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
   <div class="scroll">
     <div class="pipe" id="pipe"></div>
     <div id="result">
-      <div class="empty">Напиши, <b>где ты</b>, <b>куда нужно</b> и <b>к скольки</b> — или «есть час, потом обратно». «Окно» подберёт 1–3 места по пути так, чтобы ты точно успел.</div>
-      <div class="feat">
-        <div><b>⏱ Успеешь точно</b>реальное время пешком по улицам и запас до срока</div>
-        <div><b>🕘 Открыто, когда дойдёшь</b>часы работы — на момент прихода, а не «сейчас»</div>
-        <div><b>❄ Знает мороз</b>в −25° маршрут идёт через тёплые места</div>
-        <div><b>✓ Не выдумывает</b>только реальные места; нет данных — так и пишем</div>
-      </div>
+      <div class="empty">Напиши, <b>где ты</b>, <b>куда нужно</b> и <b>к скольки</b>. «Окно» подберёт 1–3 места по пути, чтобы ты точно успел.</div>
     </div>
     <div class="foot">Данные: © участники OpenStreetMap (ODbL) · погода Open-Meteo · маршруты OSRM/FOSSGIS · тексты Gemini · карта OpenFreeMap. Твоя точка округляется до ~150 м и нигде не хранится.</div>
   </div>
@@ -283,10 +280,9 @@ function pipeStart(){
 const pl = (n, a, b, c) => n%10===1&&n%100!==11 ? a : (n%10>=2&&n%10<=4&&(n%100<10||n%100>=20) ? b : c);
 function pipeDone(tm, c){
   pipeTimers.forEach(clearTimeout);
-  const p = $("#pipe"); if(!tm){ p.className="pipe"; return; }
+  const p = $("#pipe"); p.className="pipe"; if(!tm) return "";
   const sec = k => tm[k]!=null ? (tm[k]/1000).toFixed(1)+" с" : "";
-  p.className = "pipe show mini";
-  p.innerHTML = `<span>✓ понял запрос <em>${sec("understand")}</em></span><span>✓ ${c?`${c.plans} ${pl(c.plans,"вариант","варианта","вариантов")} из ${c.candidates} ${pl(c.candidates,"места","мест","мест")}`:"маршрут"} <em>${sec("plan")}</em></span>${tm.explain!=null?`<span>✓ объяснения <em>${sec("explain")}</em></span>`:""}`;
+  return `<span>✓ понял запрос <em>${sec("understand")}</em></span><span>✓ ${c?`${c.plans} ${pl(c.plans,"вариант","варианта","вариантов")} из ${c.candidates} ${pl(c.candidates,"места","мест","мест")}`:"маршрут"} <em>${sec("plan")}</em></span>${tm.explain!=null?`<span>✓ объяснения <em>${sec("explain")}</em></span>`:""}`;
 }
 
 // ---------- запрос ----------
@@ -297,7 +293,7 @@ async function run(extra={}){
   $("#go").disabled = true; pipeStart(); $("#result").style.opacity = .4;
   try{
     const r = await (await fetch("/api/plan", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
-    pipeDone(r.timings, r.considered); state.last = r; render(r);
+    state.pipe = pipeDone(r.timings, r.considered); state.last = r; render(r);
   }catch(e){ pipeDone(null); $("#result").innerHTML = `<div class="err">Сервер не ответил. Проверь, что он запущен.</div>`; }
   $("#go").disabled = false; $("#result").style.opacity = 1;
 }
@@ -321,8 +317,7 @@ function windowBar(r){
   segs.push({k:"buffer", m: Math.max(0, s.buffer_min)});
   const sum = segs.reduce((a,b)=>a+b.m,0) || 1;
   return `<div class="win"><div class="track">${segs.map((g,i)=>`<div class="seg ${g.k} ${g.k==="walk"&&cold?"cold":""}" style="flex:${Math.max(g.m,1)};animation-delay:${i*70}ms" title="${{walk:"пешком",taxi:"такси",stop:"остановка",buffer:"запас"}[g.k]} · ${g.m} мин">${g.label && g.m/sum>.07 ? g.label : ""}</div>`).join("")}</div>
-    <div class="ticks"><span>${r.now}</span><span>${r.deadline}</span></div></div>
-    <div class="legend2"><span><i style="background:var(--accent)"></i>пешком</span><span><i style="background:#8f99a6"></i>такси</span><span><i style="background:var(--accent2)"></i>остановки</span><span><i style="background:rgba(61,220,151,.45)"></i>запас</span></div>`;
+    <div class="ticks"><span>${r.now}</span><span>${r.deadline}</span></div></div>`;
 }
 function render(r){
   const res = $("#result");
@@ -338,40 +333,44 @@ function render(r){
     if(st.type==="end") return `<div class="node end"><div class="dot">${r.destination.label.startsWith("обратно")?"↩":"Б"}</div>${esc(r.destination.label.replace("обратно: ",""))}<span class="tm">${st.time}</span></div>`;
     if(st.type==="leg"){
       if(st.mode==="walk") return `<div class="leg walk">🚶 ${st.min} мин · ${String(st.km).replace(".",",")} км${st.estimated?' <span class="est">по прямой, оценка</span>':""}</div>`;
-      return `<div class="leg">🚕 такси ~${st.drive_min} мин + подача ~${st.wait_min} <span class="est">${esc(st.traffic)} · оценка</span></div>`;
+      return `<div class="leg">🚕 такси ~${st.drive_min + st.wait_min} мин <span class="est" title="${esc(st.traffic)}; подача ~${st.wait_min} мин">оценка</span></div>`;
     }
     n++;
     const others = stops.filter(x=>x.id!==st.id).map(x=>x.id);
     const inside = st.facts && st.facts["внутри"] ? ` · ${esc(st.facts["внутри"])}` : "";
     return `<div class="card" data-lat="${st.lat}" data-lon="${st.lon}" style="animation-delay:${n*90}ms">
         <div class="ch"><div class="ico">${ic(st.category)}<i>${n}</i></div>
-          <div style="flex:1;min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${esc(st.category)} · ${st.arrive}–${st.leave}, ${st.stay} мин${inside}</div></div></div>
+          <div style="flex:1;min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} мин${inside}</div></div>
+          <button class="swap" title="заменить это место" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">↻</button></div>
+        <div class="why">${esc(st.why)} <span class="todo">${esc(st.todo)}</span></div>
         ${openLine(st.hours)}
-        <div class="why">${esc(st.why)}</div>
-        <div class="todo"><b>Что делать:</b> ${esc(st.todo)}</div>
-        <div class="cf"><a class="tag" href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OSM ↗</a>
-          <span class="tag ai" title="текст написал Gemini по фактам из базы">${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</span>
-          <button class="swap" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">↻ другое место</button></div>
+        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">место: OpenStreetMap</a> · ${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</div>
       </div>`;
   }).join("");
-  res.innerHTML = `${understood(r)}
+  const notes = r.notes||[], KEY = /Ощущается|Вылет|Поезд|не назвал|без такси/;
+  const key = notes.filter(x=>KEY.test(x));
+  res.innerHTML = `
     <div class="eta"><b>${s.arrive}</b><span>на месте</span><span class="buf ${s.buffer_min<8?"warn":""}">запас ${s.buffer_min} мин</span></div>
     <div class="headline">${esc(r.headline)}</div>
     ${windowBar(r)}
-    <div class="stats">
-      <div class="stat ${cold?"cold":""}"><b>${s.outdoor_min} мин</b><small>на улице</small></div>
-      <div class="stat ${cold?"cold":""}"><b>${s.max_outdoor_leg} мин</b><small>макс. подряд</small></div>
-      <div class="stat"><b>${String(s.walk_km).replace(".",",")} км</b><small>пешком</small></div>
-    </div>
-    ${(r.notes||[]).length?`<div class="notes">${r.notes.map(x=>`<div>${esc(x)}</div>`).join("")}</div>`:""}
+    ${key.length?`<div class="notes">${key.map(x=>`<div>${esc(x)}</div>`).join("")}</div>`:""}
     <div class="tl">${tl}</div>
     <div class="actions">
-      <a class="primary" href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps ↗</a>
-      <a href="${dgis(r)}" target="_blank" rel="noopener">2GIS ↗</a>
-      <button class="wide" id="share">Скопировать план</button>
+      <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">Открыть в 2GIS ↗</a>
+      <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps ↗</a>
     </div>
-    <details class="data"><summary>Почему именно это? Какие данные использованы</summary><ul>${(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></details>`;
-  res.querySelectorAll(".swap").forEach(b => b.onclick = e => { e.stopPropagation();
+    <details class="data"><summary>Как это посчитано</summary>
+      ${understood(r)}
+      <div class="stats">
+        <div class="stat ${cold?"cold":""}"><b>${s.outdoor_min} мин</b><small>на улице</small></div>
+        <div class="stat ${cold?"cold":""}"><b>${s.max_outdoor_leg} мин</b><small>макс. подряд</small></div>
+        <div class="stat"><b>${String(s.walk_km).replace(".",",")} км</b><small>пешком</small></div>
+      </div>
+      ${state.pipe?`<div class="pipe show mini">${state.pipe}</div>`:""}
+      <ul>${notes.filter(x=>!KEY.test(x)).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <button class="swap" id="share" style="margin:10px 0 0">Скопировать план</button>
+    </details>`;
+  res.querySelectorAll(".card .swap").forEach(b => b.onclick = e => { e.stopPropagation();
     run({parsed:r.parsed, exclude:[...(state.lastReq.exclude||[]), b.dataset.ex], keep:b.dataset.keep?b.dataset.keep.split("|"):[]}); });
   res.querySelectorAll(".card").forEach(c => c.onclick = () => map.flyTo({center:[+c.dataset.lon,+c.dataset.lat], zoom:15.8, speed:1.2, padding:PAD()}));
   $("#share").onclick = () => { navigator.clipboard?.writeText(planText(r)); $("#share").textContent = "Скопировано ✓"; };
