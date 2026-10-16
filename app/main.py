@@ -49,6 +49,10 @@ EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очере�
                 "cinema": (10, "Сеанс", "билеты и попкорн"), "meeting": (5, "Встреча", "небольшой запас")}
 
 
+# названия других городов: «я в Москве» — это не БЦ «Москва» в Астане, а другой город
+OTHER_CITIES = re.compile(r"^(в |in )?(москв\w*|moscow|алмат\w*|almaty|шымкент\w*|shymkent|караганд\w*|karaganda|"
+                          r"санкт-петербург\w*|питер\w*|ташкент\w*|tashkent|бишкек\w*|bishkek|дубай|dubai|стамбул\w*|istanbul|"
+                          r"лондон\w*|london|париж\w*|paris|нью-йорк\w*|new york)$", re.I)
 DATA_DATE = datetime.fromtimestamp((ROOT / "data" / "poi.json").stat().st_mtime).strftime("%d.%m.%Y")
 
 
@@ -110,6 +114,8 @@ def make_plan(req: PlanReq, request: Request):
     if req.point and req.point.get("lat") is not None:
         lat, lon = geo.round_point(req.point["lat"], req.point["lon"])
         origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
+    elif OTHER_CITIES.match((parsed.get("origin") or "").strip()):
+        origin = None
     else:
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
     lang = parsed.get("language")
@@ -120,7 +126,8 @@ def make_plan(req: PlanReq, request: Request):
         return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
     dest = None
     if parsed.get("destination") and not parsed.get("return_to_origin"):
-        dest = geo.find_place(parsed["destination"], planner.POIS, req.saved)
+        dest = None if OTHER_CITIES.match(parsed["destination"].strip()) else \
+            geo.find_place(parsed["destination"], planner.POIS, req.saved)
         if not dest:
             return {"error": llm.translate([f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе."], lang)[0],
                     "parsed": parsed}
