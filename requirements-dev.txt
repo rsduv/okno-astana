@@ -1,0 +1,4 @@
+-r requirements.txt
+# скриншоты сценариев и PDF документа
+playwright
+markdown

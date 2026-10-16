@@ -2,5 +2,3 @@ fastapi
 uvicorn
 httpx
 python-dotenv
-# для скриншотов сценариев (необязательно)
-playwright
