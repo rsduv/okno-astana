@@ -124,6 +124,12 @@ button{font:inherit;color:inherit}
 .sheet .kv{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 12px}
 .sheet .kv div{background:var(--card);border-radius:12px;padding:8px 10px;font-size:11px;color:var(--muted)}
 .sheet .kv b{display:block;color:var(--text);font-size:15px}
+.rag{display:flex;align-items:stretch;gap:4px;margin:0 0 16px}
+.rag .st{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.rag .st i{color:var(--accent);font-style:normal}
+.rag .st b{font-size:12.5px;line-height:1.25}
+.rag .st small{font-size:10.5px;color:var(--dim)}
+.rag .ar{align-self:center;color:var(--dim);font-size:12px}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
 .chips span{font-size:11.5px;padding:4px 8px;border-radius:8px;background:var(--card);color:var(--muted)}
 .chips b{color:var(--text)}
@@ -243,7 +249,7 @@ const I18N = {
   steps:["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"], down:"Сервер не ответил. Проверь, что он запущен.",
   howT:"Как «Окно» поняло запрос", from:"откуда", to:"куда", loop:"потом обратно", win:"окно", lang:"язык", out:"на улице", maxOut:"макс. подряд", km:"км", walkKm:"пешком",
   cands:"мест рассмотрено", plans:"вариантов маршрута", tUnd:"понял / посчитал", dataT:"Данные и оговорки", copy:"Скопировать план", copied:"Скопировано ✓", close:"Закрыть",
-  tryT:"Попробуй, например:", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
+  tryT:"Попробуй, например:", p1:"понял запрос", p3:"маршрутов", p3s:"время, часы, погода", p4:"текст по фактам", rules:"правила", tpl:"шаблон", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
   quick:[["ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа","Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре"],
    ["Турист, вылет в 18:30","посмотреть город до самолёта","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["Прогулка 45 минут","от Mega Silk Way и обратно","Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"],
@@ -260,7 +266,7 @@ const I18N = {
   steps:["Understanding your request","Finding places on the way","Checking time, opening hours, weather","Writing why it's worth it"], down:"The server didn't respond.",
   howT:"How Okno understood you", from:"from", to:"to", loop:"then back", win:"window", lang:"language", out:"outdoors", maxOut:"longest outdoor", km:"km", walkKm:"walking",
   cands:"places considered", plans:"route options", tUnd:"understood / planned", dataT:"Data and caveats", copy:"Copy plan", copied:"Copied ✓", close:"Close",
-  tryT:"Try, for example:", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
+  tryT:"Try, for example:", p1:"understood", p3:"routes", p3s:"time, hours, weather", p4:"text from facts", rules:"rules", tpl:"template", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
   quick:[["EXPO → Khan Shatyr by 7 pm","evening meeting, 1.5 h free","I'm at EXPO, need to be at Khan Shatyr by 19:00"],
    ["Tourist, flight at 6:30 pm","see the city before the flight","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45-minute walk","from Mega Silk Way and back","I'm at Mega Silk Way, want a 45 minute walk and come back"],
@@ -279,7 +285,7 @@ const I18N = {
   steps:["Сұрауды түсініп жатырмын","Жолдағы орындарды іздеп жатырмын","Уақыт, жұмыс кестесі, ауа райын тексеріп жатырмын","Неге баруға тұрарлық екенін жазып жатырмын"], down:"Сервер жауап бермеді.",
   howT:"«Окно» сұрауды қалай түсінді", from:"қайдан", to:"қайда", loop:"сосын кері", win:"терезе", lang:"тіл", out:"далада", maxOut:"ең ұзақ далада", km:"км", walkKm:"жаяу",
   cands:"орын қаралды", plans:"бағыт нұсқасы", tUnd:"түсінді / есептеді", dataT:"Деректер мен ескертулер", copy:"Жоспарды көшіру", copied:"Көшірілді ✓", close:"Жабу",
-  tryT:"Мысалы, былай жазып көр:", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
+  tryT:"Мысалы, былай жазып көр:", p1:"сұрауды түсінді", p3:"бағыт", p3s:"уақыт, кесте, ауа райы", p4:"деректер бойынша мәтін", rules:"ережелер", tpl:"үлгі", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
   quick:[["ЭКСПО → Хан Шатыр 19:00-ге","кешкі кездесу, 1,5 сағат бар","Мен ЭКСПО-дамын, 19:00-ге Хан Шатырда болуым керек"],
    ["Турист, ұшақ 18:30-да","ұшар алдында қаланы көру","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45 минут серуен","Mega Silk Way-ден және кері","Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"],
@@ -613,7 +619,13 @@ function showHow(r){
   (p.prefs||[]).forEach(x=>ch.push(PREF_RU[x]||x));
   if(p.language && p.language!=="ru") ch.push(`${T("lang")}: ${p.language.toUpperCase()}`);
   const c = r.considered||{}, tm = r.timings||{}, sec = k => tm[k] ? (tm[k]/1000).toFixed(1)+" с" : "—";
-  $("#sheetBox").innerHTML = `<h4>${T("howT")}</h4>
+  const llm = r.parsed?.llm !== false, ai = (r.steps||[]).some(x=>x.text_source==="ai");
+  const pipe = [[svg("MessageSquareText",16), T("p1"), llm ? "Gemini" : T("rules")],
+                [svg("Database",16), `${c.pois_total??"—"} → ${c.candidates??"—"}`, "OSM · 2GIS · Wikipedia"],
+                [svg("Route",16), `${c.plans??"—"} ${T("p3")}`, T("p3s")],
+                [svg("Sparkles",16), T("p4"), ai ? "Gemini" : T("tpl")]];
+  $("#sheetBox").innerHTML = `<div class="rag">${pipe.map((x,i)=>`<div class="st"><i>${x[0]}</i><b>${x[1]}</b><small>${x[2]}</small></div>${i<3?'<span class="ar">→</span>':""}`).join("")}</div>
+    <h4>${T("howT")}</h4>
     <div class="chips">${ch.map(x=>`<span>${x}</span>`).join("")}</div>
     <div class="kv"><div><b>${s.outdoor_min} ${T("min")}</b>${T("out")}</div><div><b>${s.max_outdoor_leg} ${T("min")}</b>${T("maxOut")}</div><div><b>${String(s.walk_km).replace(".",",")} ${T("km")}</b>${T("walkKm")}</div></div>
     <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${c.plans??"—"}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
