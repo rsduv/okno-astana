@@ -21,7 +21,11 @@ from . import geo
 
 load_dotenv()
 KEY = os.getenv("OPENROUTER_API_KEY", "")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")  # ключ Google AI Studio: если есть — идём к Gemini напрямую, OpenRouter — запасной
+GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_FAST = os.getenv("GEMINI_FAST", "gemini-3.5-flash")   # разбор запроса
+GEMINI_MAIN = os.getenv("GEMINI_MAIN", "gemini-3.5-flash")   # тексты «почему»
+# без «размышлений» модели отвечают в разы быстрее; не все модели принимают "none"
+EFFORT = {"gemini-3.5-flash-lite": "low", "gemini-3.1-flash-lite": "low"}  # ключ Google AI Studio: если есть — идём к Gemini напрямую, OpenRouter — запасной
 MODEL = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
 PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "night", "work", "active", "cinema", "walk"]
 
@@ -66,8 +70,9 @@ def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, b
 
 def _chat_once(model, system, user, max_tokens, temperature) -> dict | None:
     if GEMINI_KEY:  # напрямую в Google (OpenAI-совместимый адрес Gemini API)
+        gm = GEMINI_FAST if model == FAST else GEMINI_MAIN
         d = _post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", GEMINI_KEY,
-                  model.split("/")[-1], system, user, max_tokens, temperature)
+                  gm, system, user, max_tokens, temperature)
         if d is not None or not KEY:
             return d
     return _post("https://openrouter.ai/api/v1/chat/completions", KEY, model, system, user, max_tokens, temperature)
@@ -79,7 +84,7 @@ def _post(url, key, model, system, user, max_tokens, temperature) -> dict | None
                 "response_format": {"type": "json_object"},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         if "googleapis" in url:
-            body["reasoning_effort"] = "none"  # без «размышлений»: быстрее, и токены не уходят на них
+            body["reasoning_effort"] = EFFORT.get(model, "none")
         r = httpx.post(url, timeout=14, headers={"Authorization": f"Bearer {key}", "X-Title": "Okno Astana"}, json=body)
         txt = r.json()["choices"][0]["message"]["content"]
         txt = re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip()
