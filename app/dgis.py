@@ -121,7 +121,7 @@ def _to_osm(schedule: dict) -> str | None:
     parts = []
     for d, od in zip(DAYS, OSM_DAYS):
         hrs = (schedule.get(d) or {}).get("working_hours") or []
-        spans = ",".join(f"{h['from']}-{h['to']}" for h in hrs if h.get("from") and h.get("to"))
+        spans = ",".join(f"{h['from']}-{'24:00' if h['to'] == '23:59' else h['to']}" for h in hrs if h.get("from") and h.get("to"))
         parts.append(f"{od} {spans or 'off'}")
     return "; ".join(parts)
 

@@ -116,7 +116,7 @@ def _abs_intervals(week, day0: datetime):
     out.sort()
     merged = []
     for s, e in out:  # склеиваем «до 24:00» + «с 00:00»
-        if merged and s <= merged[-1][1]:
+        if merged and s <= merged[-1][1] + timedelta(minutes=1):  # «до 23:59» + «с 00:00» — без разрыва
             merged[-1] = (merged[-1][0], max(merged[-1][1], e))
         else:
             merged.append((s, e))
@@ -129,7 +129,7 @@ def _fmt(week, day: datetime) -> str:
         return ""
     if not spans:
         return "сегодня выходной"
-    if spans == [(0, 1440)]:
+    if len(spans) == 1 and spans[0][0] == 0 and spans[0][1] >= 1439:
         return "круглосуточно"
     return ", ".join(f"{s // 60 % 24:02d}:{s % 60:02d}–{e // 60 % 24:02d}:{e % 60:02d}" for s, e in spans)
 
