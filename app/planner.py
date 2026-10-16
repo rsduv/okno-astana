@@ -516,6 +516,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                                     "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},
                           "rating": (p.get("dgis") or {}).get("rating"), "reviews": (p.get("dgis") or {}).get("reviews"),
                           "dgis_id": (p.get("dgis") or {}).get("id"),
+                          "wiki_url": (p.get("wiki") or {}).get("article"),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
                                                 "в_помещении": p["category"] not in OUTDOOR},

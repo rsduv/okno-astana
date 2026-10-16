@@ -567,7 +567,7 @@ function render(r){
         <div class="why">${esc(st.why)}</div>
         <div class="todo">${esc(st.todo)}</div>
         ${openLine(st.hours)}
-        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${/2gis/.test(st.source)?"2GIS":/wiki/.test(st.source)?"Wikipedia":"OpenStreetMap"}</a>${st.dgis_id && !/2gis/.test(st.source)?` · <a href="https://2gis.kz/astana/firm/${esc(String(st.dgis_id).split("_")[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">2GIS</a>`:""} · ${st.text_source==="ai"?T("txtAi"):T("txtTpl")}</div>
+        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${/2gis/.test(st.source)?"2GIS":/wiki/.test(st.source)?"Wikipedia":"OpenStreetMap"}</a>${st.dgis_id && !/2gis/.test(st.source)?` · <a href="https://2gis.kz/astana/firm/${esc(String(st.dgis_id).split("_")[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">2GIS</a>`:""}${st.wiki_url && !/wiki/.test(st.source)?` · <a href="${esc(st.wiki_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>`:""} · ${st.text_source==="ai"?T("txtAi"):T("txtTpl")}</div>
       </div>`;
     }
     if(st.type==="end"){

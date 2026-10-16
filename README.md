@@ -38,4 +38,4 @@ python -m uvicorn app.main:app --port 8000
 - Чего мы не знаем: рейтинги, очереди, временные закрытия, живые пробки, розетки — и так и говорим.
 
 ## Данные
-© участники OpenStreetMap (ODbL) · уточнение часов/рейтинга 2GIS Places API (по ключу `DGIS_KEY`, необязательно) · погода Open-Meteo · маршруты OSRM (FOSSGIS) · карта OpenFreeMap · тексты Gemini (через OpenRouter).
+© участники OpenStreetMap (ODbL) · Wikidata (CC0) и Википедия (CC BY-SA) · уточнение часов/рейтинга 2GIS Places API (по ключу `DGIS_KEY`, необязательно) · погода Open-Meteo · маршруты OSRM (FOSSGIS) · карта OpenFreeMap · тексты Gemini (через OpenRouter).
