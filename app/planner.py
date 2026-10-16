@@ -227,9 +227,10 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
     if cat in ctx.explicit:
         s += 3.0  # человек прямо назвал тип места
     s += min(p.get("richness", 0), 10) * 0.08
+    sightseeing = not ctx.prefs or bool(ctx.prefs & {"sights", "culture", "walk", "nature"})
     if "wikidata" in tags:
-        s += 0.8
-    if p.get("wiki"):
+        s += 0.8 if sightseeing else 0.2
+    if p.get("wiki") and sightseeing:
         s += min(p["wiki"]["sitelinks"], 30) * 0.03  # статьи на 30 языках — +0,9: символ города важнее безымянного сквера
     if "kids" in ctx.prefs and cat in ("детская площадка", "развлечения", "батутный парк", "океанариум", "зоопарк",
                                        "парк развлечений", "каток", "аквапарк"):
@@ -266,6 +267,11 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
 def stay_of(p: dict, ctx: "Ctx") -> int:
     if ctx.work and p["category"] in ("кафе", "коворкинг", "библиотека"):
         return ctx.work_stay
+    if getattr(ctx, "short_explicit", False) and p["category"] in ctx.explicit:
+        return 10
+    if p["category"] in ("парк", "сад") and p["category"] in getattr(ctx, "explicit", ()):
+        w = getattr(ctx, "window", 60) or 60
+        return max(15, min(45, int(w * 0.3) // 5 * 5))  # «погулять в парке» — парк и есть цель прогулки
     if "walk" in ctx.prefs and p["category"] in ("парк", "сад", "фонтан", "памятник", "достопримечательность", "смотровая"):
         return 10  # прогулка: место — точка маршрута, а не цель
     st = STAY.get(p["category"], 20)
@@ -491,7 +497,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                                     "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},
                           "rating": (p.get("dgis") or {}).get("rating"), "reviews": (p.get("dgis") or {}).get("reviews"),
                           "dgis_id": (p.get("dgis") or {}).get("id"),
-                          "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин"} if (d := _detour_min(A, B, p)) <= 8
+                          "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
                                                 "в_помещении": p["category"] not in OUTDOOR},
                           "source": p["source"]})
@@ -612,6 +618,13 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         max_stops = 1
         ctx.work_stay = int(max(30, min(150, window * 0.6)) // 10 * 10)
     results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+    if ctx.explicit and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
+        ctx.short_explicit = True  # названное место не помещается — пробуем короткий заход (10 мин), а не подмену
+        r2, n2 = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+        if any(any(p["category"] in ctx.explicit for p in r[1]) for r in r2[:5]):
+            results, n_cands = r2, n2
+        else:
+            ctx.short_explicit = False
     distinct, seen = [], set()
     for item in results:  # убираем дубли: тот же набор мест в другом порядке или одноимённые точки
         key = frozenset((p["name"], round(p["lat"], 3)) for p in item[1])

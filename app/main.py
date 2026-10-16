@@ -34,7 +34,7 @@ class PlanReq(BaseModel):
 EXPLICIT = [(r"музе|museum|мұражай", "музей"), (r"театр|theat|спектакл", "театр"), (r"кино|cinema|movie|фильм", "кино"),
             (r"галере|gallery|выставк", "галерея"), (r"мечет|mosque|мешіт", "мечеть"), (r"собор|церк|church|cathedral", "собор"),
             (r"библиотек|library", "библиотека"), (r"\bбар(?:а|е|ы|ов|ам)?\b|\bbars?\b|\bпаб|\bpub", "бар"), (r"боулинг|bowling", "боулинг"),
-            (r"каток|skating", "каток"), (r"коворкинг|coworking", "коворкинг"), (r"смотров|viewpoint|observation", "смотровая")]
+            (r"каток|skating", "каток"), (r"коворкинг|coworking", "коворкинг"), (r"смотров|viewpoint|observation", "смотровая"), (r"\bпарк|\bpark\b|сквер|саябақ", "парк")]
 
 
 def explicit_cats(text: str) -> list[str]:
