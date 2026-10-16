@@ -1,0 +1,16 @@
+# Деплой на Render (бесплатный план): New → Blueprint → этот репозиторий. Ключи вводятся в панели Render, не в git.
+services:
+  - type: web
+    name: okno-astana
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/meta
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DGIS_KEY
+        sync: false
