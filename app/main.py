@@ -49,6 +49,9 @@ EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очере�
                 "cinema": (10, "Сеанс", "билеты и попкорн"), "meeting": (5, "Встреча", "небольшой запас")}
 
 
+DATA_DATE = datetime.fromtimestamp((ROOT / "data" / "poi.json").stat().st_mtime).strftime("%d.%m.%Y")
+
+
 def _now(s: str | None) -> datetime:
     now = datetime.now(KZ).replace(tzinfo=None, second=0, microsecond=0)
     if s:
@@ -111,8 +114,10 @@ def make_plan(req: PlanReq, request: Request):
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
     lang = parsed.get("language")
     if not origin:
-        return {"error": llm.translate(["Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту."], lang)[0],
-                "parsed": parsed}
+        msg = (f"Не нашёл «{parsed['origin']}» в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
+               "(«я у Байтерека») или ткни в карту." if parsed.get("origin") else
+               "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.")
+        return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
     dest = None
     if parsed.get("destination") and not parsed.get("return_to_origin"):
         dest = geo.find_place(parsed["destination"], planner.POIS, req.saved)
@@ -163,7 +168,7 @@ def make_plan(req: PlanReq, request: Request):
     return {**base, **result, "timings": timings,
             "data_used": [
                 f"Твоя точка: {origin['label']} — {origin['source']}; координаты не сохраняются.",
-                f"Места: база OpenStreetMap, {len(planner.POIS)} мест Астаны; рассмотрено {result['considered']['candidates']} кандидатов, "
+                f"Места: база OpenStreetMap (обновлена {DATA_DATE}) + Википедия + 2GIS, {len(planner.POIS)} мест Астаны; рассмотрено {result['considered']['candidates']} кандидатов, "
                 f"{result['considered']['plans']} вариантов маршрута.",
                 "Время пешком: реальный маршрут по улицам (OSRM/FOSSGIS), шаг 4,5 км/ч.",
                 "Часы работы: проверены на момент твоего прихода и ухода; нет в данных — «оценка».",
