@@ -222,7 +222,7 @@ $("#sheet").onclick = e => { if(e.target.id==="sheet") $("#sheet").classList.rem
 // ---------- карта ----------
 const map = new maplibregl.Map({container:"map", style:"https://tiles.openfreemap.org/styles/dark",
   center:[71.43,51.13], zoom:12, attributionControl:{compact:true}});
-map.addControl(new maplibregl.NavigationControl({showCompass:false}), "top-right");
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}), "top-right");
 const mobile = () => innerWidth <= 640;
 const PAD = () => {
   const top = ($(".top").getBoundingClientRect().bottom || 120) + 24;
@@ -233,6 +233,11 @@ let markers = [], meMarker = null;
 const mapReady = new Promise(r => map.on("load", r));
 mapReady.then(async () => {
   const empty = {type:"FeatureCollection", features:[]};
+  // объёмные дома (3D) — как в 2GIS/Apple Maps; высоты из OpenStreetMap
+  map.addLayer({id:"b3d", type:"fill-extrusion", source:"openmaptiles", "source-layer":"building", minzoom:13.5,
+    paint:{"fill-extrusion-color":["interpolate",["linear"],["coalesce",["get","render_height"],8],0,"#1a222d",60,"#24303f",200,"#2e3d51"],
+      "fill-extrusion-height":["interpolate",["linear"],["zoom"],13.5,0,14.5,["coalesce",["get","render_height"],8]],
+      "fill-extrusion-base":["coalesce",["get","render_min_height"],0], "fill-extrusion-opacity":.85}});
   map.addSource("route-walk", {type:"geojson", data:empty});
   map.addSource("route-taxi", {type:"geojson", data:empty});
   try {
@@ -399,7 +404,7 @@ function render(r){
 function focusCard(c){
   $("#deck").querySelectorAll(".card").forEach(x=>x.classList.toggle("sel", x===c));
   markers.forEach(m=>m.getElement().firstElementChild?.classList.toggle("sel", !!m._i && m._i==c.dataset.i));
-  map.flyTo({center:[+c.dataset.lon,+c.dataset.lat], zoom:15.5, speed:1.2, padding:PAD()});
+  map.flyTo({center:[+c.dataset.lon,+c.dataset.lat], zoom:16.3, pitch:58, bearing:-20, speed:1.2, padding:PAD()});
 }
 function showHow(r){
   const p = r.parsed||{}, s = r.summary, ch = [];
@@ -451,7 +456,7 @@ async function drawRoute(r){
   mk("А","a",[r.origin.lon,r.origin.lat]);
   if(!r.destination.label.startsWith("обратно")) mk("Б","b",[r.destination.lon,r.destination.lat]);
   r.steps.filter(x=>x.type==="stop").forEach((s,i)=>mk(`${ic(s.category,16)}<i>${i+1}</i>`,"",[s.lon,s.lat],i+1));
-  map.fitBounds(bounds,{padding:PAD(), duration:900, maxZoom:15.5});
+  map.fitBounds(bounds,{padding:PAD(), duration:900, maxZoom:15.5, pitch:45});
   const id = ++animId, walk = [], taxi = [];
   for(const l of legs){
     const target = l.mode==="walk" ? walk : taxi;
