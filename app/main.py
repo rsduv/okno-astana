@@ -90,6 +90,8 @@ def make_plan(req: PlanReq):
         elif "Вокзал" in dest["label"]:
             deadline -= timedelta(minutes=20)
             travel_note = f"Поезд в {parsed['deadline']}: на вокзале лучше быть за 20 минут — к {deadline:%H:%M}."
+    if not parsed.get("deadline") and not parsed.get("duration_min"):
+        travel_note = (travel_note + " " if travel_note else "") + "Ты не назвал время — взял окно 90 минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
     if parsed.get("deadline") and parsed.get("duration_min"):
         deadline = min(deadline, now + timedelta(minutes=parsed["duration_min"]))
     timings["geocode"] = round((time.time() - t1) * 1000)

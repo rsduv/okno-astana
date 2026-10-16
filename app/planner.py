@@ -39,12 +39,29 @@ def _inside_malls():
 
 _inside_malls()
 
+
+def _name_playgrounds():
+    """Безымянные площадки называем по ближайшему известному месту — «Детская площадка у Керуена»,
+    чтобы человек понимал, куда идти, а две площадки в маршруте не выглядели одинаково."""
+    named = [p for p in POIS if p["category"] != "детская площадка" and len(p["name"]) <= 24]
+    for p in POIS:
+        if p["name"] != "Детская площадка":
+            continue
+        pt = (p["lat"], p["lon"])
+        best = min(named, key=lambda q: geo.haversine_km(pt, (q["lat"], q["lon"])))
+        p["unnamed"] = True
+        if geo.haversine_km(pt, (best["lat"], best["lon"])) < 0.35:
+            p["name"] = f"Детская площадка у «{best['name']}»"
+
+
+_name_playgrounds()
+
 # Сколько обычно проводят времени в месте, минут
 STAY = {
-    "кафе": 25, "ресторан": 50, "фастфуд": 20, "бар": 45, "ночной клуб": 90, "торговый центр": 30,
+    "кафе": 25, "ресторан": 50, "фастфуд": 20, "бар": 45, "ночной клуб": 90, "торговый центр": 25,
     "музей": 45, "галерея": 30, "арт-центр": 30, "театр": 120, "кино": 120, "библиотека": 30,
     "книжный": 20, "коворкинг": 60, "памятник": 10, "достопримечательность": 15, "фонтан": 10,
-    "смотровая": 15, "парк": 25, "сад": 20, "детская площадка": 30, "мечеть": 20, "собор": 20,
+    "смотровая": 15, "парк": 25, "сад": 20, "детская площадка": 20, "мечеть": 20, "собор": 20,
     "каток": 45, "боулинг": 60, "квест": 60, "развлечения": 40, "океанариум": 60, "зоопарк": 60,
     "парк развлечений": 45, "батутный парк": 45, "аквапарк": 90,
 }
@@ -111,7 +128,10 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
     s += min(p.get("richness", 0), 10) * 0.08
     if "wikidata" in tags:
         s += 0.8
-    if p["name"] == "Детская площадка":
+    if "kids" in ctx.prefs and cat in ("детская площадка", "развлечения", "батутный парк", "океанариум", "зоопарк",
+                                       "парк развлечений", "каток", "аквапарк"):
+        s += 1.2  # именно детские места важнее «просто ТРЦ»
+    if p.get("unnamed"):
         s -= 0.6  # безымянная — честно, но менее интересна
     if "work" in ctx.prefs and tags.get("internet_access") in ("wlan", "yes", "wifi"):
         s += 1.0
@@ -164,6 +184,10 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     cats = set()
     for p in seq:
         pt = (p["lat"], p["lon"])
+        if stops and geo.haversine_km(pos, pt) < 0.08:
+            return None  # две остановки в одной точке — это одно место, а не маршрут
+        if p.get("unnamed") and any(q.get("unnamed") for q, *_ in stops):
+            return None  # две безымянные площадки подряд — скучно и непонятно
         lg = _leg(pos, pt, t, ctx)
         t += timedelta(minutes=lg["min"])
         stay = stay_of(p, ctx)
@@ -179,7 +203,7 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
         elif conf == "verified":
             sc += 0.5
         if p["category"] in cats:
-            sc -= 1.0
+            sc -= 1.6  # разнообразие: две площадки или два бара подряд скучнее, чем разные места
         cats.add(p["category"])
         for ref in (A, B):  # остановка прямо у старта/финиша — мало пользы
             if geo.haversine_km(pt, ref) < 0.2:
