@@ -21,6 +21,7 @@ from . import geo
 
 load_dotenv()
 KEY = os.getenv("OPENROUTER_API_KEY", "")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")  # ключ Google AI Studio: если есть — идём к Gemini напрямую, OpenRouter — запасной
 MODEL = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
 PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "night", "work", "active", "cinema", "walk"]
 
@@ -46,7 +47,7 @@ def _allow() -> bool:
 def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, budget=11.0) -> dict | None:
     """Ответ ИИ с жёстким лимитом времени: если модель тормозит — пробуем вторую, потом шаблон.
     На демо важнее ответить за секунды, чем дождаться идеального текста."""
-    if not KEY or not _allow():
+    if not (KEY or GEMINI_KEY) or not _allow():
         return None
     deadline = time.time() + budget
     for model in ((FAST, MODEL) if fast else (MODEL, FAST)):
@@ -64,12 +65,22 @@ def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, b
 
 
 def _chat_once(model, system, user, max_tokens, temperature) -> dict | None:
+    if GEMINI_KEY:  # напрямую в Google (OpenAI-совместимый адрес Gemini API)
+        d = _post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", GEMINI_KEY,
+                  model.split("/")[-1], system, user, max_tokens, temperature)
+        if d is not None or not KEY:
+            return d
+    return _post("https://openrouter.ai/api/v1/chat/completions", KEY, model, system, user, max_tokens, temperature)
+
+
+def _post(url, key, model, system, user, max_tokens, temperature) -> dict | None:
     try:
-        r = httpx.post("https://openrouter.ai/api/v1/chat/completions", timeout=14, headers={
-            "Authorization": f"Bearer {KEY}", "X-Title": "Okno Astana"}, json={
-            "model": model, "temperature": temperature, "max_tokens": max_tokens,
-            "response_format": {"type": "json_object"},
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
+        body = {"model": model, "temperature": temperature, "max_tokens": max_tokens,
+                "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        if "googleapis" in url:
+            body["reasoning_effort"] = "none"  # без «размышлений»: быстрее, и токены не уходят на них
+        r = httpx.post(url, timeout=14, headers={"Authorization": f"Bearer {key}", "X-Title": "Okno Astana"}, json=body)
         txt = r.json()["choices"][0]["message"]["content"]
         txt = re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip()
         return json.loads(txt)

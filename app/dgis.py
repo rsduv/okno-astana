@@ -36,7 +36,23 @@ except Exception:
     _cache = {"_count": 0}
 
 
-_dead = {"until": 0.0}  # 2GIS ответил «лимит/ключ не работает» — час не трогаем, живём на OSM
+_dead = {"until": 0.0}  # 2GIS ответил «лимит/ключ не работает» — пауза, живём на OSM
+# Демо-ключ: Routing API — не больше 5 запросов в минуту (письмо 2GIS от 16.10). Держим запас.
+PER_MIN = {"route": int(os.getenv("DGIS_ROUTE_PER_MIN", "4")), "places": int(os.getenv("DGIS_PLACES_PER_MIN", "20"))}
+_stamps = {"route": [], "places": []}
+
+
+def _slot(service: str) -> bool:
+    """Есть ли свободный запрос в этой минуте. Нет — не ждём, а обходимся своей оценкой (ответ остаётся быстрым)."""
+    with _lock:
+        now = time.time()
+        st = [t for t in _stamps[service] if now - t < 60]
+        if len(st) >= PER_MIN[service]:
+            _stamps[service] = st
+            return False
+        st.append(now)
+        _stamps[service] = st
+        return True
 
 
 def _alive() -> bool:
@@ -50,7 +66,10 @@ def _check(resp) -> dict | None:
     except Exception:
         d = {}
     code = (d.get("meta") or {}).get("code", resp.status_code)
-    if resp.status_code in (401, 402, 403, 429) or code in (401, 402, 403, 429):
+    if resp.status_code == 429 or code == 429:
+        _dead["until"] = time.time() + 65  # поминутный лимит — через минуту снова можно
+        return None
+    if resp.status_code in (401, 402, 403) or code in (401, 402, 403):
         _dead["until"] = time.time() + 3600
         return None
     return d
@@ -108,6 +127,8 @@ def _pick(items, p):
 
 
 def _fetch(p: dict) -> dict | None:
+    if not _slot("places"):
+        return None
     with _lock:
         _cache["_count"] = _cache.get("_count", 0) + 1
     try:
@@ -173,7 +194,7 @@ def drive(a, b, t, now_real) -> tuple[float, str] | None:
     if key in _cache and (not live or _cache[key].get("ts", 0) > time.time() - 600):
         d = _cache[key]
     else:
-        if _cache.get("_route_count", 0) >= ROUTE_BUDGET:
+        if _cache.get("_route_count", 0) >= ROUTE_BUDGET or not _slot("route"):
             return None
         body = {"points": [{"type": "stop", "lon": a[1], "lat": a[0]}, {"type": "stop", "lon": b[1], "lat": b[0]}],
                 "transport": "driving", "route_mode": "fastest", "output": "summary",
@@ -203,6 +224,8 @@ def path(a, b, mode: str) -> dict | None:
     key = f"p:{mode}:{a[0]:.4f},{a[1]:.4f}>{b[0]:.4f},{b[1]:.4f}"
     if key in _cache:
         return _cache[key]
+    if not _slot("route"):
+        return None
     with _lock:
         _cache["_path_count"] = _cache.get("_path_count", 0) + 1
     body = {"points": [{"type": "stop", "lon": a[1], "lat": a[0]}, {"type": "stop", "lon": b[1], "lat": b[0]}],
@@ -232,7 +255,7 @@ def geocode(text: str) -> dict | None:
         return None
     key = "g:" + text.lower().strip()
     if key not in _cache:
-        if _cache.get("_count", 0) >= BUDGET:
+        if _cache.get("_count", 0) >= BUDGET or not _slot("places"):
             return None
         with _lock:
             _cache["_count"] = _cache.get("_count", 0) + 1
