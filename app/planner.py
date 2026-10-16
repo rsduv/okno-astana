@@ -95,7 +95,8 @@ def _merge_wiki() -> int:
                     "richness": 4, "source": w.get("article") or f"https://www.wikidata.org/wiki/{w['qid']}"}
             POIS.append(best)
             added += 1
-        best["wiki"] = {"sitelinks": w["sitelinks"], "extract": w.get("extract"), "article": w.get("article")}
+        ext = (w.get("extract") or "").replace(chr(0x301), "") or None  # убираем знаки ударения из Википедии
+        best["wiki"] = {"sitelinks": w["sitelinks"], "extract": ext, "article": w.get("article")}
         best["tags"].setdefault("wikidata", w["qid"])
     return added
 

@@ -148,7 +148,9 @@ def _rules(text: str) -> dict:
     m = re.search(r"(\d+(?:[.,]\d)?)\s*(?:час|ч\b|hour|h\b)", t)
     if m:
         d["duration_min"] = int(float(m.group(1).replace(",", ".")) * 60)
-    elif "час" in t and not d["duration_min"]:
+    elif re.search(r"полтора|полчаса|пол часа|пар[уы] час|два часа|три часа", t) and not d["duration_min"]:
+        d["duration_min"] = 90 if "полтора" in t else 30 if re.search(r"полчаса|пол часа", t) else 180 if "три" in t else 120
+    elif ("час" in t or "hour" in t) and not d["duration_min"]:
         d["duration_min"] = 60
     parts = re.split(r"\s(?:в|до|к|потом в|надо быть в|нужно в|to)\s", t, maxsplit=1)
     lm_found = []
@@ -226,23 +228,66 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     by_id = {x.get("id"): x for x in (d or {}).get("stops", [])}
     for s in stops:
         x = by_id.get(s["id"]) or {}
-        s["why"] = x.get("why") or _why_fallback(s)
-        s["todo"] = x.get("todo") or _todo_fallback(s)
+        s["why"] = x.get("why") or _why_fallback(s, intent.get("language"))
+        s["todo"] = x.get("todo") or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
-    word = {1: "остановка", 2: "остановки", 3: "остановки"}.get(len(stops), "остановок")
-    result["headline"] = (d or {}).get("headline") or f"{len(stops)} {word} по пути, на месте в {result['summary']['arrive']}"
+    result["headline"] = (d or {}).get("headline") or _headline_fallback(stops, result["summary"]["arrive"], intent.get("language"))
     return result
 
 
-def _why_fallback(s):
-    h = s["hours"]
-    base = {"verified": "часы работы проверены по данным", "estimate": "часы — оценка",
-            "outdoor": "открытое место"}.get(h["confidence"], "")
-    return f"{s['category'].capitalize()} по пути, {base}."
+# Запасные тексты, если ИИ недоступен (нет сети/ключа): факты из данных + действие по типу места, на языке запроса.
+TODO = {  # категория: (ru, en, kk)
+    "кафе": ("Возьми кофе и передохни", "Grab a coffee and take a break", "Кофе алып, демал"),
+    "ресторан": ("Поешь не торопясь", "Have an unhurried meal", "Асықпай тамақтан"),
+    "фастфуд": ("Быстро перекуси", "Grab a quick bite", "Жылдам тамақтан"),
+    "бар": ("Посиди за напитком", "Have a drink", "Сусын іш, отыр"),
+    "торговый центр": ("Пройдись по галереям в тепле", "Walk the indoor galleries", "Жылы галереяларды арала"),
+    "музей": ("Посмотри главные залы", "See the main halls", "Басты залдарды көр"),
+    "галерея": ("Посмотри текущую выставку", "See the current exhibition", "Қазіргі көрмені көр"),
+    "театр": ("Узнай афишу на сегодня", "Check today's program", "Бүгінгі афишаны біл"),
+    "кино": ("Выбери сеанс по времени", "Pick a showtime that fits", "Уақытқа сай сеанс таңда"),
+    "мечеть": ("Зайди посмотреть интерьер (вход свободный, скромная одежда)", "Step in to see the interior (modest dress)",
+               "Ішіне кіріп көр (қарапайым киім)"),
+    "собор": ("Зайди посмотреть интерьер", "Step in to see the interior", "Ішін көр"),
+    "парк": ("Пройдись по аллеям", "Stroll along the alleys", "Аллеялармен серуенде"),
+    "сад": ("Пройдись по саду", "Walk through the garden", "Бақты арала"),
+    "детская площадка": ("Дай ребёнку поиграть", "Let the kids play", "Балаға ойнауға мүмкіндік бер"),
+    "развлечения": ("Попробуй аттракцион", "Try the attraction", "Аттракционды байқап көр"),
+    "библиотека": ("Почитай в тишине", "Read in a quiet spot", "Тыныш жерде кітап оқы"),
+    "книжный": ("Полистай новинки", "Browse new books", "Жаңа кітаптарды қара"),
+}
+DEFAULT_TODO = ("Осмотрись и сделай фото", "Look around and take photos", "Айналаны көріп, суретке түс")
+LANG_IX = {"en": 1, "kk": 2}
 
 
-def _todo_fallback(s):
-    return f"Около {s['stay']} минут: {'кофе и передышка' if s['category'] == 'кафе' else 'осмотреться и сделать фото'}."
+def _why_fallback(s, language=None):
+    i = LANG_IX.get(language or "", 0)
+    f = s.get("facts") or {}
+    parts = []
+    if f.get("википедия") and i == 0:
+        parts.append(f["википедия"].split(". ")[0].rstrip(".") + " (Википедия)")
+    if f.get("рейтинг_2гис"):
+        parts.append(("рейтинг " if i == 0 else "rating " if i == 1 else "рейтинг ") + f["рейтинг_2гис"].split(" ")[0] + " в 2GIS")
+    if f.get("по_пути"):
+        parts.append({0: f["по_пути"], 1: "right on your way", 2: "жолыңызда"}[i])
+    if f.get("внутри"):
+        parts.append({0: f["внутри"], 1: "inside the mall", 2: "СОО ішінде"}[i])
+    if not parts:
+        parts.append({0: f"{s['category'].capitalize()} по пути", 1: "On your way", 2: "Жолыңызда"}[i])
+    txt = "; ".join(parts)
+    return (txt[:1].upper() + txt[1:])[:160] + ("." if not txt.endswith(".") else "")
+
+
+def _todo_fallback(s, language=None):
+    i = LANG_IX.get(language or "", 0)
+    act = TODO.get(s["category"], DEFAULT_TODO)[i]
+    return {0: f"{act} — около {s['stay']} мин.", 1: f"{act} — about {s['stay']} min.", 2: f"{act} — шамамен {s['stay']} мин."}[i]
+
+
+def _headline_fallback(stops, arrive, language=None):
+    i = LANG_IX.get(language or "", 0)
+    names = ", ".join(x["name"] for x in stops[:3])
+    return {0: f"{names} — на месте в {arrive}", 1: f"{names} — arrive by {arrive}", 2: f"{names} — {arrive}-де орнында"}[i]
 
 
 def resolve_times(parsed: dict, now: datetime) -> tuple[datetime, str]:
