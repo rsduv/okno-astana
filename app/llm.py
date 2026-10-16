@@ -136,7 +136,8 @@ def _rules(text: str) -> dict:
     t = text.lower()
     d = {"origin": None, "destination": None, "return_to_origin": False, "deadline": None, "duration_min": None,
          "prefs": [], "with_kids": "ребён" in t or "дет" in t, "group_size": None, "mobility": "normal",
-         "transport": "any", "language": "en" if re.search(r"[a-z]{4}", t) and not re.search(r"[а-я]", t) else "ru",
+         "transport": "any", "language": "en" if re.search(r"[a-z]{4}", t) and not re.search(r"[а-я]", t)
+         else "kk" if re.search(r"[әіңғүұқөһ]", t) else "ru",
          "rules": True}
     m = re.search(r"(?:к|до|by)\s*(\d{1,2})[:.](\d{2})", t) or re.search(r"к\s*(\d{1,2})\b(?!\s*мин)", t)
     if m:

@@ -61,8 +61,8 @@ def chk_open(r):
 
 def chk_labels(r):
     st = stops(r)
-    return ("У каждого места есть пометка надёжности часов и ссылка на OSM",
-            bool(st) and all(s["hours"]["confidence"] in ("verified", "estimate", "outdoor") and re.search(r"openstreetmap\.org|2gis\.kz", s["source"]) for s in st))
+    return ("У каждого места есть пометка надёжности часов и ссылка на источник (OSM / 2GIS / Википедия)",
+            bool(st) and all(s["hours"]["confidence"] in ("verified", "estimate", "outdoor") and re.search(r"openstreetmap\.org|2gis\.kz|wikipedia\.org|wikidata\.org", s["source"]) for s in st))
 
 
 def chk_why(r):
