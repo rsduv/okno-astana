@@ -24,7 +24,7 @@ with sync_playwright() as p:
         if flt not in name:
             continue
         pg.goto(f"http://localhost:8000/?q={urllib.parse.quote(q)}&t={t}&w={w}")
-        pg.wait_for_selector(".headline, .err", timeout=90000)
+        pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000)
         pg.wait_for_timeout(9000)
         out = ROOT / "shots" / f"{name}.png"
         pg.screenshot(path=str(out))
