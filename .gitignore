@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/poi_raw.json
+# личные заметки и рабочие материалы — не в репозиторий
+CLAUDE.md
+research_notes/
+reports/
