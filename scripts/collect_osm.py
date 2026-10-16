@@ -80,8 +80,10 @@ def fetch(query: str) -> dict:
 def normalize(el: dict) -> dict | None:
     tags = el.get("tags", {})
     name = tags.get("name:ru") or tags.get("name") or tags.get("name:kk") or tags.get("name:en")
+    if not name and tags.get("leisure") == "playground":
+        name = "Детская площадка"  # площадки почти всегда без названия, но для сценария «с ребёнком» они нужны
     if not name:
-        return None  # безымянные точки рекомендовать нельзя
+        return None  # остальные безымянные точки рекомендовать нельзя
     lat = el.get("lat") or el.get("center", {}).get("lat")
     lon = el.get("lon") or el.get("center", {}).get("lon")
     if lat is None or lon is None:
@@ -122,7 +124,7 @@ def main():
         p = normalize(el)
         if not p:
             continue
-        key = (p["name"].lower(), round(p["lat"], 3), round(p["lon"], 3))
+        key = (p["name"].lower(), round(p["lat"], 4), round(p["lon"], 4))
         if key in seen:
             continue
         seen.add(key)

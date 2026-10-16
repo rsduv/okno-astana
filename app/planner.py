@@ -1,0 +1,413 @@
+"""Планировщик «Окна»: из точки А в точку Б к сроку, с 1–3 остановками, которые точно успеваешь.
+
+Это «R» в RAG: жёсткие проверки делает код (время, часы, погода, расстояния), а ИИ потом только
+объясняет выбор человеческим языком — и только по фактам, которые вернул планировщик.
+"""
+from __future__ import annotations
+
+import itertools
+from concurrent.futures import ThreadPoolExecutor
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from . import geo
+from .hours import OUTDOOR, interval_status
+
+ROOT = Path(__file__).resolve().parent.parent
+POIS: list[dict] = json.loads((ROOT / "data" / "poi.json").read_text(encoding="utf-8"))
+
+# Сколько обычно проводят времени в месте, минут
+STAY = {
+    "кафе": 25, "ресторан": 50, "фастфуд": 20, "бар": 45, "ночной клуб": 90, "торговый центр": 30,
+    "музей": 45, "галерея": 30, "арт-центр": 30, "театр": 120, "кино": 120, "библиотека": 30,
+    "книжный": 20, "коворкинг": 60, "памятник": 10, "достопримечательность": 15, "фонтан": 10,
+    "смотровая": 15, "парк": 25, "сад": 20, "детская площадка": 30, "мечеть": 20, "собор": 20,
+    "каток": 45, "боулинг": 60, "квест": 60, "развлечения": 40, "океанариум": 60, "зоопарк": 60,
+    "парк развлечений": 45, "батутный парк": 45, "аквапарк": 90,
+}
+PREF_CATS = {
+    "coffee": {"кафе"},
+    "food": {"ресторан", "кафе", "фастфуд"},
+    "sights": {"достопримечательность", "памятник", "смотровая", "фонтан", "мечеть", "собор"},
+    "nature": {"парк", "сад"},
+    "culture": {"музей", "галерея", "арт-центр", "библиотека", "театр"},
+    "shopping": {"торговый центр", "книжный"},
+    "kids": {"детская площадка", "парк развлечений", "развлечения", "батутный парк", "океанариум",
+             "зоопарк", "каток", "аквапарк", "парк", "торговый центр"},
+    "night": {"бар", "ночной клуб", "боулинг", "кино", "квест", "достопримечательность", "смотровая", "фонтан"},
+    "work": {"кафе", "коворкинг", "библиотека"},
+    "active": {"каток", "боулинг", "квест", "развлечения", "батутный парк"},
+    "cinema": {"кино"},
+    "walk": {"парк", "сад", "достопримечательность", "памятник", "фонтан", "смотровая"},
+}
+DEFAULT_CATS = {"кафе", "достопримечательность", "памятник", "парк", "сад", "торговый центр", "музей",
+                "галерея", "смотровая", "фонтан", "арт-центр", "книжный", "мечеть"}
+LONG_STAYS = {"театр", "кино", "ночной клуб", "аквапарк"}
+
+
+def _fmt(t: datetime) -> str:
+    return t.strftime("%H:%M")
+
+
+class Ctx:
+    def __init__(self, intent: dict, now: datetime, w: dict):
+        self.i = intent
+        self.now = now
+        self.w = w
+        self.cold = geo.cold_level(w)
+        self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
+        self.prefs = set(intent.get("prefs") or [])
+        if intent.get("with_kids"):
+            self.prefs.add("kids")
+        self.walk_only = intent.get("transport") == "walk" or "walk" in self.prefs
+        self.work = "work" in self.prefs
+        self.work_stay = 60
+        sunset = w.get("sunset")
+        self.dark_from = None
+        if sunset:
+            h, m = map(int, sunset.split(":"))
+            self.dark_from = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        self.wanted = set().union(*(PREF_CATS[p] for p in self.prefs if p in PREF_CATS)) if self.prefs else set(DEFAULT_CATS)
+        if self.prefs and not (self.prefs & {"kids", "night", "work", "cinema", "active"}):
+            self.wanted |= {"кафе", "достопримечательность", "памятник"}  # всегда есть чем «добить» окно
+
+    def is_dark(self, t: datetime) -> bool:
+        if self.dark_from is None:
+            return t.hour >= 19 or t.hour < 7
+        return t >= self.dark_from or t.hour < 7
+
+
+def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | None:
+    cat = p["category"]
+    tags = p.get("tags", {})
+    if cat not in ctx.wanted:
+        return None
+    s = 1.0
+    if ctx.prefs and any(cat in PREF_CATS.get(pr, ()) for pr in ctx.prefs):
+        s += 1.5
+    s += min(p.get("richness", 0), 10) * 0.08
+    if "wikidata" in tags:
+        s += 0.8
+    if p["name"] == "Детская площадка":
+        s -= 0.6  # безымянная — честно, но менее интересна
+    if "work" in ctx.prefs and tags.get("internet_access") in ("wlan", "yes", "wifi"):
+        s += 1.0
+    if ctx.i.get("mobility") == "limited":
+        wc = tags.get("wheelchair")
+        if wc == "no":
+            return None
+        s += 0.8 if wc == "yes" else (0.3 if wc == "limited" else -0.4)
+    outdoor = cat in OUTDOOR
+    if outdoor and ctx.cold == "severe":
+        return None
+    if outdoor and ctx.cold == "cold":
+        s -= 0.8
+    if not outdoor and ctx.cold != "ok":
+        s += 0.4
+    if arrive is not None and outdoor and ctx.is_dark(arrive):
+        if cat in ("детская площадка", "сад", "парк"):
+            if "kids" in ctx.prefs or cat == "детская площадка":
+                return None
+            s -= 0.8
+    if tags.get("brand"):
+        s -= 0.15  # чуть выше местные места, чем сети
+    return s
+
+
+def stay_of(p: dict, ctx: "Ctx") -> int:
+    if ctx.work and p["category"] in ("кафе", "коворкинг", "библиотека"):
+        return ctx.work_stay
+    if "walk" in ctx.prefs and p["category"] in ("парк", "сад", "фонтан", "памятник", "достопримечательность", "смотровая"):
+        return 10  # прогулка: место — точка маршрута, а не цель
+    return STAY.get(p["category"], 20)
+
+
+def _leg(a, b, t: datetime, ctx: Ctx) -> dict:
+    walk = geo.walk_min_est(a, b)
+    if walk <= ctx.max_leg or ctx.walk_only:
+        return {"mode": "walk", "min": walk, "outdoor": walk}
+    car = geo.car_min_est(a, b, t) + geo.TAXI_WAIT_MIN
+    if car + 3 >= walk:  # такси не быстрее — идём пешком
+        return {"mode": "walk", "min": walk, "outdoor": walk}
+    return {"mode": "taxi", "min": car, "outdoor": 2}
+
+
+def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ctx):
+    """Быстрая оценка плана (без внешних запросов). None — если план не годится."""
+    t = start
+    pos = A
+    legs, stops = [], []
+    score = 0.0
+    cats = set()
+    for p in seq:
+        pt = (p["lat"], p["lon"])
+        lg = _leg(pos, pt, t, ctx)
+        t += timedelta(minutes=lg["min"])
+        stay = stay_of(p, ctx)
+        arrive, leave = t, t + timedelta(minutes=stay)
+        st, conf, _ = interval_status(p.get("tags"), p["category"], arrive, leave)
+        if st in ("closed", "closes_soon"):
+            return None
+        sc = stop_score(p, ctx, arrive)
+        if sc is None:
+            return None
+        if st == "unknown":
+            sc -= 0.6
+        elif conf == "verified":
+            sc += 0.5
+        if p["category"] in cats:
+            sc -= 1.0
+        cats.add(p["category"])
+        for ref in (A, B):  # остановка прямо у старта/финиша — мало пользы
+            if geo.haversine_km(pt, ref) < 0.2:
+                sc -= 0.7
+        score += sc
+        legs.append(lg)
+        stops.append((p, arrive, leave, stay))
+        t = leave
+        pos = pt
+    lg = _leg(pos, B, t, ctx)
+    legs.append(lg)
+    t += timedelta(minutes=lg["min"])
+    window = (deadline - start).total_seconds() / 60
+    buffer = max(5.0, window * 0.07)
+    slack = (deadline - t).total_seconds() / 60
+    if slack < buffer:
+        return None
+    used = window - slack
+    outdoor = sum(x["outdoor"] for x in legs)
+    taxis = sum(1 for x in legs if x["mode"] == "taxi")
+    cold_mult = {"ok": 0.01, "cold": 0.04, "severe": 0.1}[ctx.cold]
+    if "walk" in ctx.prefs and ctx.cold == "ok":
+        cold_mult = -0.04  # человек хочет именно пройтись — ходьба в плюс, а не в минус
+    score -= outdoor * cold_mult + taxis * 0.9 + abs(used / window - 0.88) * 2.0
+    score += 0.35 * len(seq)
+    return {"score": score, "finish": t, "legs": legs, "stops": stops, "slack": slack}
+
+
+def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
+    window = (deadline - start).total_seconds() / 60
+    out = []
+    for p in POIS:
+        if p["id"] in exclude:
+            continue
+        pt0 = (p["lat"], p["lon"])
+        # остановка «по пути» не может быть самим финишем или стартом
+        if p["id"] not in required and (geo.haversine_km(pt0, B) < (0.25 if geo.haversine_km(A, B) >= 0.3 else 0.2) or
+                                        (geo.haversine_km(A, B) >= 0.3 and geo.haversine_km(pt0, A) < 0.15)):
+            continue
+        if p["category"] in LONG_STAYS and window < STAY[p["category"]] + 30 and p["id"] not in required:
+            continue
+        pt = (p["lat"], p["lon"])
+        # быстрый отсев по геометрии: даже на такси должно хватать времени
+        sim = simulate([p], A, B, start, deadline, ctx)
+        if sim is None and p["id"] not in required:
+            continue
+        sc = stop_score(p, ctx) or 0
+        detour = geo.haversine_km(A, pt) + geo.haversine_km(pt, B) - geo.haversine_km(A, B)
+        out.append((sc - detour * 0.35, p))
+    out.sort(key=lambda x: -x[0])
+    picked, per_cat = [], {}
+    for sc, p in out:  # разнообразие: не больше 7 мест одной категории в переборе
+        c = p["category"]
+        if per_cat.get(c, 0) >= 7 and p["id"] not in required:
+            continue
+        per_cat[c] = per_cat.get(c, 0) + 1
+        picked.append(p)
+        if len(picked) >= 28:
+            break
+    for rid in required:
+        if not any(p["id"] == rid for p in picked):
+            picked += [p for p in POIS if p["id"] == rid]
+    return picked
+
+
+def _projection(A, B, p) -> float:
+    ax, ay = A[1], A[0]
+    bx, by = B[1] - ax, B[0] - ay
+    px, py = p["lon"] - ax, p["lat"] - ay
+    L = bx * bx + by * by
+    return (px * bx + py * by) / L if L else 0
+
+
+def search(A, B, start, deadline, ctx: Ctx, exclude=frozenset(), required=frozenset(), max_stops=3):
+    cands = _candidates(A, B, start, deadline, ctx, set(exclude), set(required))
+    loop = geo.haversine_km(A, B) < 0.3
+    results = []
+    for k in range(1, max_stops + 1):
+        for combo in itertools.combinations(cands, k):
+            if required and not set(required) <= {p["id"] for p in combo}:
+                continue
+            if loop:
+                orders = itertools.permutations(combo) if k > 1 else [combo]
+            else:
+                orders = [sorted(combo, key=lambda p: _projection(A, B, p))]
+            for seq in orders:
+                sim = simulate(list(seq), A, B, start, deadline, ctx)
+                if sim:
+                    results.append((sim["score"], list(seq), sim))
+    results.sort(key=lambda x: -x[0])
+    return results, len(cands)
+
+
+def refine(seq, A, B, start, deadline, ctx: Ctx):
+    """Пересчёт лучшего плана по реальным маршрутам (улицы, а не прямая)."""
+    t = start
+    pos = A
+    steps = [{"type": "start", "time": _fmt(t)}]
+    outdoor, walk_km, max_leg_out, taxis, estimated = 0.0, 0.0, 0.0, 0, False
+    points = [(p["lat"], p["lon"]) for p in seq] + [B]
+    for i, pt in enumerate(points):
+        lg = _leg(pos, pt, t, ctx)
+        if lg["mode"] == "walk":
+            r = geo.route(pos, pt, "foot")
+            if r and r["min"] > ctx.max_leg and not ctx.walk_only and r["min"] > geo.walk_min_est(pos, pt) * 1.25:
+                lg = {"mode": "taxi"}  # реальный путь оказался сильно длиннее (река, развязки) — подвезём
+            elif r:
+                leg = {"type": "leg", "mode": "walk", "min": round(r["min"]), "km": round(r["km"], 2),
+                       "coords": r["coords"], "estimated": False}
+            else:
+                m = geo.walk_min_est(pos, pt)
+                leg = {"type": "leg", "mode": "walk", "min": round(m), "km": round(m / 60 * geo.WALK_KMH, 2),
+                       "coords": [[pos[1], pos[0]], [pt[1], pt[0]]], "estimated": True}
+                estimated = True
+        if lg["mode"] == "taxi":
+            r = geo.route(pos, pt, "car")
+            f, label = geo.traffic_factor(t)
+            drive = (r["min"] if r else geo.car_min_est(pos, pt, t) / f) * f
+            leg = {"type": "leg", "mode": "taxi", "min": round(drive + geo.TAXI_WAIT_MIN), "drive_min": round(drive),
+                   "wait_min": geo.TAXI_WAIT_MIN, "km": round(r["km"] if r else geo.haversine_km(pos, pt) * 1.4, 2),
+                   "coords": r["coords"] if r else [[pos[1], pos[0]], [pt[1], pt[0]]],
+                   "traffic": label, "estimated": True}
+            taxis += 1
+        if leg["mode"] == "walk":
+            outdoor += leg["min"]
+            walk_km += leg["km"]
+            max_leg_out = max(max_leg_out, leg["min"])
+        steps.append(leg)
+        t += timedelta(minutes=leg["min"])
+        if i < len(seq):
+            p = seq[i]
+            stay = stay_of(p, ctx)
+            arrive, leave = t, t + timedelta(minutes=stay)
+            st, conf, text = interval_status(p.get("tags"), p["category"], arrive, leave)
+            if st in ("closed", "closes_soon"):
+                return None
+            steps.append({"type": "stop", "id": p["id"], "name": p["name"], "category": p["category"],
+                          "lat": p["lat"], "lon": p["lon"], "arrive": _fmt(arrive), "leave": _fmt(leave), "stay": stay,
+                          "hours": {"status": st, "confidence": conf, "text": text},
+                          "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин"} if (d := _detour_min(A, B, p)) <= 8
+                                                and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
+                                                "внутри": p["category"] not in OUTDOOR},
+                          "source": p["source"]})
+            t = leave
+        pos = pt
+    slack = (deadline - t).total_seconds() / 60
+    if slack < 3:
+        return None
+    steps.append({"type": "end", "time": _fmt(t)})
+    return {"steps": steps, "finish": t, "slack": round(slack), "outdoor": round(outdoor), "walk_km": round(walk_km, 1),
+            "max_outdoor_leg": round(max_leg_out), "taxis": taxis, "estimated": estimated}
+
+
+def _detour_min(A, B, p) -> int:
+    pt = (p["lat"], p["lon"])
+    if geo.haversine_km(A, B) < 0.3:
+        return round(geo.walk_min_est(A, pt))
+    return max(0, round((geo.haversine_km(A, pt) + geo.haversine_km(pt, B) - geo.haversine_km(A, B)) * geo.DETOUR / geo.WALK_KMH * 60))
+
+
+def _facts(p: dict) -> dict:
+    t = p.get("tags", {})
+    keep = ("cuisine", "outdoor_seating", "internet_access", "wheelchair", "description", "description:ru",
+            "website", "contact:instagram", "fee", "brand")
+    out = {k: t[k] for k in keep if k in t}
+    if "wikidata" in t or "wikipedia" in t:
+        out["известность"] = "есть статья в Википедии — известное место города"
+    return out
+
+
+def _prefetch(results, A, B):
+    """Заранее и параллельно запрашиваем реальные маршруты для лучших планов — ответ в разы быстрее."""
+    jobs = set()
+    for _, seq, sim in results:
+        pts = [A] + [(p["lat"], p["lon"]) for p in seq] + [B]
+        for (a, b), lg in zip(zip(pts, pts[1:]), sim["legs"]):
+            jobs.add((a, b, "foot"))
+            if lg["mode"] == "taxi":
+                jobs.add((a, b, "car"))
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(lambda j: geo.route(*j), jobs))
+
+
+def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
+    """Честный и полезный отказ: почему не вышло и что делать вместо этого."""
+    if geo.haversine_km(A, B) < 0.3:
+        if window < 25:
+            return f"Окно {round(window)} мин — на остановку с возвращением не хватает. Можно просто выйти подышать на 10 минут."
+        return ("Рядом нет подходящих мест, до которых можно дойти и вернуться за это время"
+                + (" с учётом твоих пожеланий" if ctx.prefs else "") + ". Попробуй убрать пожелания или увеличить окно.")
+    walk = round(direct_walk["min"]) if direct_walk else round(geo.walk_min_est(A, B))
+    taxi = round(geo.car_min_est(A, B, start) + geo.TAXI_WAIT_MIN)
+    if walk <= window:
+        return f"На остановки времени нет: пешком до цели {walk} мин из {round(window)}. Просто иди — успеешь с запасом {round(window) - walk} мин."
+    if taxi <= window:
+        return f"Пешком не успеть ({walk} мин при окне {round(window)}). На такси ~{taxi} мин с подачей и пробками (оценка) — лучше ехать сразу."
+    return f"Не успеть даже на такси: ~{taxi} мин (оценка), а окно {round(window)} мин. Стоит предупредить, что опоздаешь."
+
+
+def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
+    ctx = Ctx(intent, now, w)
+    A = (intent["origin"]["lat"], intent["origin"]["lon"])
+    B = (intent["destination"]["lat"], intent["destination"]["lon"])
+    start = now
+    deadline = datetime.fromisoformat(intent["deadline"])
+    window = (deadline - start).total_seconds() / 60
+    notes = []
+    direct_walk = geo.route(A, B, "foot") if geo.haversine_km(A, B) > 0.3 else None
+    if window < 10:
+        return {"error": "Окно слишком короткое: меньше 10 минут. Лучше просто идти к цели."}
+    if geo.haversine_km(A, B) < 0.3 and window < 120:
+        ctx.walk_only = True  # прогулка по кругу — такси туда-обратно бессмысленно
+    max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
+    if ctx.work:
+        max_stops = 1
+        ctx.work_stay = int(max(30, min(150, window * 0.6)))
+    results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+    _prefetch(results[:2], A, B)
+    best = None
+    for score, seq, _ in results[:4]:
+        best = refine(seq, A, B, start, deadline, ctx)
+        if best:
+            break
+    geo.save_cache()
+    if direct_walk:
+        dw = round(direct_walk["min"])
+        if dw > window:
+            notes.append(f"Пешком напрямую {dw} мин, а окно {round(window)} мин: без такси не успеть.")
+        elif dw > window * 0.6:
+            notes.append(f"Пешком напрямую {dw} мин из {round(window)}: на остановки времени мало, часть пути — на такси.")
+    if not best:
+        return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes}
+    if ctx.cold != "ok":
+        a = w.get("apparent")
+        notes.append(f"Ощущается как {round(a):+d}°{', ветер ' + str(round(w['wind'])) + ' км/ч' if w.get('wind') else ''}: "
+                     f"на улице не больше {ctx.max_leg} мин подряд, уличные места — только если без них никак.")
+    if best["taxis"]:
+        f, label = geo.traffic_factor(now)
+        notes.append(f"Время на такси — оценка с поправкой на пробки ({label}, ×{f}) и подачу машины ~{geo.TAXI_WAIT_MIN} мин.")
+    if ctx.is_dark(now + timedelta(minutes=window / 2)):
+        notes.append("Будет темно: парки и площадки не предлагаю, только освещённые и крытые места.")
+    stops = [s for s in best["steps"] if s["type"] == "stop"]
+    est = sum(1 for s in stops if s["hours"]["confidence"] == "estimate")
+    if est:
+        notes.append(f"У {est} из {len(stops)} мест часов работы нет в данных — показал типичные, помечено «оценка».")
+    return {
+        "steps": best["steps"], "notes": notes,
+        "summary": {"arrive": _fmt(best["finish"]), "buffer_min": best["slack"], "outdoor_min": best["outdoor"],
+                    "walk_km": best["walk_km"], "max_outdoor_leg": best["max_outdoor_leg"], "taxis": best["taxis"],
+                    "window_min": round(window)},
+        "cold": ctx.cold, "max_leg": ctx.max_leg,
+        "considered": {"candidates": n_cands, "plans": len(results), "pois_total": len(POIS)},
+    }

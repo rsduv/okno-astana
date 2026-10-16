@@ -7,3 +7,5 @@ data/poi_raw.json
 CLAUDE.md
 research_notes/
 reports/
+data/route_cache.json
+shots/
