@@ -482,7 +482,7 @@ function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: st
 // ---------- отрисовка ----------
 const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотреть город", nature:"природа", culture:"культура", shopping:"шопинг",
   kids:"с ребёнком", night:"ночь", work:"поработать", active:"активно", cinema:"кино", walk:"прогуляться"};
-const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух/;
+const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти/;
 function openLine(h){
   if(h.confidence==="verified") return `<div class="open ok">● ${esc(TH(h.text))}</div>`;
   if(h.confidence==="outdoor") return `<div class="open out">● ${esc(TH(h.text))}</div>`;

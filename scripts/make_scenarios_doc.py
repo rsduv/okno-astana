@@ -114,7 +114,21 @@ def chk_english(r):
 
 
 def chk_airport(r):
-    return ("Учитывает регистрацию: в аэропорту за 1,5 ч до вылета", any("1,5 часа" in n for n in r.get("notes", [])))
+    return ("Учитывает регистрацию: в аэропорту за 1,5 ч до вылета",
+            any("1,5 часа" in n for n in (r.get("notes_original") or r.get("notes") or [])))
+
+
+def chk_event(r):
+    return ("Приходит на событие заранее (запас на вход)", any("лучше прийти" in n for n in (r.get("notes_original") or r.get("notes") or [])))
+
+
+def chk_one_meal(r):
+    return ("Не больше одной остановки «поесть»", sum(1 for s in stops(r) if s["category"] in ("ресторан", "фастфуд")) <= 1)
+
+
+def chk_kazakh(r):
+    st = stops(r)
+    return ("Ответ на казахском", bool(st) and all(re.search(r"[әіңғүұқөһ]", (s.get("why", "") + s.get("todo", "")).lower()) for s in st))
 
 
 def chk_refusal(r):
@@ -154,6 +168,14 @@ SCENARIOS = [
      "text": "Я в ЭКСПО, через 30 минут надо быть на вокзале Астана-1", "now": "12:00", "weather": "now",
      "expect": "Не выдумывать маршрут: честно сказать, что пешком не успеть, и предложить такси.",
      "checks": [chk_refusal]},
+    {"id": "S9", "shot": "8_event", "title": "Событие: концерт вечером", "case": "события (креативность)",
+     "text": "У меня концерт в Барыс Арене в 20:00, я у Байтерека, хочу перекусить по пути", "now": "17:30", "weather": "now",
+     "expect": "Прийти к арене заранее (досмотр, очередь), по пути одно место поесть; финиш — арена.",
+     "checks": [chk_event, chk_one_meal, chk_on_time, chk_open]},
+    {"id": "S10", "shot": "9_kk", "title": "Запрос на казахском", "case": "мультиязычность",
+     "text": "Хан Шатырдың жанындамын, бір сағат бар, кофе ішкім келеді", "now": "16:00", "weather": "now",
+     "expect": "Понять казахский, ответить на казахском; кафе рядом, вернуться в точку старта.",
+     "checks": [chk_kazakh, chk_loop, chk_open]},
 ]
 
 
@@ -268,7 +290,7 @@ def main():
 
     if swap:
         first, ast, ok = swap
-        L("### S9. Кнопка «другое место»\n")
+        L("### S11. Кнопка «другое место»\n")
         L(f"- **Действие:** в сценарии S1 заменить первую остановку «{first['name']}», остальные оставить.")
         L(f"- **Результат:** {', '.join(s['name'] for s in ast) or 'нет вариантов'}.")
         L(f"- **Проверки:** {'✅' if ok else '❌'} замена другая, остальные остановки сохранены, по-прежнему успевает.\n")

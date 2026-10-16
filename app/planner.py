@@ -195,6 +195,10 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     if malls and any(q.get("inside") and geo.haversine_km((q["lat"], q["lon"]), (m["lat"], m["lon"])) < 0.25
                      for q in seq for m in malls):
         return None  # «ТРЦ» и «кафе внутри этого ТРЦ» — одна остановка, а не две
+    meals = sum(1 for p in seq if p["category"] in ("ресторан", "фастфуд"))
+    cafes = sum(1 for p in seq if p["category"] == "кафе")
+    if meals > 1 or cafes > 1 or (meals and cafes and not ctx.work and len(seq) > 2):
+        return None  # три еды подряд — не прогулка; максимум одна «поесть» и одна «кофе»
     t = start
     pos = A
     legs, stops = [], []

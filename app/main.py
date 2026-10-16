@@ -30,7 +30,11 @@ class PlanReq(BaseModel):
     saved: dict = {}                 # свои места пользователя {"Дом": {"lat","lon"}} — живут только в его браузере
 
 
-KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух")
+KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти")
+# события: за сколько прийти заранее и почему
+EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
+                "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
+                "cinema": (10, "Сеанс", "билеты и попкорн"), "meeting": (5, "Встреча", "небольшой запас")}
 
 
 def _now(s: str | None) -> datetime:
@@ -113,6 +117,10 @@ def make_plan(req: PlanReq, request: Request):
         elif "Вокзал" in dest["label"]:
             deadline -= timedelta(minutes=20)
             travel_note = f"Поезд в {parsed['deadline']}: на вокзале лучше быть за 20 минут — к {deadline:%H:%M}."
+        elif parsed.get("event") in EVENT_BUFFER:
+            m, what, why = EVENT_BUFFER[parsed["event"]]
+            deadline -= timedelta(minutes=m)
+            travel_note = f"{what} в {parsed['deadline']}: лучше прийти за {m} минут ({why}) — к {deadline:%H:%M}."
     if not parsed.get("deadline") and not parsed.get("duration_min"):
         travel_note = (travel_note + " " if travel_note else "") + "Ты не назвал время — взял окно 90 минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
     if parsed.get("deadline") and parsed.get("duration_min"):
