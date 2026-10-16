@@ -80,6 +80,8 @@ PREF_CATS = {
     "cinema": {"кино"},
     "walk": {"парк", "сад", "достопримечательность", "памятник", "фонтан", "смотровая"},
 }
+UNMET = {"coffee": "Кафе", "food": "Места поесть", "work": "Места для работы", "culture": "Музея или галереи",
+         "cinema": "Кино", "kids": "Детского места", "night": "Бара или ночного места"}
 DEFAULT_CATS = {"кафе", "достопримечательность", "памятник", "парк", "сад", "торговый центр", "музей",
                 "галерея", "смотровая", "фонтан", "арт-центр", "книжный", "мечеть"}
 LONG_STAYS = {"театр", "кино", "ночной клуб", "аквапарк"}
@@ -147,6 +149,9 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         s -= 0.8
     if not outdoor and ctx.cold != "ok":
         s += 0.4
+    if arrive is not None and (arrive.hour >= 23 or arrive.hour < 6):
+        if cat in ("парк", "сад", "детская площадка", "фонтан"):
+            return None  # глубокая ночь: в сквер не зовём, фонтаны выключены
     if arrive is not None and outdoor and ctx.is_dark(arrive):
         if cat in ("детская площадка", "сад", "парк"):
             if "kids" in ctx.prefs or cat == "детская площадка":
@@ -458,6 +463,11 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     if ctx.is_dark(now + timedelta(minutes=window / 2)):
         notes.append("Будет темно: парки и площадки не предлагаю, только освещённые и крытые места.")
     stops = [s for s in best["steps"] if s["type"] == "stop"]
+    got = {s["category"] for s in stops}
+    for pref, word in UNMET.items():
+        if pref in ctx.prefs and not (got & PREF_CATS[pref]):
+            notes.insert(0, f"{word} по пути, открытых к твоему приходу, не нашёл — предлагаю то, что работает. Это честно, а не сбой.")
+            break
     est = sum(1 for s in stops if s["hours"]["confidence"] == "estimate")
     if est:
         notes.append(f"У {est} из {len(stops)} мест часов работы нет в данных — показал типичные, помечено «оценка».")

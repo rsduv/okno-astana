@@ -153,6 +153,10 @@ details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
 .maplibregl-ctrl-attrib a{color:var(--dim)!important}
 .maplibregl-ctrl-group{background:var(--glass)!important;border:1px solid var(--line)!important}
 .maplibregl-ctrl-group button span{filter:invert(1)}
+#locbtn{position:fixed;right:16px;bottom:106px;z-index:4;width:44px;height:44px;border-radius:14px;border:1px solid var(--line2);background:var(--glass);backdrop-filter:blur(14px);color:var(--accent);display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);transition:transform .1s}
+#locbtn:hover{color:#fff}#locbtn:active{transform:scale(.93)}#locbtn.busy svg{animation:spin 1s linear infinite}
+#toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:9;max-width:min(440px,90vw);padding:11px 16px;border-radius:14px;background:rgba(15,21,29,.95);border:1px solid var(--line2);font-size:13.5px;line-height:1.4;opacity:0;pointer-events:none;transition:all .25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
 .mlegend{position:fixed;right:16px;top:16px;z-index:4;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;padding:9px 12px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
 .mlegend span{display:flex;align-items:center;gap:8px}
 .mlegend i{display:inline-block;width:18px;height:3px;border-radius:2px}
@@ -160,6 +164,8 @@ details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
 </head>
 <body>
 <div id="map"></div>
+<button id="locbtn" title="Где я? Навести карту на меня"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+<div id="toast"></div>
 <div class="mlegend"><span><i style="background:var(--accent)"></i>пешком</span><span><i style="background:repeating-linear-gradient(90deg,var(--taxi) 0 3px,transparent 3px 7px)"></i>такси (оценка)</span></div>
 
 <aside class="panel">
@@ -173,7 +179,7 @@ details.data ul{padding-left:18px;margin:8px 0 0;color:var(--muted)}
       <label class="pill" id="tpill" title="время старта (для демо можно подставить)">⏱ <input type="time" id="now"><span id="tnow">сейчас</span></label>
       <button class="pill on" id="wnow">☁ <span id="wxl">погода сейчас</span></button>
       <button class="pill cold" id="wcold">❄ −25°</button>
-      <span class="pill pt" id="pt" title="ткни в карту, чтобы указать, где ты">📍 <span>карта</span></span>
+      <button class="pill pt" id="pt" title="найти, где я сейчас (или ткни в карту)">📍 <span>я здесь</span></button>
     </div>
     <div class="quick" id="quick"></div>
   </div>
@@ -246,18 +252,39 @@ mapReady.then(async () => {
   map.addLayer({id:"taxi", type:"line", source:"route-taxi", layout:{"line-cap":"round","line-join":"round"},
     paint:{"line-color":"#c7cfd9", "line-width":3, "line-opacity":.85, "line-dasharray":[0.5,2.2]}});
 });
-map.on("click", e => {
-  if(e.originalEvent.target.closest(".mk")) return;
-  const lat = +e.lngLat.lat.toFixed(3), lon = +e.lngLat.lng.toFixed(3);
-  state.point = {lat, lon};
+function setPoint(lat, lon, label){
+  lat = +lat.toFixed(3); lon = +lon.toFixed(3);   // ~100–150 м: точные координаты не нужны и не хранятся
+  state.point = {lat, lon, mine: label==="я здесь"};
   if(meMarker) meMarker.remove();
   const el = document.createElement("div"); el.className = "mk me";
   meMarker = new maplibregl.Marker({element:el}).setLngLat([lon,lat]).addTo(map);
-  $("#pt").innerHTML = `📍 <b>±150 м</b> <span id="ptx" style="cursor:pointer">✕</span>`; $("#pt").classList.add("on");
+  $("#pt").innerHTML = `📍 <b>${label}</b> <span id="ptx" style="cursor:pointer" title="убрать">✕</span>`; $("#pt").classList.add("on");
   $("#ptx").onclick = ev => { ev.stopPropagation(); clearPoint(); };
+}
+map.on("click", e => {
+  if(e.originalEvent.target.closest(".mk")) return;
+  setPoint(e.lngLat.lat, e.lngLat.lng, "точка ±150 м");
 });
 function clearPoint(){ state.point=null; if(meMarker){meMarker.remove(); meMarker=null;}
-  $("#pt").innerHTML = `📍 <span>карта</span>`; $("#pt").classList.remove("on"); }
+  $("#pt").innerHTML = `📍 <span>я здесь</span>`; $("#pt").classList.remove("on"); }
+function toast(t){ const d=$("#toast"); d.textContent=t; d.classList.add("show"); clearTimeout(d._t); d._t=setTimeout(()=>d.classList.remove("show"),4200); }
+function locate(){
+  if(!navigator.geolocation){ toast("Браузер не умеет определять место — ткни в карту."); return; }
+  $("#pt").innerHTML = `📍 <span>ищу…</span>`; $("#locbtn").classList.add("busy");
+  navigator.geolocation.getCurrentPosition(pos => {
+    $("#locbtn").classList.remove("busy");
+    const {latitude:lat, longitude:lon} = pos.coords;
+    if(Math.hypot(lat-51.13, (lon-71.43)*0.63) > 0.25){   // дальше ~28 км от центра
+      clearPoint(); toast("Похоже, ты не в Астане. Ткни в карту, где будешь, — или напиши ориентир."); return; }
+    setPoint(lat, lon, "я здесь");
+    map.flyTo({center:[lon,lat], zoom:15, speed:1.4, padding:PAD()});
+    if(!$("#q").value.trim() || state.last) $("#q").focus();
+  }, () => { $("#locbtn").classList.remove("busy"); clearPoint();
+    toast("Не дали доступ к геолокации. Можно ткнуть в карту или написать «я у Байтерека»."); },
+  {enableHighAccuracy:false, timeout:10000, maximumAge:60000});
+}
+$("#pt").onclick = e => { if(!e.target.closest("#ptx")) locate(); };
+$("#locbtn").onclick = locate;
 
 fetch("/api/meta").then(r=>r.json()).then(m => {
   const w = m.weather; if(w.apparent==null) return;
@@ -347,7 +374,7 @@ function render(r){
         <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">место: OpenStreetMap</a> · ${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</div>
       </div>`;
   }).join("");
-  const notes = r.notes||[], KEY = /Ощущается|Вылет|Поезд|не назвал|без такси/;
+  const notes = r.notes||[], KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл/;
   const key = notes.filter(x=>KEY.test(x));
   res.innerHTML = `
     <div class="eta"><b>${s.arrive}</b><span>на месте</span><span class="buf ${s.buffer_min<8?"warn":""}">запас ${s.buffer_min} мин</span></div>

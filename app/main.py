@@ -69,7 +69,7 @@ def make_plan(req: PlanReq):
     t1 = time.time()
     if req.point and req.point.get("lat") is not None:
         lat, lon = geo.round_point(req.point["lat"], req.point["lon"])
-        origin = {"lat": lat, "lon": lon, "label": "Точка на карте (±150 м)", "source": "карта, округлено"}
+        origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
     else:
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS)
     if not origin:
