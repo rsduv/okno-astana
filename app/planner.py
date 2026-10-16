@@ -164,6 +164,10 @@ PREF_CATS = {
     "active": {"каток", "боулинг", "квест", "развлечения", "батутный парк"},
     "cinema": {"кино"},
     "walk": {"парк", "сад", "достопримечательность", "памятник", "фонтан", "смотровая"},
+    "unusual": {"квест", "развлечения", "океанариум", "арт-центр", "галерея", "смотровая", "боулинг", "каток", "памятник"},
+    "romantic": {"смотровая", "ресторан", "фонтан", "парк", "театр", "кафе", "памятник"},
+    "view": {"смотровая", "памятник", "достопримечательность"},
+    "quiet": {"библиотека", "галерея", "музей", "сад", "парк", "кафе", "книжный"},
 }
 UNMET = {"coffee": "Кафе", "food": "Места поесть", "work": "Места для работы", "culture": "Музея или галереи",
          "cinema": "Кино", "kids": "Детского места", "night": "Бара или ночного места"}
@@ -207,7 +211,7 @@ class Ctx:
         self.wanted = set().union(*(PREF_CATS[p] for p in self.prefs if p in PREF_CATS)) if self.prefs else set(DEFAULT_CATS)
         self.explicit = set(intent.get("explicit") or [])
         self.wanted |= self.explicit
-        if self.prefs and not (self.prefs & {"kids", "night", "work", "cinema", "active"}):
+        if self.prefs and not (self.prefs & {"kids", "night", "work", "cinema", "active", "unusual", "view"}):
             self.wanted |= {"кафе", "достопримечательность", "памятник"}  # всегда есть чем «добить» окно
 
     def is_dark(self, t: datetime) -> bool:
@@ -216,6 +220,7 @@ class Ctx:
         return t >= self.dark_from or t.hour < 7
 
 
+VIEW_POINTS = {"Байтерек"}  # смотровая площадка на высоте 97 м (Википедия); в OSM размечен как памятник
 GENERIC = {"сквер", "парк", "фонтан", "памятник", "скульптура", "монумент", "кафе", "столовая", "бар", "ресторан",
            "кофейня", "кафетерий", "буфет", "сад", "аллея"}
 
@@ -232,6 +237,12 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         s += 1.5
     if cat in ctx.explicit:
         s += 3.0  # человек прямо назвал тип места
+    if "view" in ctx.prefs and p["name"] in VIEW_POINTS:
+        s += 2.5  # смотровая площадка — именно «вид на город»
+    if "quiet" in ctx.prefs and cat in ("торговый центр", "бар", "ночной клуб", "фастфуд"):
+        return None  # просили тихо — не ведём в шумные места
+    if "unusual" in ctx.prefs and cat in ("квест", "океанариум", "арт-центр", "развлечения"):
+        s += 1.0
     s += min(p.get("richness", 0), 10) * 0.08
     sightseeing = not ctx.prefs or bool(ctx.prefs & {"sights", "culture", "walk", "nature"})
     if "wikidata" in tags:
@@ -679,7 +690,14 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         notes.append("Будет темно: парки и площадки не предлагаю, только освещённые и крытые места.")
     stops = [s for s in best["steps"] if s["type"] == "stop"]
     got = {s["category"] for s in stops}
-    hit_any = any(got & PREF_CATS.get(pr, set()) for pr in ctx.prefs if pr in UNMET)
+    names = {s["name"] for s in stops}
+    if "view" in ctx.prefs and not (names & VIEW_POINTS):
+        notes.insert(0, "Лучший вид на город — смотровая Байтерека (97 м), но в это окно до неё не успеть туда и обратно. "
+                        "Предлагаю, что есть рядом.")
+    if "unusual" in ctx.prefs and not (got & {"квест", "океанариум", "арт-центр", "развлечения"}):
+        notes.insert(0, "Необычного места (квест, океанариум, арт-пространство), открытого к твоему приходу, рядом не нашёл — "
+                        "предлагаю лучшее из того, что успеешь.")
+    hit_any = any(got & PREF_CATS.get(pr, set()) for pr in ctx.prefs if pr in UNMET and pr not in ("view", "unusual"))
     for cat in ctx.explicit - got:
         notes.insert(0, f"Просил «{cat}» — подходящего по времени и часам работы не нашёл, предлагаю ближайшее похожее.")
         hit_any = True

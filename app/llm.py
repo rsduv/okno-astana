@@ -27,7 +27,8 @@ GEMINI_MAIN = os.getenv("GEMINI_MAIN", "gemini-3.5-flash")   # тексты «п
 # без «размышлений» модели отвечают в разы быстрее; не все модели принимают "none"
 EFFORT = {"gemini-3.5-flash-lite": "low", "gemini-3.1-flash-lite": "low"}  # ключ Google AI Studio: если есть — идём к Gemini напрямую, OpenRouter — запасной
 MODEL = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
-PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "night", "work", "active", "cinema", "walk"]
+PREFS = ["coffee", "food", "sights", "nature", "culture", "shopping", "kids", "night", "work", "active", "cinema", "walk",
+         "unusual", "romantic", "view", "quiet"]
 
 
 FAST = "google/gemini-2.5-flash-lite"
@@ -108,6 +109,8 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
 Подсказки: «до вылета/рейса» = destination «аэропорт»; «до поезда» = destination «вокзал Нурлы Жол»;
 «кофе» -> coffee; «поесть» -> food; «погулять, прогуляться» -> walk; «посмотреть город, турист» -> sights;
 «посидеть, отдохнуть, передохнуть» -> coffee (а не walk); «ночью, тусоваться, бар» -> night; «поработать, розетка, ноутбук» -> work; «с ребёнком/детьми» -> kids.
+«необычное, удивить, что-то новое» -> unusual; «романтично, свидание, с девушкой/парнем» -> romantic;
+«вид, панорама, посмотреть на город сверху» -> view; «тихо, спокойно, без шума» -> quiet.
 «на час» = 60, «полтора часа» = 90. «Через 30 минут надо быть в X» = destination X и duration_min 30 (deadline null).
 «До 7 вечера» = deadline "19:00". «Концерт в Барыс Арене в 20:00» = destination «Барыс Арена», deadline "20:00", event "concert". Сейчас %s. Известные ориентиры: %s.
 %s
