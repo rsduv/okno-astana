@@ -93,14 +93,16 @@ def make_plan(req: PlanReq, request: Request):
         origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
     else:
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
+    lang = parsed.get("language")
     if not origin:
-        return JSONResponse({"error": "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.",
-                             "parsed": parsed}, status_code=200)
+        return {"error": llm.translate(["Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту."], lang)[0],
+                "parsed": parsed}
     dest = None
     if parsed.get("destination") and not parsed.get("return_to_origin"):
         dest = geo.find_place(parsed["destination"], planner.POIS, req.saved)
         if not dest:
-            return {"error": f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе.", "parsed": parsed}
+            return {"error": llm.translate([f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе."], lang)[0],
+                    "parsed": parsed}
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
     deadline, window_label = llm.resolve_times(parsed, now)
     travel_note = None
@@ -130,6 +132,8 @@ def make_plan(req: PlanReq, request: Request):
     if travel_note:
         result.setdefault("notes", []).insert(0, travel_note)
     if result.get("error"):
+        tr = llm.translate([result["error"], *(result.get("notes") or [])], lang)
+        result["error"], result["notes"] = tr[0], tr[1:]
         return {**base, **result, "timings": timings}
     t3 = time.time()
     # какие заметки важные (показываем сразу, остальные — в «как посчитано»); отмечаем до перевода на язык запроса

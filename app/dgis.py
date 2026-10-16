@@ -43,12 +43,29 @@ PER_MIN = {"route": int(os.getenv("DGIS_ROUTE_PER_MIN", "4")), "places": int(os.
 _stamps = {"route": [], "places": []}
 
 
+# Демо-ключ: Routing API — 50 запросов в СУТКИ (письмо 2GIS). Тесты не должны съедать демо: держим свой счётчик.
+PER_DAY = {"route": int(os.getenv("DGIS_ROUTE_PER_DAY", "40")), "places": int(os.getenv("DGIS_PLACES_PER_DAY", "400"))}
+
+
+def _day_ok(service: str) -> bool:
+    day = time.strftime("%Y-%m-%d", time.gmtime())  # лимиты 2GIS считаются по UTC
+    d = _cache.setdefault("_day", {})
+    if d.get("date") != day:
+        d.clear(); d["date"] = day
+    if d.get(service, 0) >= PER_DAY[service]:
+        return False
+    d[service] = d.get(service, 0) + 1
+    return True
+
+
 def _slot(service: str) -> bool:
-    """Есть ли свободный запрос в этой минуте. Нет — не ждём, а обходимся своей оценкой (ответ остаётся быстрым)."""
+    """Есть ли свободный запрос в этой минуте и в этих сутках. Нет — не ждём, обходимся своей оценкой."""
+    if os.getenv("DGIS_NO_NEW") == "1":
+        return False  # режим «только кэш»: для тестов, чтобы не тратить дневной лимит
     with _lock:
         now = time.time()
         st = [t for t in _stamps[service] if now - t < 60]
-        if len(st) >= PER_MIN[service]:
+        if len(st) >= PER_MIN[service] or not _day_ok(service):
             _stamps[service] = st
             return False
         st.append(now)

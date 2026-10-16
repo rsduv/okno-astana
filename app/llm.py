@@ -251,3 +251,16 @@ def resolve_times(parsed: dict, now: datetime) -> tuple[datetime, str]:
         return t, f"к {dl}"
     mins = parsed.get("duration_min") or 90
     return now + timedelta(minutes=mins), f"{mins} мин"
+
+
+def translate(texts: list[str], language: str | None) -> list[str]:
+    """Сообщения системы (отказы, советы) — на язык запроса. Не вышло — оставляем по-русски."""
+    lang = {"en": "английский", "kk": "казахский"}.get(language or "")
+    if not lang or not texts:
+        return texts
+    d = _chat(f"Переведи каждую строку на {lang} язык, коротко и дружелюбно, сохраняя числа и названия мест. "
+              'Верни ТОЛЬКО JSON: {"t": ["...", "..."]} в том же порядке.',
+              json.dumps(texts, ensure_ascii=False), max_tokens=600, fast=True, budget=6)
+    out = (d or {}).get("t")
+    return [str(x) for x in out] if isinstance(out, list) and len(out) == len(texts) else texts
+

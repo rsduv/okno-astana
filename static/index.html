@@ -39,6 +39,9 @@ button{font:inherit;color:inherit}
 .pill.cold.on{color:var(--cold);background:rgba(40,70,100,.9)}
 .pill input{background:none;border:0;color:inherit;font:inherit;width:0;outline:none;color-scheme:dark;padding:0}
 .pill .x{opacity:.6;margin-left:2px}
+.langs{position:fixed;right:64px;top:16px;z-index:6;display:flex;padding:3px;gap:2px;border-radius:999px}
+.langs button{background:none;border:0;color:var(--muted);font-weight:800;font-size:11.5px;padding:4px 7px;border-radius:999px;cursor:pointer}
+.langs button.on{background:rgba(76,201,240,.18);color:var(--accent)}
 .pill svg{width:15px;height:15px;flex:none}
 #locbtn svg{width:20px;height:20px}
 .ico{color:#c9bcff}.mk{color:#c9bcff}
@@ -152,6 +155,7 @@ button{font:inherit;color:inherit}
   .ex .grid{grid-template-columns:1fr}
   #locbtn{top:auto;bottom:24px}
   #tilt{top:auto;bottom:72px}
+  .langs{right:10px;top:auto;bottom:122px;flex-direction:column;border-radius:14px}
   .maplibregl-ctrl-top-right{display:none}
 }
 </style>
@@ -162,6 +166,7 @@ button{font:inherit;color:inherit}
 <button id="locbtn" class="glass" title="Где я? Навести карту на меня"><i data-lucide="locate-fixed"></i></button>
 <button id="tilt" class="glass" title="3D-вид: наклонить и повернуть карту">3D</button>
 <div id="toast"></div>
+<div class="glass langs" id="langs"><button data-l="ru">RU</button><button data-l="kk">KZ</button><button data-l="en">EN</button></div>
 
 <div class="top">
   <div class="search glass">
@@ -180,8 +185,8 @@ button{font:inherit;color:inherit}
 </div>
 
 <div class="ex glass" id="ex">
-  <h4>Есть свободное время? Заполним его.</h4>
-  <p>Скажи, где ты, куда тебе нужно и к скольки. «Окно» найдёт 1–3 места по пути — открытых, когда ты дойдёшь, и так, чтобы ты точно успел.</p>
+  <h4 id="exT"></h4>
+  <p id="exP"></p>
   <div class="grid" id="quick"></div>
 </div>
 <div class="deck" id="deck"></div>
@@ -202,6 +207,83 @@ const ICON = {"кафе":"Coffee","ресторан":"Utensils","фастфуд"
   "развлечения":"PartyPopper","океанариум":"Fish","зоопарк":"Rabbit","парк развлечений":"FerrisWheel","батутный парк":"Baby","аквапарк":"Waves"};
 const ic = (c, size=20) => svg(ICON[c] || "MapPin", size);
 
+
+// ---------- языки интерфейса: русский / English / қазақша ----------
+const I18N = {
+ ru:{find:"Найти", ph:"Где ты, куда нужно и к скольки?", here:"я здесь", now:"сейчас", feels:"ощущается", heroT:"Есть свободное время? Заполним его.",
+  heroP:"Скажи, где ты, куда тебе нужно и к скольки. «Окно» найдёт 1–3 места по пути — открытых, когда ты дойдёшь, и так, чтобы ты точно успел.",
+  arrive:"на месте", back:"обратно", buf:"запас", min:"мин", open2gis:"Открыть в 2GIS", how:"Как посчитано?", walk:"пешком", taxi:"такси", est:"оценка", jam:"пробки 2GIS",
+  save:"сохранить точку", saveTo:"Дом, Тётя Гуля…", savedT:n=>`Сохранил «${n}». Теперь можно написать «к ${n} к 19:00».`, addTime:"Допиши время — например «к 19:00» — или «есть час».",
+  gotoQ:n=>`Мне нужно в «${n}» к `, mark:"Отметил старт на карте. Теперь напиши, куда и к скольки — или «есть час».", noGeo:"Браузер не умеет определять место — ткни в карту.",
+  notAst:"Похоже, ты не в Астане. Ткни в карту, где будешь, — или напиши ориентир.", geoDen:"Не дали доступ к геолокации. Можно ткнуть в карту или написать «я у Байтерека».",
+  tilt:"Крутить карту: правая кнопка мыши (или Ctrl + перетаскивание). На телефоне — двумя пальцами.", search:"ищу…", point:"точка ±150 м",
+  steps:["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"], down:"Сервер не ответил. Проверь, что он запущен.",
+  howT:"Как «Окно» поняло запрос", from:"откуда", to:"куда", loop:"потом обратно", win:"окно", lang:"язык", out:"на улице", maxOut:"макс. подряд", km:"км", walkKm:"пешком",
+  cands:"мест рассмотрено", plans:"вариантов маршрута", tUnd:"понял / посчитал", dataT:"Данные и оговорки", copy:"Скопировать план", copied:"Скопировано ✓", close:"Закрыть",
+  tryT:"Попробуй, например:", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
+  quick:[["ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа","Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре"],
+   ["Турист, вылет в 18:30","посмотреть город до самолёта","I'm at Baiterek, my flight is at 18:30, want to see the city"],
+   ["Прогулка 45 минут","от Mega Silk Way и обратно","Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"],
+   ["С ребёнком, 1,5 часа","рядом с Керуеном","С ребёнком у Керуена, есть полтора часа"],
+   ["Кофе и розетка","поработать пару часов","Хочу тихое место с кофе и розеткой, я у Абу Даби Плаза, часа два"],
+   ["Ночь, 2 часа","что-то необычное","Ночью у Хан Шатыра, хочу что-то необычное на пару часов"]], hours:[]},
+ en:{find:"Go", ph:"Where are you, where to, and by when?", here:"I'm here", now:"now", feels:"feels like", heroT:"Got free time? Let's fill it.",
+  heroP:"Tell us where you are, where you need to be and by when. Okno finds 1–3 places on the way — open when you arrive, and timed so you won't be late.",
+  arrive:"arrive", back:"back", buf:"spare", min:"min", open2gis:"Open in 2GIS", how:"How was this computed?", walk:"walk", taxi:"taxi", est:"estimate", jam:"2GIS traffic",
+  save:"save this spot", saveTo:"Home, Aunt Gulya…", savedT:n=>`Saved “${n}”. Now you can type “to ${n} by 7 pm”.`, addTime:"Add a time — e.g. “by 7 pm” — or “I have an hour”.",
+  gotoQ:n=>`I need to get to “${n}” by `, mark:"Start marked on the map. Now type where to and by when — or “I have an hour”.", noGeo:"Your browser can't detect location — tap the map.",
+  notAst:"Looks like you're not in Astana. Tap the map where you'll be, or type a landmark.", geoDen:"Location access denied. Tap the map or type “I'm at Baiterek”.",
+  tilt:"Rotate the map: right mouse button (or Ctrl + drag). On a phone — two fingers.", search:"locating…", point:"spot ±150 m",
+  steps:["Understanding your request","Finding places on the way","Checking time, opening hours, weather","Writing why it's worth it"], down:"The server didn't respond.",
+  howT:"How Okno understood you", from:"from", to:"to", loop:"then back", win:"window", lang:"language", out:"outdoors", maxOut:"longest outdoor", km:"km", walkKm:"walking",
+  cands:"places considered", plans:"route options", tUnd:"understood / planned", dataT:"Data and caveats", copy:"Copy plan", copied:"Copied ✓", close:"Close",
+  tryT:"Try, for example:", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
+  quick:[["EXPO → Khan Shatyr by 7 pm","evening meeting, 1.5 h free","I'm at EXPO, need to be at Khan Shatyr by 19:00"],
+   ["Tourist, flight at 6:30 pm","see the city before the flight","I'm at Baiterek, my flight is at 18:30, want to see the city"],
+   ["45-minute walk","from Mega Silk Way and back","I'm at Mega Silk Way, want a 45 minute walk and come back"],
+   ["With a kid, 1.5 h","near Keruen","With my kid near Keruen, we have an hour and a half"],
+   ["Coffee and a socket","work for a couple of hours","Quiet place with coffee and a power socket near Abu Dhabi Plaza, two hours"],
+   ["Night, 2 hours","something unusual","At night near Khan Shatyr, want something unusual for a couple of hours"]],
+  hours:[["открытое место — часы не нужны","outdoor place — no hours needed"],["открыто, пока ты там","open while you're there"],["оценка, данных нет","estimate, no data"],
+   ["обычно","usually"],["по 2GIS","via 2GIS"],["круглосуточно","24/7"],["закрывается в","closes at"],["скорее всего закрыто","probably closed"],["внутри ТРЦ","inside mall"],["часы — по ТРЦ","mall hours"]]},
+ kk:{find:"Табу", ph:"Қайдасың, қайда және сағат нешеге?", here:"мен осындамын", now:"қазір", feels:"сезілуі", heroT:"Бос уақытың бар ма? Толтырайық.",
+  heroP:"Қайда екеніңді, қайда және сағат нешеге жету керегін жаз. «Окно» жолыңда 1–3 орын табады — сен барғанда ашық және кешікпейтіндей.",
+  arrive:"орнында", back:"кері", buf:"қор", min:"мин", open2gis:"2GIS-те ашу", how:"Қалай есептелді?", walk:"жаяу", taxi:"такси", est:"бағалау", jam:"2GIS кептелісі",
+  save:"нүктені сақтау", saveTo:"Үй, Гүля апай…", savedT:n=>`«${n}» сақталды. Енді «${n}, 19:00-ге» деп жаза аласың.`, addTime:"Уақытты қос — мысалы «19:00-ге» — немесе «бір сағат бар».",
+  gotoQ:n=>`«${n}» жеріне сағат `, mark:"Бастау нүктесі белгіленді. Енді қайда және сағат нешеге екенін жаз.", noGeo:"Браузер орынды анықтай алмайды — картаны бас.",
+  notAst:"Сен Астанада емес сияқтысың. Картадан нүкте таңда немесе бағдар жаз.", geoDen:"Геолокацияға рұқсат жоқ. Картаны бас немесе «Бәйтеректің жанындамын» деп жаз.",
+  tilt:"Картаны бұру: тышқанның оң батырмасы (немесе Ctrl + сүйреу). Телефонда — екі саусақпен.", search:"іздеп жатыр…", point:"нүкте ±150 м",
+  steps:["Сұрауды түсініп жатырмын","Жолдағы орындарды іздеп жатырмын","Уақыт, жұмыс кестесі, ауа райын тексеріп жатырмын","Неге баруға тұрарлық екенін жазып жатырмын"], down:"Сервер жауап бермеді.",
+  howT:"«Окно» сұрауды қалай түсінді", from:"қайдан", to:"қайда", loop:"сосын кері", win:"терезе", lang:"тіл", out:"далада", maxOut:"ең ұзақ далада", km:"км", walkKm:"жаяу",
+  cands:"орын қаралды", plans:"бағыт нұсқасы", tUnd:"түсінді / есептеді", dataT:"Деректер мен ескертулер", copy:"Жоспарды көшіру", copied:"Көшірілді ✓", close:"Жабу",
+  tryT:"Мысалы, былай жазып көр:", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
+  quick:[["ЭКСПО → Хан Шатыр 19:00-ге","кешкі кездесу, 1,5 сағат бар","Мен ЭКСПО-дамын, 19:00-ге Хан Шатырда болуым керек"],
+   ["Турист, ұшақ 18:30-да","ұшар алдында қаланы көру","I'm at Baiterek, my flight is at 18:30, want to see the city"],
+   ["45 минут серуен","Mega Silk Way-ден және кері","Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"],
+   ["Баламен, 1,5 сағат","Керуен маңында","Баламен Керуеннің жанындамын, бір жарым сағат бар"],
+   ["Кофе және розетка","бірнеше сағат жұмыс","Абу Даби Плаза жанында кофе мен розеткасы бар тыныш орын керек, екі сағат"],
+   ["Түн, 2 сағат","ерекше бірдеңе","Түнде Хан Шатырдың жанындамын, екі сағатқа ерекше бірдеңе керек"]],
+  hours:[["открытое место — часы не нужны","ашық орын — кесте керек емес"],["открыто, пока ты там","сен онда болғанда ашық"],["оценка, данных нет","бағалау, дерек жоқ"],
+   ["обычно","әдетте"],["по 2GIS","2GIS бойынша"],["круглосуточно","тәулік бойы"],["закрывается в","жабылады:"],["скорее всего закрыто","жабық болуы мүмкін"],["внутри ТРЦ","СОО ішінде"],["часы — по ТРЦ","СОО кестесі"]]},
+};
+let LANG = "ru";
+try { LANG = localStorage.getItem("okno_lang") || ({en:"en", kk:"kk"}[(navigator.language||"ru").slice(0,2)] || "ru"); } catch(e) {}
+const T = k => (I18N[LANG] && I18N[LANG][k] !== undefined ? I18N[LANG][k] : I18N.ru[k]);
+const TH = s => (T("hours")||[]).reduce((a,[ru,x]) => a.split(ru).join(x), String(s ?? ""));
+function applyLang(){
+  document.documentElement.lang = LANG;
+  $("#go").textContent = T("find"); $("#q").placeholder = T("ph");
+  if(!state.point) $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>${T("here")}</span>`;
+  $("#tnow").textContent = T("now");
+  $("#exT").textContent = T("heroT"); $("#exP").textContent = T("heroP");
+  $("#quick").innerHTML = QUICK.map((q,i)=>`<button data-i="${i}"><span class="qi">${svg(q[0],16)}</span><span>${T("quick")[i][0]}<small>${T("quick")[i][1]}</small></span></button>`).join("");
+  document.querySelectorAll("#langs button").forEach(b => b.classList.toggle("on", b.dataset.l === LANG));
+  if(state.wx) $("#wxl").textContent = state.wx();
+  renderSaved();
+  if(state.last && !state.last.error) render(state.last);
+}
+function setLang(l){ LANG = l; try { localStorage.setItem("okno_lang", l); } catch(e) {} applyLang(); }
+
 const QUICK = [
   ["Building2","ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа", "Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "17:20"],
   ["Plane","Турист, вылет в 18:30","посмотреть город до самолёта", "I'm at Baiterek, my flight is at 18:30, want to see the city", "15:00"],
@@ -211,9 +293,9 @@ const QUICK = [
   ["MoonStar","Ночь, 2 часа","что-то необычное", "Ночью у Хан Шатыра, хочу что-то необычное на пару часов", "23:00"],
 ];
 lucide.createIcons({attrs:{width:15,height:15}});
-$("#quick").innerHTML = QUICK.map((q,i)=>`<button data-i="${i}"><span class="qi">${svg(q[0],16)}</span><span>${q[1]}<small>${q[2]}</small></span></button>`).join("");
+
 $("#quick").onclick = e => { const b = e.target.closest("button"); if(!b) return; const q = QUICK[b.dataset.i];
-  $("#q").value = q[3]; setTime(q[4]); clearPoint(); run(); };
+  $("#q").value = T("quick")[b.dataset.i][2]; setTime(q[4]); clearPoint(); run(); };
 
 // ---------- управление ----------
 function setTime(v){ state.nowOverride = v; $("#now").value = v || ""; $("#tnow").style.display = v ? "none" : ""; $("#now").style.width = v ? "74px" : "0"; $("#tpill").classList.toggle("on", !!v); }
@@ -236,22 +318,22 @@ function storeSaved(){ try { localStorage.setItem(SKEY, JSON.stringify(saved)); 
 function renderSaved(){
   const box = $("#savedChips");
   let h = Object.keys(saved).map(n => `<button class="pill glass sv" data-n="${esc(n)}" title="поехать сюда">${svg(/^дом/i.test(n)?"House":"Star",15)}<span>${esc(n)}</span><span class="x" data-del="1" title="удалить">✕</span></button>`).join("");
-  if(state.point) h += `<button class="pill glass" id="savePt" title="запомнить отмеченную точку">${svg("BookmarkPlus",15)}<span>сохранить точку</span></button>`;
+  if(state.point) h += `<button class="pill glass" id="savePt" title="запомнить отмеченную точку">${svg("BookmarkPlus",15)}<span>${T("save")}</span></button>`;
   box.innerHTML = h;
   box.querySelectorAll(".sv").forEach(b => b.onclick = e => {
     const n = b.dataset.n;
     if(e.target.dataset.del){ delete saved[n]; storeSaved(); renderSaved(); return; }
-    $("#q").value = `Мне нужно в «${n}» к `; $("#q").focus();
-    toast(`Допиши время — например «к 19:00» — или «есть час».`);
+    $("#q").value = T("gotoQ")(n); $("#q").focus();
+    toast(T("addTime"));
   });
   const sp = $("#savePt");
   if(sp) sp.onclick = () => {
-    sp.outerHTML = `<span class="pill glass on">${svg("BookmarkPlus",15)}<input id="svName" placeholder="Дом, Тётя Гуля…" style="width:130px"></span>`;
+    sp.outerHTML = `<span class="pill glass on">${svg("BookmarkPlus",15)}<input id="svName" placeholder="${T("saveTo")}" style="width:130px"></span>`;
     const i = $("#svName"); i.focus();
     i.onkeydown = e => {
       const n = i.value.trim();
       if(e.key==="Enter" && n && state.point){ saved[n] = {lat:state.point.lat, lon:state.point.lon}; storeSaved(); renderSaved();
-        toast(`Сохранил «${n}». Теперь можно написать «к ${n} к 19:00».`); }
+        toast(T("savedT")(n)); }
       if(e.key==="Escape") renderSaved();
     };
   };
@@ -320,7 +402,7 @@ mapReady.then(async () => {
 });
 function setPoint(lat, lon, label){
   lat = +lat.toFixed(3); lon = +lon.toFixed(3);   // ~100–150 м: точные координаты не нужны и не хранятся
-  state.point = {lat, lon, mine: label==="я здесь"};
+  state.point = {lat, lon, mine: label===T("here")};
   if(meMarker) meMarker.remove();
   const el = document.createElement("div"); el.className = "mk me";
   meMarker = new maplibregl.Marker({element:el}).setLngLat([lon,lat]).addTo(map);
@@ -330,24 +412,24 @@ function setPoint(lat, lon, label){
 }
 map.on("click", e => {
   if(e.originalEvent.target.closest(".mk")) return;
-  setPoint(e.lngLat.lat, e.lngLat.lng, "точка ±150 м");
-  toast("Отметил старт на карте. Теперь напиши, куда и к скольки — или «есть час».");
+  setPoint(e.lngLat.lat, e.lngLat.lng, T("point"));
+  toast(T("mark"));
 });
 function clearPoint(){ state.point=null; if(meMarker){meMarker.remove(); meMarker=null;}
-  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>я здесь</span>`; $("#pt").classList.remove("on"); renderSaved(); }
+  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>${T("here")}</span>`; $("#pt").classList.remove("on"); renderSaved(); }
 function locate(){
-  if(!navigator.geolocation){ toast("Браузер не умеет определять место — ткни в карту."); return; }
-  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>ищу…</span>`; $("#locbtn").classList.add("busy");
+  if(!navigator.geolocation){ toast(T("noGeo")); return; }
+  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>${T("search")}</span>`; $("#locbtn").classList.add("busy");
   navigator.geolocation.getCurrentPosition(pos => {
     $("#locbtn").classList.remove("busy");
     const {latitude:lat, longitude:lon} = pos.coords;
     if(Math.hypot(lat-51.13, (lon-71.43)*0.63) > 0.25){
-      clearPoint(); toast("Похоже, ты не в Астане. Ткни в карту, где будешь, — или напиши ориентир."); return; }
-    setPoint(lat, lon, "я здесь");
+      clearPoint(); toast(T("notAst")); return; }
+    setPoint(lat, lon, T("here"));
     map.flyTo({center:[lon,lat], zoom:15, speed:1.4});
     $("#q").focus();
   }, () => { $("#locbtn").classList.remove("busy"); clearPoint();
-    toast("Не дали доступ к геолокации. Можно ткнуть в карту или написать «я у Байтерека»."); },
+    toast(T("geoDen")); },
   {enableHighAccuracy:false, timeout:10000, maximumAge:60000});
 }
 $("#pt").onclick = e => { if(!e.target.closest("#ptx")) locate(); };
@@ -356,24 +438,24 @@ let tiltHinted = false;
 $("#tilt").onclick = () => {
   const on = map.getPitch() < 50;
   map.easeTo(on ? {pitch:60, bearing:-28, zoom:Math.max(map.getZoom(), 15), duration:1200} : {pitch:0, bearing:0, duration:900});
-  if(on && !tiltHinted){ tiltHinted = true; toast("Крутить карту: правая кнопка мыши (или Ctrl + перетаскивание). На телефоне — двумя пальцами."); }
+  if(on && !tiltHinted){ tiltHinted = true; toast(T("tilt")); }
 };
 map.on("pitchend", () => $("#tilt").classList.toggle("on", map.getPitch() >= 50));
 
 fetch("/api/meta").then(r=>r.json()).then(m => {
   const w = m.weather; if(w.apparent==null) return;
   const f = x => (x>0?"+":"")+Math.round(x)+"°";
-  $("#wxl").textContent = `${f(w.temp)}, ощущается ${f(w.apparent)}`;
+  state.wx = () => `${f(w.temp)}, ${T("feels")} ${f(w.apparent)}`; $("#wxl").textContent = state.wx();
   state.sky = w.sky; setFx(state.weather==="cold" ? "snow" : w.sky);
 }).catch(()=>{});
 
 // ---------- шаги работы ----------
-const STAGES = ["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"];
+
 let pipeTimers = [];
 function showSteps(){
   pipeTimers.forEach(clearTimeout); pipeTimers=[];
   const s = $("#sum"); s.className = "sum glass show";
-  s.innerHTML = `<div class="steps">${STAGES.map(t=>`<div class="s"><i></i>${t}</div>`).join("")}</div>`;
+  s.innerHTML = `<div class="steps">${T("steps").map(t=>`<div class="s"><i></i>${t}</div>`).join("")}</div>`;
   [0, 1600, 2200, 3800].forEach((t,i)=> pipeTimers.push(setTimeout(()=>{
     s.querySelectorAll(".s").forEach((el,j)=>{ el.className = "s" + (j<i?" done":j===i?" run":""); });
   }, t)));
@@ -389,8 +471,10 @@ async function run(extra={}){
   try{
     const r = await (await fetch("/api/plan", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
     pipeTimers.forEach(clearTimeout);
-    state.last = r; render(r);
-  }catch(e){ pipeTimers.forEach(clearTimeout); $("#sum").innerHTML = `<div class="err">Сервер не ответил. Проверь, что он запущен.</div>`; }
+    state.last = r;
+    const rl = r.parsed?.language;
+    if(rl && rl !== LANG && I18N[rl] && !extra.parsed){ LANG = rl; applyLang(); } else render(r);
+  }catch(e){ pipeTimers.forEach(clearTimeout); $("#sum").innerHTML = `<div class="err">${T("down")}</div>`; }
   $("#go").disabled = false; $("#deck").style.opacity = 1;
 }
 function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: state.lastReq.exclude || [], keep: []}); }
@@ -400,9 +484,9 @@ const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотр�
   kids:"с ребёнком", night:"ночь", work:"поработать", active:"активно", cinema:"кино", walk:"прогуляться"};
 const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух/;
 function openLine(h){
-  if(h.confidence==="verified") return `<div class="open ok">● ${esc(h.text)}</div>`;
-  if(h.confidence==="outdoor") return `<div class="open out">● ${esc(h.text)}</div>`;
-  return `<div class="open est" title="в данных нет часов работы — показаны типичные">◐ ${esc(h.text)}</div>`;
+  if(h.confidence==="verified") return `<div class="open ok">● ${esc(TH(h.text))}</div>`;
+  if(h.confidence==="outdoor") return `<div class="open out">● ${esc(TH(h.text))}</div>`;
+  return `<div class="open est" title="в данных нет часов работы — показаны типичные">◐ ${esc(TH(h.text))}</div>`;
 }
 function track(r){
   const cold = r.weather?.simulated, segs = [];
@@ -416,30 +500,32 @@ function track(r){
 }
 function legText(l){
   if(!l) return "";
-  if(l.mode==="walk") return `${svg("Footprints",13)} ${l.min} мин пешком${l.estimated?' <span class="est">оценка</span>':""}`;
+  if(l.mode==="walk") return `${svg("Footprints",13)} ${l.min} ${T("min")} ${T("walk")}${l.estimated?` <span class="est">${T("est")}</span>`:""}`;
   const jam = (l.traffic||"").startsWith("пробки 2GIS");
-  return `${svg("CarTaxiFront",13)} такси ~${l.drive_min + l.wait_min} мин <span class="est ${jam?"jam":""}" title="${esc(l.traffic)}; подача ~${l.wait_min} мин">${jam?"пробки 2GIS":"оценка"}</span>`;
+  return `${svg("CarTaxiFront",13)} ${T("taxi")} ~${l.drive_min + l.wait_min} ${T("min")} <span class="est ${jam?"jam":""}" title="${esc(l.traffic)}; подача ~${l.wait_min} мин">${jam?T("jam"):T("est")}</span>`;
 }
 function render(r){
   const sum = $("#sum"), deck = $("#deck");
   sum.className = "sum glass show";
   if(r.error){
     const tips = (r.notes||[]).map(n=>`<div class="tip">${esc(n)}</div>`).join("");
-    sum.innerHTML = `<div class="err">${esc(r.error)}${tips}</div>`;
+    sum.innerHTML = `<div class="err">${esc(r.error)}${tips}<div class="tip" style="margin-top:10px">${T("tryT")}</div>
+      <div class="links">${[0,2,3].map(i=>`<button class="tryq" data-i="${i}">${esc(T("quick")[i][0])}</button>`).join("")}</div></div>`;
+    sum.querySelectorAll(".tryq").forEach(b => b.onclick = () => { $("#q").value = T("quick")[b.dataset.i][2]; setTime(QUICK[b.dataset.i][4]); clearPoint(); run(); });
     deck.innerHTML = ""; clearRoute(); return;
   }
   const s = r.summary, notes = r.notes||[], isKey = (x,i) => r.notes_key ? r.notes_key[i] : KEY.test(x);
   const key = notes.filter(isKey);
   const back = r.destination.label.startsWith("обратно");
   sum.innerHTML = `
-    <div class="l1"><b>${s.arrive}</b><span>${back?"обратно":"на месте"}</span><span class="buf ${s.buffer_min<8?"warn":""}">запас ${s.buffer_min} мин</span></div>
+    <div class="l1"><b>${s.arrive}</b><span>${back?T("back"):T("arrive")}</span><span class="buf ${s.buffer_min<8?"warn":""}">${T("buf")} ${s.buffer_min} ${T("min")}</span></div>
     <div class="hl">${esc(r.headline)}</div>
     ${track(r)}
     ${key.map(x=>`<div class="note">${esc(x)}</div>`).join("")}
     <div class="links">
-      <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">Открыть в 2GIS</a>
+      <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">${T("open2gis")}</a>
       <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps</a>
-      <button class="ghost" id="how">Как посчитано?</button>
+      <button class="ghost" id="how">${T("how")}</button>
     </div>`;
   // карточки: у каждой остановки сверху — как до неё добраться
   const stops = r.steps.filter(x=>x.type==="stop");
@@ -453,19 +539,19 @@ function render(r){
       html += `<div class="card glass" data-i="${n}" data-lat="${st.lat}" data-lon="${st.lon}" style="animation-delay:${n*80}ms">
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico">${ic(st.category)}<i>${n}</i></div>
-          <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} мин${inside}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
-          <button class="swap" title="заменить это место" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
+          <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} ${T("min")}${TH(inside)}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
+          <button class="swap" title="${T("replace")}" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
         <div class="why">${esc(st.why)}</div>
         <div class="todo">${esc(st.todo)}</div>
         ${openLine(st.hours)}
-        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenStreetMap</a>${st.dgis_id?` · <a href="https://2gis.kz/astana/firm/${esc(String(st.dgis_id).split("_")[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">2GIS</a>`:""} · ${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</div>
+        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenStreetMap</a>${st.dgis_id?` · <a href="https://2gis.kz/astana/firm/${esc(String(st.dgis_id).split("_")[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">2GIS</a>`:""} · ${st.text_source==="ai"?T("txtAi"):T("txtTpl")}</div>
       </div>`;
     }
     if(st.type==="end"){
       html += `<div class="card glass fin" data-lat="${r.destination.lat}" data-lon="${r.destination.lon}" style="animation-delay:${(n+1)*80}ms">
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico" style="background:rgba(61,220,151,.18)">${svg(back?"Undo2":"Flag",20)}</div>
-          <div style="min-width:0"><h3>${esc(r.destination.label.replace("обратно: ",""))}</h3><div class="sub">запас ${s.buffer_min} мин</div></div></div>
+          <div style="min-width:0"><h3>${esc(r.destination.label.replace("обратно: ",""))}</h3><div class="sub">${T("buf")} ${s.buffer_min} ${T("min")}</div></div></div>
         <div class="big" style="margin-top:10px">${st.time}</div></div>`;
     }
   }
@@ -483,20 +569,20 @@ function focusCard(c){
 }
 function showHow(r){
   const p = r.parsed||{}, s = r.summary, ch = [];
-  ch.push(`откуда: <b>${esc(r.origin.label)}</b>`);
-  ch.push(r.destination.label.startsWith("обратно") ? "потом обратно" : `куда: <b>${esc(r.destination.label)}</b>`);
-  ch.push(`окно: <b>${r.now}–${r.deadline}</b>`);
+  ch.push(`${T("from")}: <b>${esc(r.origin.label)}</b>`);
+  ch.push(r.destination.label.startsWith("обратно") ? T("loop") : `${T("to")}: <b>${esc(r.destination.label)}</b>`);
+  ch.push(`${T("win")}: <b>${r.now}–${r.deadline}</b>`);
   (p.prefs||[]).forEach(x=>ch.push(PREF_RU[x]||x));
-  if(p.language && p.language!=="ru") ch.push(`язык: ${p.language.toUpperCase()}`);
-  const c = r.considered||{}, tm = r.timings||{}, sec = k => tm[k]!=null ? (tm[k]/1000).toFixed(1)+" с" : "—";
-  $("#sheetBox").innerHTML = `<h4>Как «Окно» поняло запрос</h4>
+  if(p.language && p.language!=="ru") ch.push(`${T("lang")}: ${p.language.toUpperCase()}`);
+  const c = r.considered||{}, tm = r.timings||{}, sec = k => tm[k] ? (tm[k]/1000).toFixed(1)+" с" : "—";
+  $("#sheetBox").innerHTML = `<h4>${T("howT")}</h4>
     <div class="chips">${ch.map(x=>`<span>${x}</span>`).join("")}</div>
-    <div class="kv"><div><b>${s.outdoor_min} мин</b>на улице</div><div><b>${s.max_outdoor_leg} мин</b>макс. подряд</div><div><b>${String(s.walk_km).replace(".",",")} км</b>пешком</div></div>
-    <div class="kv"><div><b>${c.candidates??"—"}</b>мест рассмотрено</div><div><b>${c.plans??"—"}</b>вариантов маршрута</div><div><b>${sec("understand")} / ${sec("plan")}</b>понял / посчитал</div></div>
-    <h4>Данные и оговорки</h4>
+    <div class="kv"><div><b>${s.outdoor_min} ${T("min")}</b>${T("out")}</div><div><b>${s.max_outdoor_leg} ${T("min")}</b>${T("maxOut")}</div><div><b>${String(s.walk_km).replace(".",",")} ${T("km")}</b>${T("walkKm")}</div></div>
+    <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${c.plans??"—"}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
+    <h4>${T("dataT")}</h4>
     <ul>${(r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x))).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-    <div class="links"><button id="share">Скопировать план</button><button class="ghost" id="closeHow">Закрыть</button></div>`;
-  $("#share").onclick = () => { navigator.clipboard?.writeText(planText(r)); $("#share").textContent = "Скопировано ✓"; };
+    <div class="links"><button id="share">${T("copy")}</button><button class="ghost" id="closeHow">${T("close")}</button></div>`;
+  $("#share").onclick = () => { navigator.clipboard?.writeText(planText(r)); $("#share").textContent = T("copied"); };
   $("#closeHow").onclick = () => $("#sheet").classList.remove("show");
   $("#sheet").classList.add("show");
 }
@@ -551,7 +637,8 @@ async function drawRoute(r){
   map.getSource("route-taxi").setData({type:"FeatureCollection",features:taxi});
 }
 
-renderSaved();
+document.querySelectorAll("#langs button").forEach(b => b.onclick = e => { e.stopPropagation(); setLang(b.dataset.l); });
+applyLang();
 
 // ---------- ссылка на сценарий: ?q=...&t=17:20&w=cold ----------
 (() => {
