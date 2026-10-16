@@ -510,8 +510,14 @@ function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: st
 
 // ---------- отрисовка ----------
 const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотреть город", nature:"природа", culture:"культура", shopping:"шопинг",
-  unusual:"необычное", romantic:"романтика", view:"вид на город", quiet:"тихо",
+  unusual:"необычное", romantic:"романтика", view:"вид на город", quiet:"тихо", indoor:"под крышей",
   kids:"с ребёнком", night:"ночь", work:"поработать", active:"активно", cinema:"кино", walk:"прогуляться"};
+const PREF_EN = {coffee:"coffee", food:"food", sights:"sightseeing", nature:"nature", culture:"culture", shopping:"shopping",
+  unusual:"unusual", romantic:"romantic", view:"city view", quiet:"quiet", indoor:"indoors", kids:"with kids", night:"night",
+  work:"work", active:"active", cinema:"cinema", walk:"walk"};
+const PREF_KK = {coffee:"кофе", food:"тамақ", sights:"қала көрікті жерлері", nature:"табиғат", culture:"мәдениет", shopping:"сауда",
+  unusual:"ерекше", romantic:"романтика", view:"қала көрінісі", quiet:"тыныш", indoor:"жабық жер", kids:"баламен", night:"түн",
+  work:"жұмыс", active:"белсенді", cinema:"кино", walk:"серуен"};
 const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил/;
 function openLine(h){
   if(h.confidence==="verified") return `<div class="open ok">● ${esc(TH(h.text))}</div>`;
@@ -616,7 +622,7 @@ function showHow(r){
   ch.push(`${T("from")}: <b>${esc(r.origin.label)}</b>`);
   ch.push(r.destination.label.startsWith("обратно") ? T("loop") : `${T("to")}: <b>${esc(r.destination.label)}</b>`);
   ch.push(`${T("win")}: <b>${r.now}–${r.deadline}</b>`);
-  (p.prefs||[]).forEach(x=>ch.push(PREF_RU[x]||x));
+  (p.prefs||[]).forEach(x=>ch.push((LANG==="en" ? PREF_EN : LANG==="kk" ? PREF_KK : PREF_RU)[x]||x));
   if(p.language && p.language!=="ru") ch.push(`${T("lang")}: ${p.language.toUpperCase()}`);
   const c = r.considered||{}, tm = r.timings||{}, sec = k => tm[k] ? (tm[k]/1000).toFixed(1)+" с" : "—";
   const llm = r.parsed?.llm !== false, ai = (r.steps||[]).some(x=>x.text_source==="ai");
