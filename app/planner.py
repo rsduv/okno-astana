@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from . import geo
+from . import dgis, geo
 from .hours import OUTDOOR, interval_status
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,7 +101,10 @@ class Ctx:
         self.prefs = set(intent.get("prefs") or [])
         if intent.get("with_kids"):
             self.prefs.add("kids")
-        self.walk_only = intent.get("transport") == "walk" or "walk" in self.prefs
+        far = geo.haversine_km((intent["origin"]["lat"], intent["origin"]["lon"]),
+                               (intent["destination"]["lat"], intent["destination"]["lon"])) > 3
+        # «погулять» по пути в аэропорт не значит «идти до аэропорта пешком»
+        self.walk_only = intent.get("transport") == "walk" or ("walk" in self.prefs and not far)
         self.work = "work" in self.prefs
         self.work_stay = 60
         sunset = w.get("sunset")
@@ -349,7 +352,10 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                 return None
             steps.append({"type": "stop", "id": p["id"], "name": p["name"], "category": p["category"],
                           "lat": p["lat"], "lon": p["lon"], "arrive": _fmt(arrive), "leave": _fmt(leave), "stay": stay,
-                          "hours": {"status": st, "confidence": conf, "text": text},
+                          "hours": {"status": st, "confidence": conf, "source": p.get("hours_src", "OSM"),
+                                    "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},
+                          "rating": (p.get("dgis") or {}).get("rating"), "reviews": (p.get("dgis") or {}).get("reviews"),
+                          "dgis_id": (p.get("dgis") or {}).get("id"),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
                                                 "в_помещении": p["category"] not in OUTDOOR},
@@ -380,7 +386,41 @@ def _facts(p: dict) -> dict:
         out["внутри"] = f"внутри ТРЦ «{p['inside']}»" + (" (часы — по ТРЦ)" if p.get("hours_from_mall") else "")
     if "wikidata" in t or "wikipedia" in t:
         out["известность"] = "есть статья в Википедии — известное место города"
+    d = p.get("dgis")
+    if d:
+        if d.get("rating") and d.get("reviews"):
+            out["рейтинг_2гис"] = f"{d['rating']} ({d['reviews']} оценок)"
+        if d.get("attrs"):
+            out["отметки_2гис"] = d["attrs"]
     return out
+
+
+def _dgis_bonus(p: dict, ctx: Ctx) -> float:
+    d = p.get("dgis")
+    if not d:
+        return 0.0
+    b = 0.0
+    if d.get("rating") and (d.get("reviews") or 0) >= 20:
+        b += max(-1.0, min(0.6, (d["rating"] - 4.3) * 1.2))
+    attrs = " ".join(d.get("attrs") or []).lower()
+    if ctx.work and "ноутбук" in attrs:
+        b += 1.5
+    if "kids" in ctx.prefs and "детск" in attrs:
+        b += 0.8
+    if ctx.i.get("language") == "en" and "английск" in attrs:
+        b += 0.4
+    return b
+
+
+def _enrich(results: list, ctx: Ctx) -> None:
+    """Уточняем кандидатов по 2GIS (часы, рейтинг, «можно с ноутбуком») и пересортировываем варианты."""
+    if not dgis.KEY:
+        return
+    uniq = {p["id"]: p for _, seq, _ in results for p in seq}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        list(ex.map(dgis.apply, uniq.values()))
+    dgis.save()
+    results.sort(key=lambda r: -(r[0] + sum(_dgis_bonus(p, ctx) for p in r[1])))
 
 
 def _prefetch(results, A, B):
@@ -438,6 +478,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             distinct.append(item)
         if len(distinct) >= 8:
             break
+    _enrich(distinct, ctx)
     _prefetch(distinct[:4], A, B)
     best = None
     for score, seq, _ in distinct:

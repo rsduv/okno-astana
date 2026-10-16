@@ -1,5 +1,6 @@
 """Стресс-тест планировщика: случайные запросы, проверка инвариантов. python scripts/stress.py [N]"""
-import random, sys, time, traceback
+import os, random, sys, time, traceback
+os.environ["DGIS_OFF"] = "1"  # не тратим лимит демо-ключа 2GIS на стресс-тест
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from datetime import datetime, timedelta

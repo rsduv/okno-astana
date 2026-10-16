@@ -96,6 +96,7 @@ button{font:inherit;color:inherit}
 .todo{font-size:12.8px;line-height:1.42;margin-top:5px;color:var(--muted)}
 .open{font-size:12px;font-weight:700;margin-top:auto;padding-top:9px}
 .open.ok{color:var(--ok)}.open.est{color:var(--warn)}.open.out{color:var(--cold)}
+.rt{color:#ffd166;font-weight:700}
 .src{font-size:10.5px;color:var(--dim);margin-top:4px}.src a{color:var(--dim)}
 .card.fin{width:200px;justify-content:center}
 .card.fin .big{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -206,9 +207,9 @@ $("#quick").onclick = e => { const b = e.target.closest("button"); if(!b) return
   $("#q").value = q[3]; setTime(q[4]); clearPoint(); run(); };
 
 // ---------- управление ----------
-function setTime(v){ state.nowOverride = v; $("#now").value = v || ""; $("#tnow").style.display = v ? "none" : ""; $("#now").style.width = v ? "62px" : "0"; $("#tpill").classList.toggle("on", !!v); }
+function setTime(v){ state.nowOverride = v; $("#now").value = v || ""; $("#tnow").style.display = v ? "none" : ""; $("#now").style.width = v ? "74px" : "0"; $("#tpill").classList.toggle("on", !!v); }
 setTime(null);
-$("#tpill").onclick = () => { if(!state.nowOverride){ $("#now").style.width="62px"; $("#tnow").style.display="none"; $("#now").showPicker?.(); } };
+$("#tpill").onclick = () => { if(!state.nowOverride){ $("#now").style.width="74px"; $("#tnow").style.display="none"; $("#now").showPicker?.(); } };
 $("#now").onchange = e => { setTime(e.target.value || null); if(state.last) rerun(); };
 function setWeather(w){ state.weather=w; $("#wnow").classList.toggle("on", w==="now"); $("#wcold").classList.toggle("on", w==="cold"); }
 $("#wnow").onclick = () => { setWeather("now"); if(state.last) rerun(); };
@@ -372,12 +373,12 @@ function render(r){
       html += `<div class="card glass" data-i="${n}" data-lat="${st.lat}" data-lon="${st.lon}" style="animation-delay:${n*80}ms">
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico">${ic(st.category)}<i>${n}</i></div>
-          <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} мин${inside}</div></div>
+          <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} мин${inside}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
           <button class="swap" title="заменить это место" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
         <div class="why">${esc(st.why)}</div>
         <div class="todo">${esc(st.todo)}</div>
         ${openLine(st.hours)}
-        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenStreetMap</a> · ${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</div>
+        <div class="src"><a href="${esc(st.source)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenStreetMap</a>${st.dgis_id?` · <a href="https://2gis.kz/astana/firm/${esc(String(st.dgis_id).split("_")[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">2GIS</a>`:""} · ${st.text_source==="ai"?"текст: ИИ по фактам":"текст: шаблон"}</div>
       </div>`;
     }
     if(st.type==="end"){
