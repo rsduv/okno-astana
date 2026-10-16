@@ -239,6 +239,8 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
         if p["id"] in exclude:
             continue
         pt0 = (p["lat"], p["lon"])
+        if p["id"] not in required and p.get("inside") and geo.haversine_km(A, B) >= 0.3 and geo.haversine_km(pt0, B) < 0.4:
+            continue  # кафе внутри ТРЦ-финиша — это уже «на месте», а не остановка по пути
         # остановка «по пути» не может быть самим финишем или стартом
         if p["id"] not in required and (geo.haversine_km(pt0, B) < (0.25 if geo.haversine_km(A, B) >= 0.3 else 0.2) or
                                         (geo.haversine_km(A, B) >= 0.3 and geo.haversine_km(pt0, A) < 0.15)):

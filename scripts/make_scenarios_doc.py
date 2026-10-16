@@ -239,7 +239,7 @@ def main():
         L(f"- **Ожидаемый тип ответа:** {sc['expect']}")
         p = r.get("parsed", {})
         L(f"- **Как система поняла:** откуда — {p.get('origin')}, куда — {p.get('destination') or 'обратно'}, "
-          f"к — {p.get('deadline') or '—'}, окно — {p.get('duration_min') or '—'} мин, пожелания — {', '.join(p.get('prefs') or []) or 'нет'}, "
+          f"к — {p.get('deadline') or '—'}, окно — {(r.get('summary') or {}).get('window_min') or p.get('duration_min') or '—'} мин, пожелания — {', '.join(p.get('prefs') or []) or 'нет'}, "
           f"язык — {p.get('language')}")
         if r.get("error"):
             L(f"- **Ответ:** {r['error']}")
