@@ -309,7 +309,7 @@ def translate(texts: list[str], language: str | None) -> list[str]:
     lang = {"en": "английский", "kk": "казахский"}.get(language or "")
     if not lang or not texts:
         return texts
-    d = _chat(f"Переведи каждую строку на {lang} язык, коротко и дружелюбно, сохраняя числа и названия мест. "
+    d = _chat(f"Переведи каждую строку на {lang} язык, коротко и дружелюбно, сохраняя числа и названия мест; название сервиса «Окно» пиши как Okno. "
               'Верни ТОЛЬКО JSON: {"t": ["...", "..."]} в том же порядке.',
               json.dumps(texts, ensure_ascii=False), max_tokens=600, fast=True, budget=6)
     out = (d or {}).get("t")
