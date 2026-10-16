@@ -1,6 +1,6 @@
 # Автоматический сбор мест Астаны из OpenStreetMap.
 # Раз в неделю (и по кнопке) заново запускает scripts/collect_osm.py
-# и сохраняет data/poi.json, если что-то изменилось.
+# и scripts/collect_wiki.py, сохраняет data/poi.json и data/wiki.json, если что-то изменилось.
 name: Обновление базы мест (OSM)
 
 on:
@@ -21,10 +21,14 @@ jobs:
           python-version: "3.12"
       - name: Собрать места из Overpass API
         run: python scripts/collect_osm.py
+      - name: Известные места и описания из Wikidata / Википедии
+        run: |
+          pip install httpx
+          python scripts/collect_wiki.py
       - name: Сохранить, если база изменилась
         run: |
           git config user.name "poi-bot"
           git config user.email "poi-bot@users.noreply.github.com"
-          git add data/poi.json
+          git add data/poi.json data/wiki.json
           git diff --cached --quiet || git commit -m "data: обновление мест из OSM $(date -u +%F)"
           git push
