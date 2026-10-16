@@ -36,8 +36,28 @@ except Exception:
     _cache = {"_count": 0}
 
 
+_dead = {"until": 0.0}  # 2GIS ответил «лимит/ключ не работает» — час не трогаем, живём на OSM
+
+
+def _alive() -> bool:
+    return bool(KEY) and os.getenv("DGIS_OFF") != "1" and time.time() > _dead["until"]
+
+
+def _check(resp) -> dict | None:
+    """Разбор ответа 2GIS; при исчерпанном лимите/плохом ключе — выключаемся на час, приложение работает дальше."""
+    try:
+        d = resp.json()
+    except Exception:
+        d = {}
+    code = (d.get("meta") or {}).get("code", resp.status_code)
+    if resp.status_code in (401, 402, 403, 429) or code in (401, 402, 403, 429):
+        _dead["until"] = time.time() + 3600
+        return None
+    return d
+
+
 def enabled() -> bool:
-    return bool(KEY) and os.getenv("DGIS_OFF") != "1" and _cache.get("_count", 0) < BUDGET
+    return _alive() and _cache.get("_count", 0) < BUDGET
 
 
 def save():
@@ -91,9 +111,11 @@ def _fetch(p: dict) -> dict | None:
     with _lock:
         _cache["_count"] = _cache.get("_count", 0) + 1
     try:
-        r = httpx.get(URL, timeout=6, params={"q": p["name"], "point": f"{p['lon']},{p['lat']}", "radius": 200,
-                                              "page_size": 3, "fields": FIELDS, "locale": "ru_KZ", "key": KEY})
-        items = r.json().get("result", {}).get("items", [])
+        r = _check(httpx.get(URL, timeout=6, params={"q": p["name"], "point": f"{p['lon']},{p['lat']}", "radius": 200,
+                                                     "page_size": 3, "fields": FIELDS, "locale": "ru_KZ", "key": KEY}))
+        if r is None:
+            return None
+        items = r.get("result", {}).get("items", [])
     except Exception:
         return None
     it = _pick(items, p)
@@ -143,7 +165,7 @@ ROUTE_BUDGET = int(os.getenv("DGIS_ROUTE_BUDGET", "600"))
 def drive(a, b, t, now_real) -> tuple[float, str] | None:
     """Минуты на машине из a в b при выезде в t. Если t ≈ сейчас — живые пробки, иначе — типичные для этого часа.
     Возвращает (минуты, подпись) или None (нет ключа / лимит / сбой — тогда остаётся наша оценка)."""
-    if not KEY or os.getenv("DGIS_OFF") == "1":
+    if not _alive():
         return None
     live = abs((t - now_real).total_seconds()) < 20 * 60
     bucket = "live" if live else f"{t.weekday()}-{t.hour}"
@@ -162,7 +184,7 @@ def drive(a, b, t, now_real) -> tuple[float, str] | None:
         with _lock:
             _cache["_route_count"] = _cache.get("_route_count", 0) + 1
         try:
-            r = httpx.post(ROUTE_URL, params={"key": KEY}, json=body, timeout=6).json()
+            r = _check(httpx.post(ROUTE_URL, params={"key": KEY}, json=body, timeout=6))
             d = {"min": r["result"][0]["duration"] / 60, "ts": time.time()}
         except Exception:
             return None
@@ -176,7 +198,7 @@ PATH_BUDGET = int(os.getenv("DGIS_PATH_BUDGET", "400"))
 
 def path(a, b, mode: str) -> dict | None:
     """Запасной маршрут по улицам от 2GIS (если OSRM недоступен): {km, min, coords}. mode: 'foot' | 'car'."""
-    if not KEY or os.getenv("DGIS_OFF") == "1" or _cache.get("_path_count", 0) >= PATH_BUDGET:
+    if not _alive() or _cache.get("_path_count", 0) >= PATH_BUDGET:
         return None
     key = f"p:{mode}:{a[0]:.4f},{a[1]:.4f}>{b[0]:.4f},{b[1]:.4f}"
     if key in _cache:
@@ -186,7 +208,7 @@ def path(a, b, mode: str) -> dict | None:
     body = {"points": [{"type": "stop", "lon": a[1], "lat": a[0]}, {"type": "stop", "lon": b[1], "lat": b[0]}],
             "transport": "walking" if mode == "foot" else "driving", "output": "detailed"}
     try:
-        r = httpx.post(ROUTE_URL, params={"key": KEY}, json=body, timeout=6).json()["result"][0]
+        r = _check(httpx.post(ROUTE_URL, params={"key": KEY}, json=body, timeout=6))["result"][0]
     except Exception:
         return None
     coords = []
@@ -206,7 +228,7 @@ def path(a, b, mode: str) -> dict | None:
 
 def geocode(text: str) -> dict | None:
     """Поиск места/адреса в Астане через 2GIS — понимает сокращения и разговорные названия («мну универ», «тц хан»)."""
-    if not KEY or os.getenv("DGIS_OFF") == "1":
+    if not _alive():
         return None
     key = "g:" + text.lower().strip()
     if key not in _cache:
@@ -215,9 +237,12 @@ def geocode(text: str) -> dict | None:
         with _lock:
             _cache["_count"] = _cache.get("_count", 0) + 1
         try:
-            items = httpx.get(URL, timeout=6, params={"q": text, "location": "71.43,51.13", "point": "71.43,51.13",
-                                                      "radius": 40000, "page_size": 1, "fields": "items.point",
-                                                      "locale": "ru_KZ", "key": KEY}).json().get("result", {}).get("items", [])
+            r = _check(httpx.get(URL, timeout=6, params={"q": text, "location": "71.43,51.13", "point": "71.43,51.13",
+                                                         "radius": 40000, "page_size": 1, "fields": "items.point",
+                                                         "locale": "ru_KZ", "key": KEY}))
+            if r is None:
+                return None
+            items = r.get("result", {}).get("items", [])
         except Exception:
             return None
         it = items[0] if items and (items[0].get("point") or {}).get("lat") else None
