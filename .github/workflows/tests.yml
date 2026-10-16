@@ -1,0 +1,19 @@
+# Тесты ядра при каждом изменении кода: часы работы, поиск мест, понимание запроса без ИИ, инварианты планировщика.
+name: Тесты
+
+on:
+  push:
+    paths: ["app/**", "scripts/test_core.py", "data/**", ".github/workflows/tests.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Тесты ядра (без ключей и ИИ)
+        run: python scripts/test_core.py
