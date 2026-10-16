@@ -84,6 +84,7 @@ button{font:inherit;color:inherit}
 .card:hover{border-color:var(--line2)}
 .card.sel{border-color:var(--accent2)}
 .card .leg{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;gap:6px;align-items:center}
+.card .leg .est.jam{color:#ffb86b;background:rgba(255,160,80,.12)}
 .card .leg .est{font-size:10px;padding:1px 6px;border-radius:5px;background:var(--card);color:var(--dim)}
 .ch{display:flex;gap:10px;align-items:center}
 .ico{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:21px;flex:none;background:rgba(139,108,255,.16);position:relative}
@@ -98,7 +99,8 @@ button{font:inherit;color:inherit}
 .open.ok{color:var(--ok)}.open.est{color:var(--warn)}.open.out{color:var(--cold)}
 .rt{color:#ffd166;font-weight:700}
 .src{font-size:10.5px;color:var(--dim);margin-top:4px}.src a{color:var(--dim)}
-.card.fin{width:200px;justify-content:center}
+.card.fin{width:236px;justify-content:center}
+.card .leg{white-space:nowrap}
 .card.fin .big{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 
 /* старт: примеры */
@@ -136,6 +138,9 @@ button{font:inherit;color:inherit}
 .maplibregl-ctrl-group{background:var(--glass)!important;border:1px solid var(--line)!important}
 .maplibregl-ctrl-group button span{filter:invert(1)}
 #locbtn{position:fixed;right:16px;top:96px;z-index:4;width:40px;height:40px;border-radius:12px;color:var(--accent);display:grid;place-items:center;cursor:pointer}
+#tilt{position:fixed;right:16px;top:144px;z-index:4;width:40px;height:40px;border-radius:12px;color:var(--muted);font-weight:800;font-size:13px;cursor:pointer}
+#tilt.on{color:var(--accent)}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:2}
 #locbtn.busy svg{animation:spin 1s linear infinite}
 #toast{position:fixed;left:50%;top:20px;transform:translate(-50%,-20px);z-index:30;max-width:min(440px,90vw);padding:11px 16px;border-radius:14px;background:var(--glass2);border:1px solid var(--line2);font-size:13.5px;line-height:1.4;opacity:0;pointer-events:none;transition:all .25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -146,13 +151,16 @@ button{font:inherit;color:inherit}
   .ex{left:10px;bottom:10px;width:calc(100vw - 20px)}
   .ex .grid{grid-template-columns:1fr}
   #locbtn{top:auto;bottom:24px}
+  #tilt{top:auto;bottom:72px}
   .maplibregl-ctrl-top-right{display:none}
 }
 </style>
 </head>
 <body>
 <div id="map"></div>
+<canvas id="fx"></canvas>
 <button id="locbtn" class="glass" title="Где я? Навести карту на меня"><i data-lucide="locate-fixed"></i></button>
+<button id="tilt" class="glass" title="3D-вид: наклонить и повернуть карту">3D</button>
 <div id="toast"></div>
 
 <div class="top">
@@ -166,6 +174,7 @@ button{font:inherit;color:inherit}
     <label class="pill glass" id="tpill" title="время старта (для демо)"><i data-lucide="clock-3"></i><input type="time" id="now"><span id="tnow">сейчас</span></label>
     <button class="pill glass on" id="wnow"><i data-lucide="cloud-sun"></i><span id="wxl">погода</span></button>
     <button class="pill glass cold" id="wcold"><i data-lucide="snowflake"></i>−25°</button>
+    <span id="savedChips" style="display:contents"></span>
   </div>
   <div class="sum glass" id="sum"></div>
 </div>
@@ -211,13 +220,68 @@ function setTime(v){ state.nowOverride = v; $("#now").value = v || ""; $("#tnow"
 setTime(null);
 $("#tpill").onclick = () => { if(!state.nowOverride){ $("#now").style.width="74px"; $("#tnow").style.display="none"; $("#now").showPicker?.(); } };
 $("#now").onchange = e => { setTime(e.target.value || null); if(state.last) rerun(); };
-function setWeather(w){ state.weather=w; $("#wnow").classList.toggle("on", w==="now"); $("#wcold").classList.toggle("on", w==="cold"); }
+function setWeather(w){ state.weather=w; setFx(w==="cold" ? "snow" : state.sky); $("#wnow").classList.toggle("on", w==="now"); $("#wcold").classList.toggle("on", w==="cold"); }
 $("#wnow").onclick = () => { setWeather("now"); if(state.last) rerun(); };
 $("#wcold").onclick = () => { setWeather("cold"); if(state.last) rerun(); };
 $("#go").onclick = () => run();
 $("#q").addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); run(); } });
 function toast(t){ const d=$("#toast"); d.textContent=t; d.classList.add("show"); clearTimeout(d._t); d._t=setTimeout(()=>d.classList.remove("show"),4200); }
 $("#sheet").onclick = e => { if(e.target.id==="sheet") $("#sheet").classList.remove("show"); };
+
+// ---------- свои места («Дом», «Тётя Гуля») — хранятся только в этом браузере ----------
+const SKEY = "okno_saved_places";
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(SKEY) || "{}"); } catch(e) {}
+function storeSaved(){ try { localStorage.setItem(SKEY, JSON.stringify(saved)); } catch(e) {} }
+function renderSaved(){
+  const box = $("#savedChips");
+  let h = Object.keys(saved).map(n => `<button class="pill glass sv" data-n="${esc(n)}" title="поехать сюда">${svg(/^дом/i.test(n)?"House":"Star",15)}<span>${esc(n)}</span><span class="x" data-del="1" title="удалить">✕</span></button>`).join("");
+  if(state.point) h += `<button class="pill glass" id="savePt" title="запомнить отмеченную точку">${svg("BookmarkPlus",15)}<span>сохранить точку</span></button>`;
+  box.innerHTML = h;
+  box.querySelectorAll(".sv").forEach(b => b.onclick = e => {
+    const n = b.dataset.n;
+    if(e.target.dataset.del){ delete saved[n]; storeSaved(); renderSaved(); return; }
+    $("#q").value = `Мне нужно в «${n}» к `; $("#q").focus();
+    toast(`Допиши время — например «к 19:00» — или «есть час».`);
+  });
+  const sp = $("#savePt");
+  if(sp) sp.onclick = () => {
+    sp.outerHTML = `<span class="pill glass on">${svg("BookmarkPlus",15)}<input id="svName" placeholder="Дом, Тётя Гуля…" style="width:130px"></span>`;
+    const i = $("#svName"); i.focus();
+    i.onkeydown = e => {
+      const n = i.value.trim();
+      if(e.key==="Enter" && n && state.point){ saved[n] = {lat:state.point.lat, lon:state.point.lon}; storeSaved(); renderSaved();
+        toast(`Сохранил «${n}». Теперь можно написать «к ${n} к 19:00».`); }
+      if(e.key==="Escape") renderSaved();
+    };
+  };
+}
+
+// ---------- снег/дождь на фоне — по реальной погоде (или в симуляции −25°) ----------
+const fx = $("#fx"), fxc = fx.getContext("2d");
+let fxKind = null, parts = [];
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setFx(kind){ fxKind = calm ? null : kind; parts = []; }
+function fxLoop(){
+  requestAnimationFrame(fxLoop);
+  if(fx.width !== innerWidth || fx.height !== innerHeight){ fx.width = innerWidth; fx.height = innerHeight; }
+  fxc.clearRect(0, 0, fx.width, fx.height);
+  if(!fxKind) return;
+  const N = fxKind==="snow" ? 130 : 150;
+  while(parts.length < N) parts.push({x:Math.random()*fx.width, y:Math.random()*fx.height - (parts.length>=N/2?fx.height:0),
+    r:1.2+Math.random()*2.2, v:fxKind==="snow" ? .4+Math.random()*.9 : 8+Math.random()*5, ph:Math.random()*6.28});
+  for(const p of parts){
+    if(fxKind==="snow"){
+      p.y += p.v; p.ph += .015; p.x += Math.sin(p.ph)*.35;
+      fxc.globalAlpha = .75; fxc.fillStyle = "#eef7ff"; fxc.beginPath(); fxc.arc(p.x, p.y, p.r, 0, 6.28); fxc.fill();
+    } else {
+      p.y += p.v; p.x -= p.v*.12;
+      fxc.globalAlpha = .4; fxc.strokeStyle = "#9fd3ff"; fxc.lineWidth = 1; fxc.beginPath(); fxc.moveTo(p.x, p.y); fxc.lineTo(p.x + 1.6, p.y - 13); fxc.stroke();
+    }
+    if(p.y > fx.height + 10){ p.y = -10; p.x = Math.random()*(fx.width + 100); }
+  }
+}
+fxLoop();
 
 // ---------- карта ----------
 const map = new maplibregl.Map({container:"map", style:"https://tiles.openfreemap.org/styles/dark",
@@ -262,6 +326,7 @@ function setPoint(lat, lon, label){
   meMarker = new maplibregl.Marker({element:el}).setLngLat([lon,lat]).addTo(map);
   $("#pt").innerHTML = `${svg("LocateFixed",15)}<b>${label}</b><span class="x" id="ptx" title="убрать">✕</span>`; $("#pt").classList.add("on");
   $("#ptx").onclick = ev => { ev.stopPropagation(); clearPoint(); };
+  renderSaved();
 }
 map.on("click", e => {
   if(e.originalEvent.target.closest(".mk")) return;
@@ -269,7 +334,7 @@ map.on("click", e => {
   toast("Отметил старт на карте. Теперь напиши, куда и к скольки — или «есть час».");
 });
 function clearPoint(){ state.point=null; if(meMarker){meMarker.remove(); meMarker=null;}
-  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>я здесь</span>`; $("#pt").classList.remove("on"); }
+  $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>я здесь</span>`; $("#pt").classList.remove("on"); renderSaved(); }
 function locate(){
   if(!navigator.geolocation){ toast("Браузер не умеет определять место — ткни в карту."); return; }
   $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>ищу…</span>`; $("#locbtn").classList.add("busy");
@@ -287,11 +352,19 @@ function locate(){
 }
 $("#pt").onclick = e => { if(!e.target.closest("#ptx")) locate(); };
 $("#locbtn").onclick = locate;
+let tiltHinted = false;
+$("#tilt").onclick = () => {
+  const on = map.getPitch() < 50;
+  map.easeTo(on ? {pitch:60, bearing:-28, zoom:Math.max(map.getZoom(), 15), duration:1200} : {pitch:0, bearing:0, duration:900});
+  if(on && !tiltHinted){ tiltHinted = true; toast("Крутить карту: правая кнопка мыши (или Ctrl + перетаскивание). На телефоне — двумя пальцами."); }
+};
+map.on("pitchend", () => $("#tilt").classList.toggle("on", map.getPitch() >= 50));
 
 fetch("/api/meta").then(r=>r.json()).then(m => {
   const w = m.weather; if(w.apparent==null) return;
   const f = x => (x>0?"+":"")+Math.round(x)+"°";
   $("#wxl").textContent = `${f(w.temp)}, ощущается ${f(w.apparent)}`;
+  state.sky = w.sky; setFx(state.weather==="cold" ? "snow" : w.sky);
 }).catch(()=>{});
 
 // ---------- шаги работы ----------
@@ -309,7 +382,7 @@ function showSteps(){
 // ---------- запрос ----------
 async function run(extra={}){
   const text = $("#q").value.trim(); if(!text && !extra.parsed) return;
-  const body = {text, point:state.point, now:state.nowOverride, weather:state.weather, ...extra};
+  const body = {text, point:state.point, now:state.nowOverride, weather:state.weather, saved, ...extra};
   state.lastReq = body;
   $("#go").disabled = true; $("#ex").style.display = "none"; showSteps();
   $("#deck").style.opacity = .35;
@@ -325,7 +398,7 @@ function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: st
 // ---------- отрисовка ----------
 const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотреть город", nature:"природа", culture:"культура", shopping:"шопинг",
   kids:"с ребёнком", night:"ночь", work:"поработать", active:"активно", cinema:"кино", walk:"прогуляться"};
-const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл/;
+const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух/;
 function openLine(h){
   if(h.confidence==="verified") return `<div class="open ok">● ${esc(h.text)}</div>`;
   if(h.confidence==="outdoor") return `<div class="open out">● ${esc(h.text)}</div>`;
@@ -344,7 +417,8 @@ function track(r){
 function legText(l){
   if(!l) return "";
   if(l.mode==="walk") return `${svg("Footprints",13)} ${l.min} мин пешком${l.estimated?' <span class="est">оценка</span>':""}`;
-  return `${svg("CarTaxiFront",13)} такси ~${l.drive_min + l.wait_min} мин <span class="est" title="${esc(l.traffic)}; подача ~${l.wait_min} мин">оценка</span>`;
+  const jam = (l.traffic||"").startsWith("пробки 2GIS");
+  return `${svg("CarTaxiFront",13)} такси ~${l.drive_min + l.wait_min} мин <span class="est ${jam?"jam":""}" title="${esc(l.traffic)}; подача ~${l.wait_min} мин">${jam?"пробки 2GIS":"оценка"}</span>`;
 }
 function render(r){
   const sum = $("#sum"), deck = $("#deck");
@@ -475,6 +549,8 @@ async function drawRoute(r){
   map.getSource("route-walk").setData({type:"FeatureCollection",features:walk});
   map.getSource("route-taxi").setData({type:"FeatureCollection",features:taxi});
 }
+
+renderSaved();
 
 // ---------- ссылка на сценарий: ?q=...&t=17:20&w=cold ----------
 (() => {

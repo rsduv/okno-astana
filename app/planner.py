@@ -8,7 +8,7 @@ from __future__ import annotations
 import itertools
 from concurrent.futures import ThreadPoolExecutor
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import dgis, geo
@@ -107,6 +107,7 @@ class Ctx:
         self.walk_only = intent.get("transport") == "walk" or ("walk" in self.prefs and not far)
         self.work = "work" in self.prefs
         self.work_stay = 60
+        self.real_now = datetime.now(timezone(timedelta(hours=5))).replace(tzinfo=None)
         sunset = w.get("sunset")
         self.dark_from = None
         if sunset:
@@ -317,7 +318,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
     for i, pt in enumerate(points):
         lg = _leg(pos, pt, t, ctx)
         if lg["mode"] == "walk":
-            r = geo.route(pos, pt, "foot")
+            r = geo.route(pos, pt, "foot", fallback=True)
             if r and r["min"] > ctx.max_leg and not ctx.walk_only and r["min"] > geo.walk_min_est(pos, pt) * 1.25:
                 lg = {"mode": "taxi"}  # реальный путь оказался сильно длиннее (река, развязки) — подвезём
             elif r:
@@ -329,9 +330,12 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                        "coords": [[pos[1], pos[0]], [pt[1], pt[0]]], "estimated": True}
                 estimated = True
         if lg["mode"] == "taxi":
-            r = geo.route(pos, pt, "car")
+            r = geo.route(pos, pt, "car", fallback=True)
             f, label = geo.traffic_factor(t)
             drive = (r["min"] if r else geo.car_min_est(pos, pt, t) / f) * f
+            jam = dgis.drive(pos, pt, t, ctx.real_now)
+            if jam:
+                drive, label = jam[0], jam[1]
             leg = {"type": "leg", "mode": "taxi", "min": round(drive + geo.TAXI_WAIT_MIN), "drive_min": round(drive),
                    "wait_min": geo.TAXI_WAIT_MIN, "km": round(r["km"] if r else geo.haversine_km(pos, pt) * 1.4, 2),
                    "coords": r["coords"] if r else [[pos[1], pos[0]], [pt[1], pt[0]]],
@@ -494,11 +498,18 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             notes.append(f"Пешком напрямую {dw} мин из {round(window)}: на остановки времени мало, часть пути — на такси.")
     if not best:
         return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes}
-    if ctx.cold != "ok":
+    if (w.get("aqi") or 0) > 150:
+        notes.append(f"Воздух сейчас плохой (индекс AQI {w['aqi']}, Open-Meteo): меньше улицы, больше крытых мест.")
+    if ctx.cold != "ok" and ((w.get("apparent") or 0) <= -7 or (w.get("wind") or 0) >= 30 or (w.get("precip") or 0) > 0.5):
         a = w.get("apparent")
         notes.append(f"Ощущается как {round(a):+d}°{', ветер ' + str(round(w['wind'])) + ' км/ч' if w.get('wind') else ''}: "
                      f"на улице не больше {ctx.max_leg} мин подряд, уличные места — только если без них никак.")
-    if best["taxis"]:
+    jam = next((s["traffic"] for s in best["steps"] if s["type"] == "leg" and s["mode"] == "taxi"
+                and s["traffic"].startswith("пробки 2GIS")), None)
+    if jam:
+        notes.append(f"Время на такси — по данным о пробках 2GIS ({jam.replace('пробки 2GIS', '').strip(' :') or 'сейчас'}) "
+                     f"плюс подача машины ~{geo.TAXI_WAIT_MIN} мин.")
+    elif best["taxis"]:
         f, label = geo.traffic_factor(now)
         notes.append(f"Время на такси — оценка с поправкой на пробки ({label}, ×{f}) и подачу машины ~{geo.TAXI_WAIT_MIN} мин.")
     if ctx.is_dark(now + timedelta(minutes=window / 2)):

@@ -31,10 +31,22 @@ FAST = "google/gemini-2.5-flash-lite"
 _pool = ThreadPoolExecutor(max_workers=4)
 
 
+DAILY_CALLS = int(os.getenv("LLM_DAILY_CALLS", "1500"))  # предохранитель бюджета: ~$0,001 за вызов
+_calls = {"day": "", "n": 0}
+
+
+def _allow() -> bool:
+    day = time.strftime("%Y-%m-%d")
+    if _calls["day"] != day:
+        _calls.update(day=day, n=0)
+    _calls["n"] += 1
+    return _calls["n"] <= DAILY_CALLS
+
+
 def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, budget=11.0) -> dict | None:
     """Ответ ИИ с жёстким лимитом времени: если модель тормозит — пробуем вторую, потом шаблон.
     На демо важнее ответить за секунды, чем дождаться идеального текста."""
-    if not KEY:
+    if not KEY or not _allow():
         return None
     deadline = time.time() + budget
     for model in ((FAST, MODEL) if fast else (MODEL, FAST)):
@@ -80,12 +92,20 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
 «кофе» -> coffee; «поесть» -> food; «погулять, прогуляться» -> walk; «посмотреть город, турист» -> sights;
 «ночью, тусоваться, бар» -> night; «поработать, розетка, ноутбук» -> work; «с ребёнком/детьми» -> kids.
 «на час» = 60, «полтора часа» = 90. «Через 30 минут надо быть в X» = destination X и duration_min 30 (deadline null).
-«До 7 вечера» = deadline "19:00". Сейчас %s. Известные ориентиры: %s."""
+«До 7 вечера» = deadline "19:00". Сейчас %s. Известные ориентиры: %s.
+%s
+Незнакомые сокращения и названия («мну», «ену», «тётя Гуля») НЕ заменяй на ориентиры из списка — пиши как есть."""
 
 
-def understand(text: str, now: datetime) -> dict:
+def understand(text: str, now: datetime, has_point: bool = False, saved: list[str] | None = None) -> dict:
     names = ", ".join(lm["name"] for lm in geo.LANDMARKS)
-    d = _chat(UNDERSTAND % (PREFS, now.strftime("%H:%M"), names), text, max_tokens=300, fast=True, budget=8) or _rules(text)
+    ctx = ("Где пользователь сейчас — уже известно по карте/геолокации: если в фразе названо одно место («в мну универ», "
+           "«к тёте Гуле», «домой») — это destination, origin = null, return_to_origin = false." if has_point else "")
+    if saved:
+        ctx += f" Сохранённые места пользователя: {', '.join(saved)} — используй эти названия как есть."
+    d = _chat(UNDERSTAND % (PREFS, now.strftime("%H:%M"), names, ctx), text, max_tokens=300, fast=True, budget=8) or _rules(text)
+    if has_point and not d.get("destination") and d.get("origin") and d.get("rules"):
+        d["destination"], d["origin"], d["return_to_origin"] = d["origin"], None, False
     d["prefs"] = [p for p in (d.get("prefs") or []) if p in PREFS]
     d["llm"] = "rules" not in d
     return d

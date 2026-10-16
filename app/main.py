@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -26,6 +26,7 @@ class PlanReq(BaseModel):
     exclude: list[str] = []          # «заменить» остановку
     keep: list[str] = []             # оставить остальные остановки
     parsed: dict | None = None       # уже разобранный запрос (чтобы не звать ИИ повторно)
+    saved: dict = {}                 # свои места пользователя {"Дом": {"lat","lon"}} — живут только в его браузере
 
 
 def _now(s: str | None) -> datetime:
@@ -58,12 +59,28 @@ def pois():
     return [[p["lon"], p["lat"], p["category"]] for p in planner.POIS]
 
 
+_hits: dict[str, list[float]] = {}
+
+
+def _too_many(ip: str, limit=25, per=600) -> bool:
+    """Не больше 25 маршрутов за 10 минут с одного адреса — чтобы публичное демо не сожгло ключи."""
+    now = time.time()
+    h = [t for t in _hits.get(ip, []) if now - t < per]
+    h.append(now)
+    _hits[ip] = h
+    return len(h) > limit
+
+
 @app.post("/api/plan")
-def make_plan(req: PlanReq):
+def make_plan(req: PlanReq, request: Request):
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0]
+    if ip not in ("127.0.0.1", "::1") and _too_many(ip):
+        return {"error": "Слишком много запросов подряд — подожди пару минут. Это защита демо от перерасхода."}
     timings = {}
     t0 = time.time()
     now = _now(req.now)
-    parsed = req.parsed or llm.understand(req.text, now)
+    has_point = bool(req.point and req.point.get("lat") is not None)
+    parsed = req.parsed or llm.understand(req.text, now, has_point, list(req.saved))
     timings["understand"] = round((time.time() - t0) * 1000)
 
     t1 = time.time()
@@ -71,13 +88,13 @@ def make_plan(req: PlanReq):
         lat, lon = geo.round_point(req.point["lat"], req.point["lon"])
         origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
     else:
-        origin = geo.find_place(parsed.get("origin") or "", planner.POIS)
+        origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
     if not origin:
         return JSONResponse({"error": "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.",
                              "parsed": parsed}, status_code=200)
     dest = None
     if parsed.get("destination") and not parsed.get("return_to_origin"):
-        dest = geo.find_place(parsed["destination"], planner.POIS)
+        dest = geo.find_place(parsed["destination"], planner.POIS, req.saved)
         if not dest:
             return {"error": f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе.", "parsed": parsed}
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}

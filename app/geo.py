@@ -61,11 +61,22 @@ def car_min_est(a, b, t: datetime) -> float:
     return haversine_km(a, b) * 1.4 / 32 * 60 * f
 
 
-def route(a, b, mode: str) -> dict | None:
-    """Реальный маршрут по улицам. mode: 'foot' | 'car'. Возвращает {km, min, coords} или None."""
+def route(a, b, mode: str, fallback: bool = False) -> dict | None:
+    """Реальный маршрут по улицам. mode: 'foot' | 'car'. Возвращает {km, min, coords} или None.
+    fallback=True: если OSRM недоступен — спросить 2GIS (только для финального плана, чтобы беречь лимит)."""
     key = f"{mode}:{a[0]:.5f},{a[1]:.5f}:{b[0]:.5f},{b[1]:.5f}"
     if key in _route_cache:
         return _route_cache[key]
+    res = _osrm(a, b, mode, key)
+    if res is None and fallback:
+        from . import dgis
+        res = dgis.path(a, b, mode)
+        if res and mode == "foot":
+            res = {**res, "min": res["km"] / WALK_KMH * 60}
+    return res
+
+
+def _osrm(a, b, mode, key):
     if time.time() < _breaker["until"]:
         return None
     prof = "routed-foot" if mode == "foot" else "routed-car"
@@ -98,25 +109,47 @@ def weather(override: dict | None = None) -> dict:
     if override:
         t = float(override.get("apparent", -25))
         return {"temp": t + 5, "apparent": t, "wind": float(override.get("wind", 30)), "simulated": True,
-                "precip": 0.0, "is_day": True, "sunset": None, "source": "симуляция для демо"}
+                "precip": 0.0, "is_day": True, "sunset": None, "sky": "snow", "aqi": None, "source": "симуляция для демо"}
     if _weather_cache and time.time() - _weather_cache["_ts"] < 600:
         return _weather_cache["data"]
     try:
         r = _client.get("https://api.open-meteo.com/v1/forecast", params={
             "latitude": 51.13, "longitude": 71.43, "timezone": "Asia/Almaty",
-            "current": "temperature_2m,apparent_temperature,wind_speed_10m,precipitation,is_day",
+            "current": "temperature_2m,apparent_temperature,wind_speed_10m,precipitation,is_day,weather_code,snowfall,rain",
             "daily": "sunset,sunrise", "forecast_days": 1})
         d = r.json()
         c = d["current"]
         data = {"temp": c["temperature_2m"], "apparent": c["apparent_temperature"], "wind": c["wind_speed_10m"],
                 "precip": c.get("precipitation", 0), "is_day": bool(c.get("is_day", 1)),
                 "sunset": d["daily"]["sunset"][0][-5:], "sunrise": d["daily"]["sunrise"][0][-5:],
-                "simulated": False, "source": "Open-Meteo, сейчас"}
+                "simulated": False, "source": "Open-Meteo, сейчас",
+                "sky": _sky(c), "code": c.get("weather_code")}
+        data["aqi"] = air()
     except Exception:
         data = {"temp": None, "apparent": None, "wind": None, "precip": 0, "is_day": True, "sunset": None,
                 "simulated": False, "source": "погода недоступна"}
     _weather_cache.update({"_ts": time.time(), "data": data})
     return data
+
+
+def _sky(c: dict) -> str | None:
+    """Осадки для фона интерфейса: 'snow' | 'rain' | None (коды WMO)."""
+    code = c.get("weather_code") or 0
+    if (c.get("snowfall") or 0) > 0 or code in (71, 73, 75, 77, 85, 86):
+        return "snow"
+    if (c.get("rain") or 0) > 0 or code in (51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99):
+        return "rain"
+    return None
+
+
+def air() -> int | None:
+    """Качество воздуха (US AQI) — зимой в Астане бывает смог от ТЭЦ и печного отопления. Open-Meteo, без ключа."""
+    try:
+        r = _client.get("https://air-quality-api.open-meteo.com/v1/air-quality", params={
+            "latitude": 51.13, "longitude": 71.43, "current": "us_aqi", "timezone": "Asia/Almaty"})
+        return r.json()["current"]["us_aqi"]
+    except Exception:
+        return None
 
 
 def cold_level(w: dict) -> str:
@@ -126,7 +159,7 @@ def cold_level(w: dict) -> str:
         return "ok"
     if a <= -15 or (w.get("wind") or 0) >= 45:
         return "severe"
-    if a <= -7 or (w.get("precip") or 0) > 0.5 or (w.get("wind") or 0) >= 30:
+    if a <= -7 or (w.get("precip") or 0) > 0.5 or (w.get("wind") or 0) >= 30 or (w.get("aqi") or 0) > 150:
         return "cold"
     return "ok"
 
@@ -142,11 +175,19 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-zа-яёәіңғүұқөһ0-9 ]", " ", s.lower()).strip()
 
 
-def find_place(text: str, pois: list[dict] | None = None) -> dict | None:
-    """Ищет место по названию: сначала справочник ориентиров, потом база POI, потом геокодер OSM."""
+def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = None) -> dict | None:
+    """Ищет место по названию: свои места пользователя («дом», «тётя Гуля») → справочник ориентиров → база POI →
+    поиск 2GIS (понимает сокращения: «мну универ») → геокодер OSM."""
     if not text:
         return None
     q = _norm(text)
+    qw = q.replace("ё", "е").split()
+    for name, pt in (saved or {}).items():
+        nw = _norm(name).replace("ё", "е").split()
+        # «к тёте Гуле» = «Тётя Гуля»: каждое слово названия совпадает с каким-то словом запроса по основе
+        stem = lambda w: w[:max(3, len(w) - 2)]
+        if nw and all(any(x.startswith(stem(w)) or w.startswith(stem(x)) for x in qw) for w in nw):
+            return {"lat": round(pt["lat"], 3), "lon": round(pt["lon"], 3), "label": name, "source": "твоё сохранённое место"}
     best = None
     for lm in LANDMARKS:
         for al in lm["aliases"]:
@@ -161,6 +202,10 @@ def find_place(text: str, pois: list[dict] | None = None) -> dict | None:
             n = _norm(p["name"])
             if len(n) >= 4 and (n == q or (len(q) >= 5 and q in n) or (len(n) >= 6 and n in q)):
                 return {"lat": p["lat"], "lon": p["lon"], "label": p["name"], "source": "база мест OSM"}
+    from . import dgis
+    g = dgis.geocode(text)
+    if g:
+        return g
     try:
         r = _client.get("https://nominatim.openstreetmap.org/search", params={
             "q": text + ", Астана", "format": "jsonv2", "limit": 1,
