@@ -44,7 +44,7 @@ _stamps = {"route": [], "places": []}
 
 
 # Демо-ключ: Routing API — 50 запросов в СУТКИ (письмо 2GIS). Тесты не должны съедать демо: держим свой счётчик.
-PER_DAY = {"route": int(os.getenv("DGIS_ROUTE_PER_DAY", "40")), "places": int(os.getenv("DGIS_PLACES_PER_DAY", "60"))}
+PER_DAY = {"route": int(os.getenv("DGIS_ROUTE_PER_DAY", "40")), "places": int(os.getenv("DGIS_PLACES_PER_DAY", "40"))}
 
 
 def _day_ok(service: str) -> bool:
