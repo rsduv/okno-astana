@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 from concurrent.futures import ThreadPoolExecutor
 import json
 import re
@@ -35,7 +36,9 @@ RUBRICS_OK = {
 def _merge_2gis() -> int:
     """Популярные места из 2GIS (scripts/collect_2gis.py, локальный файл): если место уже есть в OSM — даём ему
     рейтинг и свежие часы; если нет — добавляем как новое с источником 2GIS. Без файла система работает на одном OSM."""
-    f = ROOT / "data" / "dgis_pois.json"
+    # локально — data/dgis_pois.json; на хостинге — «секретный файл» (на Render: /etc/secrets/dgis_pois.json)
+    f = next((x for x in (Path(os.getenv("DGIS_POIS_PATH", "")), ROOT / "data" / "dgis_pois.json",
+                          Path("/etc/secrets/dgis_pois.json")) if str(x) not in ("", ".") and x.is_file()), ROOT / "data" / "dgis_pois.json")
     if not f.exists():
         return 0
     grid: dict[tuple, list] = {}

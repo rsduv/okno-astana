@@ -1,4 +1,5 @@
 # Деплой на Render (бесплатный план): New → Blueprint → этот репозиторий. Ключи вводятся в панели Render, не в git.
+# Слой популярных мест 2GIS: Environment → Secret Files → dgis_pois.json (файл из data/, в git его нет).
 services:
   - type: web
     name: okno-astana
