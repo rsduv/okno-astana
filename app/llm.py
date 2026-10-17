@@ -49,9 +49,24 @@ def _allow() -> bool:
     return _calls["n"] <= DAILY_CALLS
 
 
+_memo: dict[str, dict] = {}  # тот же вопрос с теми же фактами — тот же ответ, мгновенно и бесплатно
+
+
 def _chat(system: str, user: str, max_tokens=900, temperature=0.2, fast=False, budget=11.0) -> dict | None:
     """Ответ ИИ с жёстким лимитом времени: если модель тормозит — пробуем вторую, потом шаблон.
     На демо важнее ответить за секунды, чем дождаться идеального текста."""
+    key = f"{fast}|{system}|{user}"
+    if key in _memo:
+        return json.loads(json.dumps(_memo[key]))  # копия: вызывающий код может менять результат
+    d = _chat_raw(system, user, max_tokens, temperature, fast, budget)
+    if d is not None:
+        if len(_memo) > 300:
+            _memo.pop(next(iter(_memo)))
+        _memo[key] = d
+    return d
+
+
+def _chat_raw(system: str, user: str, max_tokens, temperature, fast, budget) -> dict | None:
     if not (KEY or GEMINI_KEY) or not _allow():
         return None
     deadline = time.time() + budget
