@@ -120,6 +120,16 @@ def _merge_wiki() -> int:
 WIKI_ADDED = _merge_wiki()
 
 
+def _named_playgrounds():
+    """«Детская площадка» с собственным названием (Gymboree) — это детский клуб в помещении, а не площадка во дворе."""
+    for p in POIS:
+        if p["category"] == "детская площадка" and not p.get("unnamed") and not p["name"].lower().startswith("детская"):
+            p["category"] = "развлечения"
+
+
+_named_playgrounds()
+
+
 def _inside_malls():
     """Аттракционы, отмеченные в OSM точками внутри ТРЦ (горки в Хан Шатыре и т.п.), — это не уличные
     достопримечательности: они работают по часам ТРЦ. Переносим часы ТРЦ и помечаем «внутри»."""
