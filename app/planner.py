@@ -270,6 +270,8 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
     tags = p.get("tags", {})
     if cat not in ctx.wanted:
         return None
+    if "kids" not in ctx.prefs and "детск" in p["name"].lower() and cat != "детская площадка":
+        return None  # «Детская библиотека» взрослому, который хочет почитать, — мимо
     if p["name"].strip().lower() in GENERIC:
         return None  # «Сквер» без названия: человек не найдёт и не поймёт, куда идти
     s = 1.0
@@ -438,6 +440,9 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     for pr in ("food", "coffee"):
         if pr in ctx.prefs and getattr(ctx, "window", 90) >= 60 and not any(p["category"] in PREF_CATS[pr] for p in seq):
             score -= 2.0  # «музеи и поесть» — без еды план не полный
+    for c in ctx.explicit:
+        if sum(1 for p in seq if p["category"] == c) > 1:
+            score -= 3.0  # «хочу в библиотеку» — одна библиотека, а не две подряд
     if ctx.explicit and not any(p["category"] in ctx.explicit for p in seq):
         score -= 5.0  # «хочу в музей» — план без музея только если музей никак не помещается
     return {"score": score, "finish": t, "legs": legs, "stops": stops, "slack": slack}
