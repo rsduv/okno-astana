@@ -56,6 +56,7 @@ EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очере�
 OTHER_CITIES = re.compile(r"^(в |in )?(москв\w*|moscow|алмат\w*|almaty|шымкент\w*|shymkent|караганд\w*|karaganda|"
                           r"санкт-петербург\w*|питер\w*|ташкент\w*|tashkent|бишкек\w*|bishkek|дубай|dubai|стамбул\w*|istanbul|"
                           r"лондон\w*|london|париж\w*|paris|нью-йорк\w*|new york)$", re.I)
+HOME = re.compile(r"^(дом|домой|до дома|home|үй|үйге|квартир\w*)$", re.I)
 DATA_DATE = datetime.fromtimestamp((ROOT / "data" / "poi.json").stat().st_mtime).strftime("%d.%m.%Y")
 
 
@@ -138,6 +139,10 @@ def _make_plan(req: PlanReq, request: Request):
         return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
     dest = None
     if parsed.get("destination") and not parsed.get("return_to_origin"):
+        if HOME.match(parsed["destination"].strip()) and not any(HOME.match(k) for k in req.saved):
+            return {"error": llm.translate(["Не знаю, где твой дом. Отметь его на карте и нажми «сохранить точку» → «Дом» — "
+                                            "тогда «домой к 23:00» будет работать. Точка хранится только в твоём браузере."], lang)[0],
+                    "parsed": parsed}
         dest = None if OTHER_CITIES.match(parsed["destination"].strip()) else \
             geo.find_place(parsed["destination"], planner.POIS, req.saved)
         if not dest:
@@ -158,7 +163,7 @@ def _make_plan(req: PlanReq, request: Request):
         elif "Вокзал" in end["label"]:
             deadline -= timedelta(minutes=20)
             travel_note = f"Поезд в {parsed['deadline']}: на вокзале лучше быть за 20 минут — к {deadline:%H:%M}."
-        elif parsed.get("event") in EVENT_BUFFER:
+        elif parsed.get("event") in EVENT_BUFFER and not HOME.match((parsed.get("destination") or "").strip()):
             m, what, why = EVENT_BUFFER[parsed["event"]]
             deadline -= timedelta(minutes=m)
             travel_note = f"{what} в {parsed['deadline']}: лучше прийти за {m} минут ({why}) — к {deadline:%H:%M}."

@@ -98,6 +98,8 @@ def enabled() -> bool:
 
 
 def save():
+    if os.getenv("DGIS_NO_NEW") == "1":
+        return  # тестовый сервер «только кэш» не перезаписывает счётчики лимитов основного
     with _lock:
         CACHE.write_text(json.dumps(_cache, ensure_ascii=False), encoding="utf-8")
 
