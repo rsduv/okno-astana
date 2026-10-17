@@ -20,6 +20,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #map{position:fixed;inset:0}
 .glass{background:var(--glass);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid var(--line);box-shadow:0 14px 44px rgba(0,0,0,.5)}
 
@@ -192,15 +193,15 @@ button{font:inherit;color:inherit}
 <body>
 <div id="map"></div>
 <canvas id="fx"></canvas>
-<button id="locbtn" class="glass" title="Где я? Навести карту на меня"><i data-lucide="locate-fixed"></i></button>
-<button id="tilt" class="glass" title="3D-вид: наклонить и повернуть карту">3D</button>
-<div id="toast"></div>
+<button id="locbtn" class="glass" title="Где я? Навести карту на меня" aria-label="Где я? Навести карту на меня"><i data-lucide="locate-fixed"></i></button>
+<button id="tilt" class="glass" title="3D-вид: наклонить и повернуть карту" aria-label="3D-вид карты">3D</button>
+<div id="toast" role="status" aria-live="polite"></div>
 <div class="glass langs" id="langs"><button data-l="ru">RU</button><button data-l="kk">KZ</button><button data-l="en">EN</button></div>
 
 <div class="top">
   <div class="search glass">
     <div class="logo">О</div>
-    <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?">
+    <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?" aria-label="Запрос: где ты, куда нужно и к скольки">
     <button class="go" id="go">Найти</button>
   </div>
   <div class="row">
@@ -210,7 +211,7 @@ button{font:inherit;color:inherit}
     <button class="pill glass cold" id="wcold"><i data-lucide="snowflake"></i>−25°</button>
     <span id="savedChips" style="display:contents"></span>
   </div>
-  <div class="sum glass" id="sum"></div>
+  <div class="sum glass" id="sum" aria-live="polite"></div>
 </div>
 
 <div class="ex glass" id="ex">
@@ -561,7 +562,7 @@ function render(r){
     <div class="links">
       <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">${T("open2gis")}</a>
       <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps</a>
-      <button id="shareLink" title="${T("shareT")}">${svg("Share2",14)}</button>
+      <button id="shareLink" title="${T("shareT")}" aria-label="${T("shareT")}">${svg("Share2",14)}</button>
       <button class="ghost" id="how">${T("how")}</button>
     </div>`;
   // карточки: у каждой остановки сверху — как до неё добраться
@@ -577,7 +578,7 @@ function render(r){
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico">${ic(st.category)}<i>${n}</i></div>
           <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} ${T("min")}${TH(inside)}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
-          <button class="swap" title="${T("replace")}" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
+          <button class="swap" title="${T("replace")}" aria-label="${T("replace")}" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
         <div class="why">${esc(st.why)}</div>
         <div class="todo">${esc(st.todo)}</div>
         ${openLine(st.hours)}
