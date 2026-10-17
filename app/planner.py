@@ -222,6 +222,7 @@ class Ctx:
         self.w = w
         self.cold = geo.cold_level(w)
         self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
+        self.rejected: dict[str, int] = {}
         # темп: коляска / трудно ходить — медленнее и короче отрезки; с ребёнком — тоже медленнее
         self.pace = 1.0
         if intent.get("mobility") == "limited":
@@ -452,6 +453,22 @@ def _same_place(p: dict, label: str) -> bool:
     return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
 
 
+def _why_not(p, A, start, ctx):
+    """Причина, по которой подходящее по типу место не попало в маршрут — считаем для прозрачности."""
+    if p["category"] not in ctx.wanted:
+        return
+    walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
+    move = walk if walk <= ctx.max_leg else geo.car_min_est(A, (p["lat"], p["lon"]), start) + geo.TAXI_WAIT_MIN
+    arrive = start + timedelta(minutes=move)
+    if stop_score(p, ctx, arrive) is None:
+        key = "мороз, темнота или не то, что просили"
+    elif interval_status(p.get("tags"), p["category"], arrive, arrive + timedelta(minutes=stay_of(p, ctx)))[0] in ("closed", "closes_soon"):
+        key = "закрыто к приходу или закроется во время визита"
+    else:
+        key = "не успеть туда и к сроку"
+    ctx.rejected[key] = ctx.rejected.get(key, 0) + 1
+
+
 def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
     window = (deadline - start).total_seconds() / 60
     loop = geo.haversine_km(A, B) < 0.3
@@ -481,6 +498,7 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
         # быстрый отсев по геометрии: даже на такси должно хватать времени
         sim = simulate([p], A, B, start, deadline, ctx)
         if sim is None and p["id"] not in required:
+            _why_not(p, A, start, ctx)  # для «Как посчитано»: сколько мест отсеяно и почему
             continue
         sc = stop_score(p, ctx) or 0
         detour = geo.haversine_km(A, pt) + geo.haversine_km(pt, B) - geo.haversine_km(A, B)
@@ -843,5 +861,5 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
                     "walk_km": best["walk_km"], "max_outdoor_leg": best["max_outdoor_leg"], "taxis": best["taxis"],
                     "window_min": round(window)},
         "cold": ctx.cold, "max_leg": ctx.max_leg,
-        "considered": {"candidates": n_cands, "plans": len(results), "pois_total": len(POIS)},
+        "considered": {"candidates": n_cands, "plans": len(results), "pois_total": len(POIS), "rejected": ctx.rejected},
     }

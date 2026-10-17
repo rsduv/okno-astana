@@ -250,7 +250,7 @@ const I18N = {
   steps:["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"], down:"Сервер не ответил. Проверь, что он запущен.",
   howT:"Как «Окно» поняло запрос", from:"откуда", to:"куда", loop:"потом обратно", win:"окно", lang:"язык", out:"на улице", maxOut:"макс. подряд", km:"км", walkKm:"пешком",
   cands:"мест рассмотрено", plans:"вариантов маршрута", tUnd:"понял / посчитал", dataT:"Данные и оговорки", copy:"Скопировать план", copied:"Скопировано ✓", close:"Закрыть",
-  tryT:"Попробуй, например:", p1:"понял запрос", p3:"маршрутов", p3s:"время, часы, погода", p4:"текст по фактам", rules:"правила", tpl:"шаблон", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
+  tryT:"Попробуй, например:", rejT:"Почему не другие места", rej:{}, p1:"понял запрос", p3:"маршрутов", p3s:"время, часы, погода", p4:"текст по фактам", rules:"правила", tpl:"шаблон", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
   quick:[["ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа","Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре"],
    ["Турист, вылет в 18:30","посмотреть город до самолёта","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["Прогулка 45 минут","от Mega Silk Way и обратно","Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"],
@@ -269,7 +269,7 @@ const I18N = {
   steps:["Understanding your request","Finding places on the way","Checking time, opening hours, weather","Writing why it's worth it"], down:"The server didn't respond.",
   howT:"How Okno understood you", from:"from", to:"to", loop:"then back", win:"window", lang:"language", out:"outdoors", maxOut:"longest outdoor", km:"km", walkKm:"walking",
   cands:"places considered", plans:"route options", tUnd:"understood / planned", dataT:"Data and caveats", copy:"Copy plan", copied:"Copied ✓", close:"Close",
-  tryT:"Try, for example:", p1:"understood", p3:"routes", p3s:"time, hours, weather", p4:"text from facts", rules:"rules", tpl:"template", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
+  tryT:"Try, for example:", rejT:"Why not other places", rej:{"мороз, темнота или не то, что просили":"frost, darkness or not what you asked for","закрыто к приходу или закроется во время визита":"closed on arrival or closing during the visit","не успеть туда и к сроку":"can't make it there and back in time"}, p1:"understood", p3:"routes", p3s:"time, hours, weather", p4:"text from facts", rules:"rules", tpl:"template", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
   quick:[["EXPO → Khan Shatyr by 7 pm","evening meeting, 1.5 h free","I'm at EXPO, need to be at Khan Shatyr by 19:00"],
    ["Tourist, flight at 6:30 pm","see the city before the flight","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45-minute walk","from Mega Silk Way and back","I'm at Mega Silk Way, want a 45 minute walk and come back"],
@@ -290,7 +290,7 @@ const I18N = {
   steps:["Сұрауды түсініп жатырмын","Жолдағы орындарды іздеп жатырмын","Уақыт, жұмыс кестесі, ауа райын тексеріп жатырмын","Неге баруға тұрарлық екенін жазып жатырмын"], down:"Сервер жауап бермеді.",
   howT:"«Окно» сұрауды қалай түсінді", from:"қайдан", to:"қайда", loop:"сосын кері", win:"терезе", lang:"тіл", out:"далада", maxOut:"ең ұзақ далада", km:"км", walkKm:"жаяу",
   cands:"орын қаралды", plans:"бағыт нұсқасы", tUnd:"түсінді / есептеді", dataT:"Деректер мен ескертулер", copy:"Жоспарды көшіру", copied:"Көшірілді ✓", close:"Жабу",
-  tryT:"Мысалы, былай жазып көр:", p1:"сұрауды түсінді", p3:"бағыт", p3s:"уақыт, кесте, ауа райы", p4:"деректер бойынша мәтін", rules:"ережелер", tpl:"үлгі", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
+  tryT:"Мысалы, былай жазып көр:", rejT:"Неге басқа орындар емес", rej:{"мороз, темнота или не то, что просили":"аяз, қараңғы немесе сұралғаны емес","закрыто к приходу или закроется во время визита":"барғанда жабық немесе ішінде жабылады","не успеть туда и к сроку":"уақытында үлгермейсің"}, p1:"сұрауды түсінді", p3:"бағыт", p3s:"уақыт, кесте, ауа райы", p4:"деректер бойынша мәтін", rules:"ережелер", tpl:"үлгі", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
   quick:[["ЭКСПО → Хан Шатыр 19:00-ге","кешкі кездесу, 1,5 сағат бар","Мен ЭКСПО-дамын, 19:00-ге Хан Шатырда болуым керек"],
    ["Турист, ұшақ 18:30-да","ұшар алдында қаланы көру","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45 минут серуен","Mega Silk Way-ден және кері","Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"],
@@ -646,6 +646,7 @@ function showHow(r){
     <div class="chips">${ch.map(x=>`<span>${x}</span>`).join("")}</div>
     <div class="kv"><div><b>${s.outdoor_min} ${T("min")}</b>${T("out")}</div><div><b>${s.max_outdoor_leg} ${T("min")}</b>${T("maxOut")}</div><div><b>${String(s.walk_km).replace(".",",")} ${T("km")}</b>${T("walkKm")}</div></div>
     <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${c.plans??"—"}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
+    ${Object.keys(c.rejected||{}).length ? `<h4>${T("rejT")}</h4><div class="chips">${Object.entries(c.rejected).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span><b>${v}</b> — ${esc(LANG==="ru"?k:(T("rej")[k]||k))}</span>`).join("")}</div>` : ""}
     <h4>${T("dataT")}</h4>
     <ul>${(r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x))).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     <div class="links"><button id="share">${T("copy")}</button><button class="ghost" id="closeHow">${T("close")}</button></div>`;
