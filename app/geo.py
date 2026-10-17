@@ -113,7 +113,7 @@ def weather(override: dict | None = None) -> dict:
     if _weather_cache and time.time() - _weather_cache["_ts"] < 600:
         return _weather_cache["data"]
     try:
-        r = _client.get("https://api.open-meteo.com/v1/forecast", params={
+        r = _client.get("https://api.open-meteo.com/v1/forecast", timeout=5, params={
             "latitude": 51.13, "longitude": 71.43, "timezone": "Asia/Almaty",
             "current": "temperature_2m,apparent_temperature,wind_speed_10m,precipitation,is_day,weather_code,snowfall,rain",
             "daily": "sunset,sunrise", "forecast_days": 1})
@@ -145,7 +145,7 @@ def _sky(c: dict) -> str | None:
 def air() -> int | None:
     """Качество воздуха (US AQI) — зимой в Астане бывает смог от ТЭЦ и печного отопления. Open-Meteo, без ключа."""
     try:
-        r = _client.get("https://air-quality-api.open-meteo.com/v1/air-quality", params={
+        r = _client.get("https://air-quality-api.open-meteo.com/v1/air-quality", timeout=4, params={
             "latitude": 51.13, "longitude": 71.43, "current": "us_aqi", "timezone": "Asia/Almaty"})
         return r.json()["current"]["us_aqi"]
     except Exception:
@@ -207,7 +207,7 @@ def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = N
     if g:
         return g
     try:
-        r = _client.get("https://nominatim.openstreetmap.org/search", params={
+        r = _client.get("https://nominatim.openstreetmap.org/search", timeout=6, params={
             "q": text + ", Астана", "format": "jsonv2", "limit": 1,
             "viewbox": "71.2,51.28,71.65,51.0", "bounded": 1})
         d = r.json()
