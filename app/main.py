@@ -99,8 +99,8 @@ def pois():
 _hits: dict[str, list[float]] = {}
 
 
-def _too_many(ip: str, limit=25, per=600) -> bool:
-    """Не больше 25 маршрутов за 10 минут с одного адреса — чтобы публичное демо не сожгло ключи."""
+def _too_many(ip: str, limit=60, per=600) -> bool:
+    """Не больше 60 маршрутов за 10 минут с одного адреса — чтобы публичное демо не сожгло ключи."""
     now = time.time()
     h = [t for t in _hits.get(ip, []) if now - t < per]
     h.append(now)
