@@ -292,6 +292,13 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
             s += 2.5  # просили национальную кухню — место, где она точно есть
         elif re.search(r"дастархан|казан|бешбармак|qazaq|nomad|кочевник|юрт|тайказан|кымыз|баурсак|ұлттық", p["name"].lower()):
             s += 1.0  # по названию похоже на национальную кухню (слабый сигнал, ИИ не утверждает)
+    if (ctx.i.get("group_size") or 0) >= 5 and cat in ("ресторан", "кафе", "бар"):
+        attrs = " ".join((p.get("dgis") or {}).get("attrs") or []).lower()
+        seats = [int(x) for x in re.findall(r"до (\d+)", attrs)]
+        if "заказ столиков" in attrs or (seats and max(seats) >= 40):
+            s += 1.2  # компания: место, где можно забронировать стол и хватит места
+        elif cat == "кафе" and not seats:
+            s -= 0.5  # маленькая кофейня на 5+ человек — скорее тесно
     if "kids" in ctx.prefs and cat == "детский центр":
         s += 1.0  # игровой центр для ребёнка лучше, чем «просто ТРЦ»
     if "food" in ctx.prefs and cat == "ресторан" and ("romantic" in ctx.prefs or (arrive and arrive.hour >= 18)):
