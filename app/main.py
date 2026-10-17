@@ -45,7 +45,13 @@ def explicit_cats(text: str) -> list[str]:
     return out
 
 
-KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил")
+def wanted_cats(text: str, parsed: dict) -> list[str]:
+    """Тип места, который человек хочет посетить — без слов из «где я» и «куда мне»: «я у мечети Нур Астана» — не просьба в мечеть."""
+    where = " ".join(str(parsed.get(k) or "") for k in ("origin", "destination")).lower()
+    return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
+
+
+KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -186,7 +192,8 @@ def _make_plan(req: PlanReq, request: Request):
     intent = {"origin": origin, "destination": destination, "deadline": deadline.isoformat(),
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
-              "language": parsed.get("language"), "explicit": explicit_cats(req.text)}
+              "language": parsed.get("language"), "explicit": wanted_cats(req.text, parsed),
+              "kazakh_food": bool(re.search(r"национальн|казахск|qazaq|kazakh|ұлттық|қазақ", req.text.lower()))}
     t2 = time.time()
     result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
     timings["plan"] = round((time.time() - t2) * 1000)

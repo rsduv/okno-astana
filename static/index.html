@@ -234,7 +234,7 @@ const ICON = {"кафе":"Coffee","ресторан":"Utensils","фастфуд"
   "кино":"Clapperboard","театр":"Drama","музей":"Landmark","галерея":"Image","арт-центр":"Palette","библиотека":"Library","книжный":"BookOpen",
   "коворкинг":"Laptop","памятник":"TowerControl","достопримечательность":"Sparkles","фонтан":"Droplets","смотровая":"Binoculars","парк":"Trees",
   "сад":"Flower2","детская площадка":"ToyBrick","мечеть":"MoonStar","собор":"Church","каток":"Snowflake","боулинг":"CircleDot","квест":"KeyRound",
-  "развлечения":"PartyPopper","океанариум":"Fish","зоопарк":"Rabbit","парк развлечений":"FerrisWheel","батутный парк":"Baby","аквапарк":"Waves"};
+  "развлечения":"PartyPopper","детский центр":"Baby","океанариум":"Fish","зоопарк":"Rabbit","парк развлечений":"FerrisWheel","батутный парк":"Baby","аквапарк":"Waves"};
 const ic = (c, size=20) => svg(ICON[c] || "MapPin", size);
 
 
@@ -513,7 +513,7 @@ function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: st
 
 // ---------- отрисовка ----------
 const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотреть город", nature:"природа", culture:"культура", shopping:"шопинг",
-  unusual:"необычное", romantic:"романтика", view:"вид на город", quiet:"тихо", indoor:"под крышей",
+  unusual:"необычное", romantic:"романтика", view:"вид на город", quiet:"тихо", indoor:"под крышей", dog:"с собакой",
   kids:"с ребёнком", night:"ночь", work:"поработать", active:"активно", cinema:"кино", walk:"прогуляться"};
 const PREF_EN = {coffee:"coffee", food:"food", sights:"sightseeing", nature:"nature", culture:"culture", shopping:"shopping",
   unusual:"unusual", romantic:"romantic", view:"city view", quiet:"quiet", indoor:"indoors", kids:"with kids", night:"night",
@@ -521,7 +521,7 @@ const PREF_EN = {coffee:"coffee", food:"food", sights:"sightseeing", nature:"nat
 const PREF_KK = {coffee:"кофе", food:"тамақ", sights:"қала көрікті жерлері", nature:"табиғат", culture:"мәдениет", shopping:"сауда",
   unusual:"ерекше", romantic:"романтика", view:"қала көрінісі", quiet:"тыныш", indoor:"жабық жер", kids:"баламен", night:"түн",
   work:"жұмыс", active:"белсенді", cinema:"кино", walk:"серуен"};
-const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил/;
+const KEY = /Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня/;
 function openLine(h){
   if(h.confidence==="verified") return `<div class="open ok">● ${esc(TH(h.text))}</div>`;
   if(h.confidence==="outdoor") return `<div class="open out">● ${esc(TH(h.text))}</div>`;
