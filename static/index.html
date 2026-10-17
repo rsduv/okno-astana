@@ -499,7 +499,9 @@ async function run(extra={}){
   $("#go").disabled = true; $("#ex").style.display = "none"; showSteps();
   $("#deck").style.opacity = .35;
   try{
-    const r = await (await fetch("/api/plan", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 35000);  // не ждём бесконечно
+    const r = await (await fetch("/api/plan", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), signal:ctl.signal})).json();
+    clearTimeout(timer);
     pipeTimers.forEach(clearTimeout);
     state.last = r;
     const rl = r.parsed?.language;
