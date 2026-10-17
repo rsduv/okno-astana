@@ -355,6 +355,9 @@ def stay_of(p: dict, ctx: "Ctx") -> int:
     w = getattr(ctx, "window", None)
     if w and w <= 45 and p["category"] not in LONG_STAYS:
         st = max(10, min(st, int(w * 0.5) // 5 * 5))  # короткое окно — короткая остановка, а не отказ
+    elif w and w >= 200 and p["category"] not in LONG_STAYS:
+        # «весь день»: не бегом — в музее, парке, ресторане можно побыть дольше
+        st = int(min(st * min(2.0, w / 150), st + 60)) // 5 * 5
     return st
 
 
@@ -418,7 +421,8 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
     legs.append(lg)
     t += timedelta(minutes=lg["min"])
     window = (deadline - start).total_seconds() / 60
-    buffer = max(7.0, window * 0.09)  # запас на то, что реальный путь по улицам длиннее оценки
+    # запас на то, что реальный путь по улицам длиннее оценки; на коротком окне (20 мин) — поменьше, иначе вечный отказ
+    buffer = max(4.0 if window < 30 else 7.0, window * 0.09)
     slack = (deadline - t).total_seconds() / 60
     if slack < buffer:
         return None
@@ -684,10 +688,40 @@ def _nearest_explicit(A, start, ctx) -> str | None:
             f"Напиши, сколько у тебя времени, — например «есть 3 часа».").replace(".0 км", " км")
 
 
+def _grab_and_go(A, start, ctx) -> str | None:
+    """Совсем короткое окно, но человек хочет поесть/кофе: ближайшее открытое место — «возьми с собой»."""
+    cats = set()
+    for pr in ("food", "coffee"):
+        if pr in ctx.prefs:
+            cats |= PREF_CATS[pr]
+    if not cats:
+        return None
+    best = None
+    for p in POIS:
+        if p["category"] not in cats:
+            continue
+        d = geo.haversine_km(A, (p["lat"], p["lon"]))
+        if d > 0.6:
+            continue
+        walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
+        st, conf, _ = interval_status(p.get("tags"), p["category"], start + timedelta(minutes=walk), start + timedelta(minutes=walk + 5))
+        if st == "open" and (best is None or walk < best[0]):
+            best = (walk, p, conf)
+    if not best:
+        return None
+    walk, p, conf = best
+    hours = "" if conf == "verified" else " (часы — оценка)"
+    return (f"Посидеть не успеешь, но можно взять с собой: {p['name']} — {round(walk)} мин пешком{hours}. "
+            "Туда, заказ навынос и обратно как раз помещается в окно.")
+
+
 def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
     """Честный и полезный отказ: почему не вышло и что делать вместо этого."""
     if geo.haversine_km(A, B) < 0.3:
         if window < 25:
+            grab = _grab_and_go(A, start, ctx)
+            if grab:
+                return grab
             return f"Окно {round(window)} мин — на остановку с возвращением не хватает. Можно просто выйти подышать на 10 минут."
         near = _nearest_explicit(A, start, ctx)
         if near:
