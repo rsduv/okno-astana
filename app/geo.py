@@ -175,6 +175,27 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-zа-яёәіңғүұқөһ0-9 ]", " ", s.lower()).strip()
 
 
+def _fuzzy_landmark(q: str):
+    """Опечатки: «байтерика» ≈ «байтерек», «хаан шатыр» ≈ «хан шатыр». Только для слов от 5 букв и похожести ≥ 0,8."""
+    from difflib import SequenceMatcher
+    toks = q.split()
+    best = None
+    for lm in LANDMARKS:
+        for al in lm["aliases"]:
+            a = _norm(al)
+            if len(a) < 5:
+                continue
+            for i in range(len(toks)):
+                for n in (1, 2):  # одно или два слова подряд («хаан шатыра»)
+                    chunk = " ".join(toks[i:i + n])
+                    if len(chunk) < 5:
+                        continue
+                    r = SequenceMatcher(None, chunk, a).ratio()
+                    if r >= 0.8 and (not best or r > best[0]):
+                        best = (r, lm)
+    return (len(best[1]["name"]), best[1]) if best else None
+
+
 def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = None) -> dict | None:
     """Ищет место по названию: свои места пользователя («дом», «тётя Гуля») → справочник ориентиров → база POI →
     поиск 2GIS (понимает сокращения: «мну универ») → геокодер OSM."""
@@ -194,6 +215,8 @@ def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = N
             if re.search(rf"(^| ){re.escape(_norm(al))}( |$)", q) or q == _norm(al):
                 if not best or len(al) > best[0]:
                     best = (len(al), lm)
+    if not best:
+        best = _fuzzy_landmark(q)
     if best:
         lm = best[1]
         return {"lat": lm["lat"], "lon": lm["lon"], "label": lm["name"], "source": "справочник ориентиров"}

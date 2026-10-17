@@ -430,6 +430,9 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
         cold_mult = -0.04  # человек хочет именно пройтись — ходьба в плюс, а не в минус
     score -= outdoor * cold_mult + taxis * 0.9 + abs(used / window - 0.88) * 2.0
     score += 0.35 * len(seq)
+    for pr in ("food", "coffee"):
+        if pr in ctx.prefs and getattr(ctx, "window", 90) >= 60 and not any(p["category"] in PREF_CATS[pr] for p in seq):
+            score -= 2.0  # «музеи и поесть» — без еды план не полный
     if ctx.explicit and not any(p["category"] in ctx.explicit for p in seq):
         score -= 5.0  # «хочу в музей» — план без музея только если музей никак не помещается
     return {"score": score, "finish": t, "legs": legs, "stops": stops, "slack": slack}
@@ -711,7 +714,8 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     notes = []
     direct_walk = geo.route(A, B, "foot") if geo.haversine_km(A, B) > 0.3 else None
     if window < 10:
-        return {"error": "Окно слишком короткое: меньше 10 минут. Лучше просто идти к цели."}
+        return {"error": "Окно слишком короткое: меньше 10 минут. " + (
+            "На остановку не хватит — можно просто выйти подышать." if geo.haversine_km(A, B) < 0.3 else "Лучше просто идти к цели.")}
     if geo.haversine_km(A, B) < 0.3 and window < 120 and not ctx.explicit and \
             not (ctx.prefs & {"active", "cinema", "kids", "night", "culture", "food"}):
         ctx.walk_only = True  # прогулка по кругу — такси туда-обратно бессмысленно
