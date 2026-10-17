@@ -288,7 +288,11 @@ def main():
         else:
             s = r["summary"]
             L(f"- **Ответ:** «{r.get('headline')}». Прибытие **{s['arrive']}** (окно {r['now']}–{r['deadline']}), запас {s['buffer_min']} мин, "
-              f"на улице {s['outdoor_min']} мин (макс. подряд {s['max_outdoor_leg']}), пешком {s['walk_km']} км, такси: {s['taxis']}.\n")
+              f"на улице {s['outdoor_min']} мин (макс. подряд {s['max_outdoor_leg']}), пешком {s['walk_km']} км, такси: {s['taxis']}.")
+            c = r.get("considered") or {}
+            rej = "; ".join(f"{v} — {k}" for k, v in sorted((c.get("rejected") or {}).items(), key=lambda x: -x[1]))
+            L(f"- **Перебор:** {c.get('candidates')} кандидатов, {c.get('plans')} вариантов маршрута"
+              + (f". **Отсеяно по ограничениям:** {rej}" if rej else "") + ".\n")
             L("| Время | Место | Почему | Что делать | Часы работы |")
             L("|---|---|---|---|---|")
             for st in stops(r):
