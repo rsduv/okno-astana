@@ -100,6 +100,26 @@ def add_labels(out: dict) -> None:
                     out[q][f"name_{lang}"] = v
 
 
+def osm_images() -> None:
+    """Фото для мест из OpenStreetMap с тегом wikidata (Хан Шатыр, музеи, театры…) → data/images.json."""
+    poi = json.loads((OUT.parent / "poi.json").read_text(encoding="utf-8"))
+    ids = sorted({p["tags"]["wikidata"] for p in poi if (p.get("tags") or {}).get("wikidata", "").startswith("Q")})
+    imgs = {}
+    for i in range(0, len(ids), 50):
+        try:
+            j = httpx.get("https://www.wikidata.org/w/api.php", headers=UA, timeout=30, params={
+                "action": "wbgetentities", "ids": "|".join(ids[i:i + 50]), "props": "claims", "format": "json"}).json()
+        except Exception:
+            continue
+        for q, e in (j.get("entities") or {}).items():
+            c = (e.get("claims") or {}).get("P18")
+            if c:
+                fn = c[0]["mainsnak"]["datavalue"]["value"].replace(" ", "_")
+                imgs[q] = f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(fn)}?width=480"
+    (OUT.parent / "images.json").write_text(json.dumps(imgs, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"фото для мест OSM: {len(imgs)}")
+
+
 def main():
     r = httpx.get("https://query.wikidata.org/sparql", params={"query": QUERY, "format": "json"}, headers=UA, timeout=60)
     rows = r.json()["results"]["bindings"]
@@ -120,6 +140,7 @@ def main():
         time.sleep(0.3)
     add_images(out)
     add_labels(out)
+    osm_images()
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"готово: {len(out)} мест → {OUT}")
 

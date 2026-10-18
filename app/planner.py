@@ -466,6 +466,17 @@ def _same_place(p: dict, label: str) -> bool:
     return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
 
 
+try:
+    IMAGES = json.loads((ROOT / "data" / "images.json").read_text(encoding="utf-8"))
+except Exception:
+    IMAGES = {}
+
+
+def image_of(p: dict) -> str | None:
+    """Фото места: из Википедии, иначе — главное изображение Wikidata по тегу OSM (Wikimedia Commons)."""
+    return (p.get("wiki") or {}).get("image") or IMAGES.get((p.get("tags") or {}).get("wikidata") or "")
+
+
 def contacts(t: dict) -> dict:
     """Базовые контакты из OpenStreetMap (кейс просит «время работы / базовые контактные данные, если есть»)."""
     phone = (t.get("contact:phone") or t.get("phone") or "").split(";")[0].strip() or None
@@ -662,7 +673,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                                     "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},
                           "rating": (p.get("dgis") or {}).get("rating"), "reviews": (p.get("dgis") or {}).get("reviews"),
                           "dgis_id": (p.get("dgis") or {}).get("id"),
-                          "wiki_url": (p.get("wiki") or {}).get("article"), "image": (p.get("wiki") or {}).get("image"),
+                          "wiki_url": (p.get("wiki") or {}).get("article"), "image": image_of(p),
                           "wheelchair": (p.get("tags") or {}).get("wheelchair"),
                           **contacts(p.get("tags") or {}),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
