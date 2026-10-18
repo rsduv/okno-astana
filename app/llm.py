@@ -212,6 +212,8 @@ def _rules(text: str) -> dict:
             d["destination"] = others[-1][1]
     if "вылет" in t or "рейс" in t or "flight" in t:
         d["destination"] = "аэропорт"
+    if re.search(r"\bдомой\b|\bдо дома\b|\bgo home\b|\bhome\b|үйге", t):
+        d["destination"] = "домой"
     for k, words in {"coffee": ["кофе", "coffee"], "food": ["поесть", "обед", "ужин", "food", "eat", "lunch", "dinner", "тамақ"],
                      "walk": ["погул", "прогул", "walk", "серуен"], "sights": ["посмотреть", "турист", "sight", "see the city", "қала көр"],
                      "night": ["ноч", "бар ", "night", "түн"], "work": ["розетк", "поработ", "ноут", "laptop", "work"],
