@@ -810,7 +810,7 @@ function phCycle(){
 }
 if(!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(phCycle, 2500);
 // первый визит — мягко подсветить «примеры» (сам блок не открываем: он мешал)
-try { if(!localStorage.getItem("okno_seen")){ localStorage.setItem("okno_seen", "1"); setTimeout(() => .classList.add("hint"), 1800); } } catch(e) {}
+try { if(!localStorage.getItem("okno_seen")){ localStorage.setItem("okno_seen", "1"); setTimeout(() => $("#exBtn").classList.add("hint"), 1800); } } catch(e) {}
 $("#exBtn").onclick = () => { const on = $("#ex").classList.toggle("show"); $("#exBtn").classList.toggle("on", on); };
 
 // ---------- отрисовка ----------
