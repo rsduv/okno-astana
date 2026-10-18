@@ -382,8 +382,10 @@ def simulate(seq: list[dict], A, B, start: datetime, deadline: datetime, ctx: Ct
         return None  # «ТРЦ» и «кафе внутри этого ТРЦ» — одна остановка, а не две
     meals = sum(1 for p in seq if p["category"] in ("ресторан", "фастфуд"))
     cafes = sum(1 for p in seq if p["category"] == "кафе")
-    if meals > 1 or cafes > 1 or (meals and cafes and not ctx.work and len(seq) > 2):
-        return None  # три еды подряд — не прогулка; максимум одна «поесть» и одна «кофе»
+    long_day = (deadline - start).total_seconds() > 240 * 60
+    both_asked = "coffee" in ctx.prefs and "food" in ctx.prefs
+    if meals > 1 or cafes > 1 or (meals and cafes and not (ctx.work or long_day or both_asked)):
+        return None  # «перекусить» — одно место поесть, а не пельменная и кафе подряд; кофе + обед — только если просили оба или целый день
     t = start
     pos = A
     legs, stops = [], []
@@ -591,6 +593,9 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
             outdoor += leg["min"]
             walk_km += leg["km"]
             max_leg_out = max(max_leg_out, leg["min"])
+        else:
+            outdoor += 2   # дойти до машины и от неё — честно, а не «0 минут на улице»
+            max_leg_out = max(max_leg_out, 2)
         steps.append(leg)
         t += timedelta(minutes=leg["min"])
         if i < len(seq):
@@ -638,7 +643,9 @@ def _facts(p: dict) -> dict:
     if p.get("wiki"):
         w = p["wiki"]
         if w["sitelinks"] >= 3:
-            out["известность"] = f"статьи о месте есть в Википедии на {w['sitelinks']} языках"
+            # без «на 29 языках» — ИИ превращал это в корявые фразы про статьи; смысл — насколько место известное
+            out["известность"] = ("одно из самых известных мест Астаны" if w["sitelinks"] >= 15
+                                  else "известное место города (есть в Википедии)")
         if w.get("extract"):
             out["википедия"] = w["extract"]
     elif "wikidata" in t or "wikipedia" in t:
@@ -851,6 +858,17 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
                    key=lambda p: geo.haversine_km(A, (p["lat"], p["lon"])), default=None)
         where = f" Ближайшее — {near['name']}, {geo.haversine_km(A, (near['lat'], near['lon'])):.1f} км: " \
                 "туда и обратно с остановкой в это окно не помещается." if near else ""
+        # честная причина: если такие места в это окно закрыты (музей в 6 утра) — так и говорим, а не «не хватает времени»
+        if near:
+            stay = timedelta(minutes=STAY.get(cat, 30))
+            st1, _, txt = interval_status(near.get("tags"), cat, start, start + stay)
+            st2, _, _ = interval_status(near.get("tags"), cat, max(start, deadline - stay), deadline)
+            if st1 != "open" and st2 != "open":
+                hrs = txt.split(" · ")[0]
+                notes.insert(0, f"Просил «{cat}», но в это время такие места закрыты — {near['name']}: {hrs}. "
+                                "Предлагаю, что работает сейчас; на музей лучше прийти позже.".replace("на музей", "туда"))
+                hit_any = True
+                continue
         notes.insert(0, f"Просил «{cat}», но по времени не получается.{where} Предлагаю, что успеешь рядом.")
         hit_any = True
     for pref, word in UNMET.items():

@@ -51,7 +51,7 @@ def wanted_cats(text: str, parsed: dict) -> list[str]:
     return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
 
 
-KEY_NOTE = re.compile(r"Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
+KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -85,7 +85,7 @@ def meta():
     cats = {}
     for p in planner.POIS:
         cats[p["category"]] = cats.get(p["category"], 0) + 1
-    return {"weather": w, "cold": geo.cold_level(w), "pois": len(planner.POIS),
+    return {"weather": {k: v for k, v in w.items() if k != "_hourly"}, "cold": geo.cold_level(w), "pois": len(planner.POIS),
             "with_hours": sum(1 for p in planner.POIS if "opening_hours" in p["tags"]),
             "categories": cats, "landmarks": geo.LANDMARKS, "now": _now(None).strftime("%H:%M")}
 
@@ -219,7 +219,14 @@ def _make_plan(req: PlanReq, request: Request):
         w = geo.weather({"apparent": said, "wind": 20})  # человек сам написал, какой мороз
         w["source"] = f"со слов пользователя: {said:+.0f}°"
     else:
-        w = geo.weather()
+        w = geo.weather_window(now, deadline)   # погода на часы маршрута (прогноз), а не только «сейчас»
+    haz = w.get("hazards") or []
+    if "ice" in haz:
+        travel_note = (travel_note + " " if travel_note else "") + \
+            "Гололёд возможен: около нуля и осадки — иди осторожно, время пешком посчитано с запасом."
+    if "fog" in haz:
+        travel_note = (travel_note + " " if travel_note else "") + \
+            "Туман: видимость плохая — вид с высоты и виды на город сейчас не лучшие."
     intent = {"origin": origin, "destination": destination, "deadline": deadline.isoformat(),
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
@@ -229,7 +236,8 @@ def _make_plan(req: PlanReq, request: Request):
     result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
     timings["plan"] = round((time.time() - t2) * 1000)
     base = {"parsed": parsed, "origin": origin, "destination": destination, "now": now.strftime("%H:%M"),
-            "deadline": deadline.strftime("%H:%M"), "window_label": window_label, "weather": w}
+            "deadline": deadline.strftime("%H:%M"), "window_label": window_label,
+            "weather": {k: v for k, v in w.items() if k != "_hourly"}}
     if travel_note:
         result.setdefault("notes", []).insert(0, travel_note)
     if result.get("error"):

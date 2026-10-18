@@ -11,7 +11,8 @@ import json
 import math
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+KZ = timezone(timedelta(hours=5))  # Казахстан — UTC+5
 from pathlib import Path
 
 import httpx
@@ -116,7 +117,8 @@ def weather(override: dict | None = None) -> dict:
         r = _client.get("https://api.open-meteo.com/v1/forecast", timeout=5, params={
             "latitude": 51.13, "longitude": 71.43, "timezone": "Asia/Almaty",
             "current": "temperature_2m,apparent_temperature,wind_speed_10m,precipitation,is_day,weather_code,snowfall,rain",
-            "daily": "sunset,sunrise", "forecast_days": 1})
+            "hourly": "temperature_2m,apparent_temperature,wind_speed_10m,precipitation,weather_code",
+            "daily": "sunset,sunrise", "forecast_days": 2})
         d = r.json()
         c = d["current"]
         data = {"temp": c["temperature_2m"], "apparent": c["apparent_temperature"], "wind": c["wind_speed_10m"],
@@ -124,12 +126,53 @@ def weather(override: dict | None = None) -> dict:
                 "sunset": d["daily"]["sunset"][0][-5:], "sunrise": d["daily"]["sunrise"][0][-5:],
                 "simulated": False, "source": "Open-Meteo, сейчас",
                 "sky": _sky(c), "code": c.get("weather_code")}
+        h = d.get("hourly") or {}
+        data["_hourly"] = {t[:13]: {"temp": h["temperature_2m"][i], "apparent": h["apparent_temperature"][i],
+                                    "wind": h["wind_speed_10m"][i], "precip": h["precipitation"][i], "code": h["weather_code"][i]}
+                           for i, t in enumerate(h.get("time") or [])}
         data["aqi"] = air()
     except Exception:
         data = {"temp": None, "apparent": None, "wind": None, "precip": 0, "is_day": True, "sunset": None,
                 "simulated": False, "source": "погода недоступна"}
     _weather_cache.update({"_ts": time.time(), "data": data})
     return data
+
+
+def weather_window(start, end) -> dict:
+    """Погода на время маршрута, а не «сейчас»: по почасовому прогнозу Open-Meteo берём худший час окна
+    (самое низкое «ощущается», самый сильный ветер). Плюс опасности: туман и гололёд."""
+    w = weather()
+    hrs = w.get("_hourly") or {}
+    keys, t = [], start.replace(minute=0)
+    while t <= end and len(keys) < 30:
+        keys.append(t.strftime("%Y-%m-%dT%H")); t += timedelta(hours=1)
+    sel = [hrs[k] for k in keys if k in hrs]
+    out = {k: v for k, v in w.items() if k != "_hourly"}
+    if not sel:
+        return out
+    future = (start - datetime.now(KZ).replace(tzinfo=None)).total_seconds() > 45 * 60
+    if future:   # планируем на потом — «сейчас» не годится, берём прогноз на те часы
+        worst = min(sel, key=lambda x: x["apparent"])
+        out.update({"temp": worst["temp"], "apparent": worst["apparent"], "wind": max(x["wind"] for x in sel),
+                    "precip": max(x["precip"] for x in sel), "code": worst["code"],
+                    "source": f"Open-Meteo, прогноз на {start:%H:%M}–{end:%H:%M}", "forecast": True})
+        if out.get("sunset"):
+            out["is_day"] = start.strftime("%H:%M") < out["sunset"] and start.strftime("%H:%M") > (out.get("sunrise") or "06:00")
+    else:        # окно начинается сейчас — но если к концу похолодает, учитываем худшее
+        later = min(x["apparent"] for x in sel)
+        if out.get("apparent") is not None and later < out["apparent"] - 3:
+            out["apparent"] = later
+            out["source"] = "Open-Meteo, сейчас + прогноз до конца окна"
+    codes = {x["code"] for x in sel} | (set() if future else {w.get("code")})
+    temps = [x["temp"] for x in sel] + ([w["temp"]] if w.get("temp") is not None and not future else [])
+    wet = any(x["precip"] > 0 for x in sel) or bool(codes & {51, 53, 55, 56, 57, 61, 63, 66, 67, 71, 73, 77, 80, 85})
+    haz = []
+    if codes & {45, 48}:
+        haz.append("fog")
+    if codes & {56, 57, 66, 67} or (wet and temps and min(temps) <= 1 and max(temps) >= -4):
+        haz.append("ice")
+    out["hazards"] = haz
+    return out
 
 
 def _sky(c: dict) -> str | None:
