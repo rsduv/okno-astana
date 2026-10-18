@@ -116,6 +116,21 @@ def place(lat: float, lon: float, lang: str = "ru"):
     return {"address": geo.reverse(round(lat, 4), round(lon, 4), lang), "poi": poi}
 
 
+class TrReq(BaseModel):
+    texts: list[str] = []
+    lang: str = "en"
+
+
+@app.post("/api/translate")
+def translate(req: TrReq, request: Request):
+    """Перевод пояснений «Данные и оговорки» — только когда человек открыл «Как посчитано» не на русском."""
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0]
+    texts = [t[:400] for t in req.texts[:16]]
+    if req.lang not in ("en", "kk") or not texts or (ip not in ("127.0.0.1", "::1") and _too_many(ip)):
+        return {"texts": texts}
+    return {"texts": llm.translate(texts, req.lang, max_tokens=1600)}
+
+
 @app.get("/api/pois")
 def pois():
     """Все места базы — лёгкая версия для точек на карте."""

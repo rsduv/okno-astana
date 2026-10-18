@@ -952,11 +952,23 @@ function showHow(r){
     <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${c.plans??"—"}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
     ${Object.keys(c.rejected||{}).length ? `<h4>${T("rejT")}</h4><div class="chips">${Object.entries(c.rejected).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span><b>${v}</b> — ${esc(LANG==="ru"?k:(T("rej")[k]||k))}${(c.rejected_ex||{})[k]?.length ? `<i class="eg">${T("eg")} ${esc(c.rejected_ex[k].join(", "))}</i>` : ""}</span>`).join("")}</div>` : ""}
     <h4>${T("dataT")}</h4>
-    <ul>${(r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x))).concat(r.data_used||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    <ul id="dataList">${howList(r).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     <div class="links"><button id="share">${T("copy")}</button><button class="ghost" id="closeHow">${T("close")}</button></div>`;
   $("#share").onclick = () => { navigator.clipboard?.writeText(planText(r)); $("#share").textContent = T("copied"); };
   $("#closeHow").onclick = () => $("#sheet").classList.remove("show");
   $("#sheet").classList.add("show");
+  // «Данные и оговорки» пишутся на сервере по-русски — переводим, только когда окно открыли на KZ/EN
+  if(LANG !== "ru" && (r.data_used||[]).length && !(r._dataTr && r._dataTr[LANG])){
+    const lang = LANG;
+    fetch("/api/translate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({texts:r.data_used, lang})})
+      .then(x => x.json()).then(d => { r._dataTr = {...(r._dataTr||{}), [lang]: d.texts};
+        const ul = $("#dataList"); if(ul && LANG === lang) ul.innerHTML = howList(r).map(x=>`<li>${esc(x)}</li>`).join(""); }).catch(()=>{});
+  }
+}
+function howList(r){
+  const notes = (r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x)));
+  const data = r._dataTr && r._dataTr[LANG] ? r.data_used.map((x,i)=>r._dataTr[LANG][i] ?? x) : (r.data_used||[]);
+  return notes.concat(data);
 }
 function pts(r){ return [r.origin, ...r.steps.filter(x=>x.type==="stop"), r.destination]; }
 function gmaps(r){ const P = pts(r); const ll = p=>`${p.lat},${p.lon}`;
