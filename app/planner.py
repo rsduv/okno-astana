@@ -873,12 +873,13 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         # честная причина: если такие места в это окно закрыты (музей в 6 утра) — так и говорим, а не «не хватает времени»
         if near:
             stay = timedelta(minutes=STAY.get(cat, 30))
-            st1, _, txt = interval_status(near.get("tags"), cat, start, start + stay)
+            st1, conf, txt = interval_status(near.get("tags"), cat, start, start + stay)
             st2, _, _ = interval_status(near.get("tags"), cat, max(start, deadline - stay), deadline)
             if st1 != "open" and st2 != "open":
-                hrs = txt.split(" · ")[0]
-                notes.insert(0, f"Просил «{cat}», но в это время такие места закрыты — {near['name']}: {hrs}. "
-                                "Предлагаю, что работает сейчас; на музей лучше прийти позже.".replace("на музей", "туда"))
+                hrs = txt.split(" · ")[0].strip()
+                hrs = f" ({near['name']}: {hrs})" if hrs else f" ({near['name']})"
+                closed = "в это время такие места закрыты" if conf == "verified" else "в это время такие места обычно закрыты (типичные часы, точных данных нет)"
+                notes.insert(0, f"Просил «{cat}», но {closed}{hrs}. Предлагаю, что работает сейчас; туда лучше прийти в другое время.")
                 hit_any = True
                 continue
         notes.insert(0, f"Просил «{cat}», но по времени не получается.{where} Предлагаю, что успеешь рядом.")

@@ -235,6 +235,12 @@ EXPLAIN = """Ты — «Окно», городской помощник по А�
 Верни ТОЛЬКО JSON: {"headline": "...", "stops": [{"id": "...", "why": "...", "todo": "..."}]%s}"""
 
 
+def _tidy(t: str) -> str:
+    """Мелкая чистка текста ИИ: повтор слова подряд («сытный сытный»), двойные пробелы."""
+    t = re.sub(r"\b(\w{3,})\s+\1\b", r"\1", t or "", flags=re.I)
+    return re.sub(r"\s{2,}", " ", t).strip()
+
+
 def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     stops = [s for s in result["steps"] if s["type"] == "stop"]
     reach, prev = {}, None
@@ -269,8 +275,8 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     by_id = {x.get("id"): x for x in ((d or {}).get("stops") or []) if isinstance(x, dict)}
     for s in stops:
         x = by_id.get(s["id"]) or {}
-        s["why"] = x.get("why") or _why_fallback(s, intent.get("language"))
-        s["todo"] = x.get("todo") or _todo_fallback(s, intent.get("language"))
+        s["why"] = _tidy(x.get("why")) or _why_fallback(s, intent.get("language"))
+        s["todo"] = _tidy(x.get("todo")) or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
     result["headline"] = (d or {}).get("headline") or _headline_fallback(stops, result["summary"]["arrive"], intent.get("language"))
     return result
