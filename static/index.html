@@ -148,10 +148,24 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .mk i{position:absolute;right:-6px;top:-6px;width:17px;height:17px;border-radius:50%;background:var(--accent2);color:#fff;font-size:10px;font-style:normal;font-weight:800;display:grid;place-items:center}
 .mk.a{background:#fff;border-color:#fff;color:#08111a;font-weight:800;font-size:13px;width:28px;height:28px}
 .mk.b{background:var(--ok);border-color:var(--ok);color:#08111a;font-weight:800;font-size:13px;width:28px;height:28px}
-.mk.svd{width:max-content;height:auto;white-space:nowrap;border-radius:999px;padding:5px 10px 5px 7px;gap:5px;display:flex;align-items:center;font-size:12px;font-weight:800;color:#08111a;background:#ffd166;border:2px solid #fff3c4;animation:glow 2.4s ease-in-out infinite}
-.mk.svd svg{width:14px;height:14px}
-@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,209,102,.55),0 6px 18px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 10px rgba(255,209,102,0),0 6px 18px rgba(0,0,0,.5)}}
-.pill.sv{color:#ffd166}
+.mk.bm{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;width:max-content;height:auto;border:0;border-radius:0;background:none;box-shadow:none;transform:none}
+.bm .pin{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--c);color:#0b1118;border:2px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.55);transition:transform .15s;animation:glow 2.6s ease-in-out infinite}
+.bm .pin svg{width:15px;height:15px}
+.mk.bm:hover{transform:none}.bm:hover .pin{transform:scale(1.15)}
+.bm span{font-size:11px;font-weight:800;color:#fff;white-space:nowrap;text-shadow:0 0 3px #000,0 0 6px #000,0 1px 2px #000;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 60%,transparent),0 4px 12px rgba(0,0,0,.55)}50%{box-shadow:0 0 0 8px transparent,0 4px 12px rgba(0,0,0,.55)}}
+.pill.sv svg{color:var(--c)}
+.savepop{border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;animation:pop .25s ease both}
+.savepop .nm{display:flex;gap:8px}
+.savepop input{flex:1;min-width:0;background:var(--card);border:1px solid var(--line2);border-radius:10px;color:var(--text);font:inherit;font-size:14px;padding:8px 10px;outline:none}
+.savepop input:focus{border-color:var(--accent)}
+.savepop .ok{border:0;border-radius:10px;padding:0 14px;background:var(--accent);color:#08111a;font-weight:800;cursor:pointer}
+.savepop .kinds{display:flex;flex-wrap:wrap;gap:6px}
+.savepop .kinds button{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12.5px;font-weight:700;cursor:pointer}
+.savepop .kinds button i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--c);color:#0b1118}
+.savepop .kinds button i svg{width:13px;height:13px}
+.savepop .kinds button.on{border-color:var(--c);color:var(--text)}
+.savepop small{color:var(--dim);font-size:11.5px}
 .pill.sv.new{animation:flash 1.2s ease 2}
 @keyframes flash{50%{background:rgba(255,209,102,.35);color:#fff}}
 .mk.me{width:18px;height:18px;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 8px rgba(76,201,240,.22)}
@@ -261,7 +275,7 @@ const I18N = {
  ru:{find:"Найти", ph:"Где ты, куда нужно и к скольки?", here:"я здесь", now:"сейчас", feels:"ощущается", heroT:"Есть свободное время? Заполним его.",
   heroP:"Скажи, где ты, куда тебе нужно и к скольки. «Окно» найдёт 1–3 места по пути — открытых, когда ты дойдёшь, и так, чтобы ты точно успел.",
   arrive:"на месте", back:"обратно", buf:"запас", min:"мин", open2gis:"Открыть в 2GIS", how:"Как посчитано?", walk:"пешком", taxi:"такси", est:"оценка", jam:"пробки 2GIS",
-  save:"сохранить точку", saveTo:"Дом, Тётя Гуля…", savedT:n=>`Сохранил «${n}». Теперь можно писать, например: «${n}, к 19:00».`, addTime:"Допиши время — например «к 19:00» — или «есть час».",
+  kinds:{home:"Дом",work:"Работа",study:"Учёба",sport:"Спорт",friends:"Друзья",fav:"Любимое",star:"Другое"}, saveBtn:"Сохранить", bldHint:"Нажми на дом на карте — закладка привяжется к зданию.", bldOk:"привязано к зданию", save:"сохранить точку", saveTo:"Дом, Тётя Гуля…", savedT:n=>`Сохранил «${n}». Теперь можно писать, например: «${n}, к 19:00».`, addTime:"Допиши время — например «к 19:00» — или «есть час».",
   gotoQ:n=>`Мне нужно в «${n}» к `, mark:"Отметил старт на карте. Теперь напиши, куда и к скольки — или «есть час».", noGeo:"Браузер не умеет определять место — ткни в карту.",
   notAst:"Похоже, ты не в Астане. Ткни в карту, где будешь, — или напиши ориентир.", geoDen:"Не дали доступ к геолокации. Можно ткнуть в карту или написать «я у Байтерека».",
   tilt:"Крутить карту: правая кнопка мыши (или Ctrl + перетаскивание). На телефоне — двумя пальцами.", search:"ищу…", point:"точка ±150 м",
@@ -280,7 +294,7 @@ const I18N = {
  en:{find:"Go", ph:"Where are you, where to, and by when?", here:"I'm here", now:"now", feels:"feels like", heroT:"Got free time? Let's fill it.",
   heroP:"Tell us where you are, where you need to be and by when. Okno finds 1–3 places on the way — open when you arrive, and timed so you won't be late.",
   arrive:"arrive", back:"back", buf:"spare", min:"min", open2gis:"Open in 2GIS", how:"How was this computed?", walk:"walk", taxi:"taxi", est:"estimate", jam:"2GIS traffic",
-  save:"save this spot", saveTo:"Home, Aunt Gulya…", savedT:n=>`Saved “${n}”. Now you can type “to ${n} by 7 pm”.`, addTime:"Add a time — e.g. “by 7 pm” — or “I have an hour”.",
+  kinds:{home:"Home",work:"Work",study:"Study",sport:"Sport",friends:"Friends",fav:"Favourite",star:"Other"}, saveBtn:"Save", bldHint:"Tap a building on the map — the bookmark will snap to it.", bldOk:"snapped to the building", save:"save this spot", saveTo:"Home, Aunt Gulya…", savedT:n=>`Saved “${n}”. Now you can type “to ${n} by 7 pm”.`, addTime:"Add a time — e.g. “by 7 pm” — or “I have an hour”.",
   gotoQ:n=>`I need to get to “${n}” by `, mark:"Start marked on the map. Now type where to and by when — or “I have an hour”.", noGeo:"Your browser can't detect location — tap the map.",
   notAst:"Looks like you're not in Astana. Tap the map where you'll be, or type a landmark.", geoDen:"Location access denied. Tap the map or type “I'm at Baiterek”.",
   tilt:"Rotate the map: right mouse button (or Ctrl + drag). On a phone — two fingers.", search:"locating…", point:"spot ±150 m",
@@ -301,7 +315,7 @@ const I18N = {
  kk:{find:"Табу", ph:"Қайдасың, қайда және сағат нешеге?", here:"мен осындамын", now:"қазір", feels:"сезілуі", heroT:"Бос уақытың бар ма? Толтырайық.",
   heroP:"Қайда екеніңді, қайда және сағат нешеге жету керегін жаз. «Окно» жолыңда 1–3 орын табады — сен барғанда ашық және кешікпейтіндей.",
   arrive:"орнында", back:"кері", buf:"қор", min:"мин", open2gis:"2GIS-те ашу", how:"Қалай есептелді?", walk:"жаяу", taxi:"такси", est:"бағалау", jam:"2GIS кептелісі",
-  save:"нүктені сақтау", saveTo:"Үй, Гүля апай…", savedT:n=>`«${n}» сақталды. Енді «${n}, 19:00-ге» деп жаза аласың.`, addTime:"Уақытты қос — мысалы «19:00-ге» — немесе «бір сағат бар».",
+  kinds:{home:"Үй",work:"Жұмыс",study:"Оқу",sport:"Спорт",friends:"Достар",fav:"Сүйікті",star:"Басқа"}, saveBtn:"Сақтау", bldHint:"Картадағы үйді бас — бетбелгі ғимаратқа байланады.", bldOk:"ғимаратқа байланды", save:"нүктені сақтау", saveTo:"Үй, Гүля апай…", savedT:n=>`«${n}» сақталды. Енді «${n}, 19:00-ге» деп жаза аласың.`, addTime:"Уақытты қос — мысалы «19:00-ге» — немесе «бір сағат бар».",
   gotoQ:n=>`«${n}» жеріне сағат `, mark:"Бастау нүктесі белгіленді. Енді қайда және сағат нешеге екенін жаз.", noGeo:"Браузер орынды анықтай алмайды — картаны бас.",
   notAst:"Сен Астанада емес сияқтысың. Картадан нүкте таңда немесе бағдар жаз.", geoDen:"Геолокацияға рұқсат жоқ. Картаны бас немесе «Бәйтеректің жанындамын» деп жаз.",
   tilt:"Картаны бұру: тышқанның оң батырмасы (немесе Ctrl + сүйреу). Телефонда — екі саусақпен.", search:"іздеп жатыр…", point:"нүкте ±150 м",
@@ -377,9 +391,16 @@ const SKEY = "okno_saved_places";
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(SKEY) || "{}"); } catch(e) {}
 function storeSaved(){ try { localStorage.setItem(SKEY, JSON.stringify(saved)); } catch(e) {} }
+// виды закладок — как в 2GIS: значок + цвет
+const KINDS = {home:["House","#ffb020"], work:["Briefcase","#4cc9f0"], study:["GraduationCap","#a48bff"], sport:["Dumbbell","#3ddc97"],
+  friends:["Users","#ff7eb6"], fav:["Heart","#ff5d6c"], star:["Star","#ffd166"]};
+const kindOf = (n, c) => c.kind || (/^(дом|home|үй)/i.test(n) ? "home" : /работ|work|жұмыс|офис/i.test(n) ? "work" : "star");
+// на сервер уходят только координаты (округлённые) — значок и контур здания остаются в браузере
+const savedForServer = () => Object.fromEntries(Object.entries(saved).map(([n, c]) => [n, {lat:+c.lat.toFixed(3), lon:+c.lon.toFixed(3)}]));
 function renderSaved(){
   const box = $("#savedChips");
-  let h = Object.keys(saved).map(n => `<button class="pill glass sv" data-n="${esc(n)}" title="поехать сюда">${svg(/^дом/i.test(n)?"House":"Star",15)}<span>${esc(n)}</span><span class="x" data-del="1" title="удалить">✕</span></button>`).join("");
+  let h = Object.keys(saved).map(n => { const [ic, col] = KINDS[kindOf(n, saved[n])];
+    return `<button class="pill glass sv" style="--c:${col}" data-n="${esc(n)}" title="поехать сюда">${svg(ic,15)}<span>${esc(n)}</span><span class="x" data-del="1" title="удалить">✕</span></button>`; }).join("");
   if(state.point) h += `<button class="pill glass" id="savePt" title="запомнить отмеченную точку">${svg("BookmarkPlus",15)}<span>${T("save")}</span></button>`;
   box.innerHTML = h;
   drawSaved();
@@ -390,31 +411,64 @@ function renderSaved(){
     toast(T("addTime"));
   });
   const sp = $("#savePt");
-  if(sp) sp.onclick = () => {
-    sp.outerHTML = `<span class="pill glass on">${svg("BookmarkPlus",15)}<input id="svName" placeholder="${T("saveTo")}" style="width:130px"></span>`;
-    const i = $("#svName"); i.focus();
-    i.onkeydown = e => {
-      const n = i.value.trim();
-      if(e.key==="Enter" && n && state.point){ saved[n] = {lat:state.point.lat, lon:state.point.lon}; storeSaved();
-        clearPoint();   // точка стала «своим местом» — вместо синей точки теперь жёлтая метка с именем
-        $$(".pill.sv").forEach(b => { if(b.dataset.n===n) b.classList.add("new"); });
-        map.flyTo({center:[saved[n].lon, saved[n].lat], zoom:Math.max(map.getZoom(), 14), speed:1.2});
-        toast(T("savedT")(n)); }
-      if(e.key==="Escape") renderSaved();
-    };
+  if(sp) sp.onclick = openSavePop;
+}
+function closeSavePop(){ $("#savePop")?.remove(); }
+function openSavePop(){
+  closeSavePop();
+  const bld = buildingAt(state.click);
+  let kind = "home";
+  const pop = document.createElement("div"); pop.className = "savepop glass"; pop.id = "savePop";
+  pop.innerHTML = `<div class="nm"><input id="svName" placeholder="${T("saveTo")}" maxlength="40"><button class="ok" id="svOk">${T("saveBtn")}</button></div>
+    <div class="kinds">${Object.entries(KINDS).map(([k,[ic,col]]) => `<button data-k="${k}" style="--c:${col}" class="${k===kind?"on":""}"><i>${svg(ic,13)}</i>${T("kinds")[k]}</button>`).join("")}</div>
+    <small>${bld ? "✓ " + T("bldOk") : T("bldHint")}</small>`;
+  $(".row").after(pop);
+  const inp = $("#svName"); inp.focus();
+  pop.querySelectorAll(".kinds button").forEach(b => b.onclick = () => {
+    const prev = T("kinds")[kind]; kind = b.dataset.k;
+    pop.querySelectorAll(".kinds button").forEach(x => x.classList.toggle("on", x===b));
+    if(!inp.value.trim() || inp.value.trim()===prev) inp.value = T("kinds")[kind];   // имя по умолчанию = вид закладки
+    inp.focus();
+  });
+  const save = () => {
+    const n = inp.value.trim() || T("kinds")[kind];
+    if(!state.point) return closeSavePop();
+    const at = bld ? bld.center : (state.click ? [state.click.lng, state.click.lat] : [state.point.lon, state.point.lat]);
+    saved[n] = {lat:at[1], lon:at[0], kind, ...(bld ? {bld:{g:bld.g, h:bld.h}} : {})};
+    storeSaved(); closeSavePop(); clearPoint();
+    $$(".pill.sv").forEach(b => { if(b.dataset.n===n) b.classList.add("new"); });
+    map.flyTo({center:at, zoom:Math.max(map.getZoom(), 15), speed:1.2});
+    toast(T("savedT")(n));
   };
+  $("#svOk").onclick = save;
+  inp.onkeydown = e => { if(e.key==="Enter") save(); if(e.key==="Escape") closeSavePop(); };
+}
+// здание под точкой (из векторных тайлов OpenStreetMap) — чтобы закладка «села» на дом, как в 2GIS
+function buildingAt(ll){
+  if(!ll || !map.getLayer("b3d")) return null;
+  const f = map.queryRenderedFeatures(map.project(ll), {layers:["b3d"]})[0];
+  if(!f || !/Polygon/.test(f.geometry.type)) return null;
+  const r5 = a => Array.isArray(a[0]) ? a.map(r5) : [+a[0].toFixed(6), +a[1].toFixed(6)];
+  const g = {type:f.geometry.type, coordinates:r5(f.geometry.coordinates)};
+  const ring = g.type==="Polygon" ? g.coordinates[0] : g.coordinates[0][0];
+  const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]);
+  return {g, h:f.properties.render_height || 10, center:[(Math.min(...xs)+Math.max(...xs))/2, (Math.min(...ys)+Math.max(...ys))/2]};
 }
 
 let savedMarkers = [];
 function drawSaved(){
   if(!window._mapOk) return;
   savedMarkers.forEach(m => m.remove()); savedMarkers = [];
+  const blds = [];
   for(const [n, c] of Object.entries(saved)){
-    const el = document.createElement("div"); el.className = "mk svd"; el.title = n;
-    el.innerHTML = `${svg(/^(дом|home|үй)/i.test(n)?"House":"Star",14)}<span>${esc(n)}</span>`;
+    const [ic, col] = KINDS[kindOf(n, c)];
+    const el = document.createElement("div"); el.className = "mk bm"; el.title = n; el.style.setProperty("--c", col);
+    el.innerHTML = `<div class="pin">${svg(ic,15)}</div><span>${esc(n)}</span>`;
     el.onclick = ev => { ev.stopPropagation(); $("#q").value = T("gotoQ")(n); $("#q").focus(); toast(T("addTime")); };
-    savedMarkers.push(new maplibregl.Marker({element:el}).setLngLat([c.lon, c.lat]).addTo(map));
+    savedMarkers.push(new maplibregl.Marker({element:el, anchor:"top", offset:[0,-14]}).setLngLat([c.lon, c.lat]).addTo(map));
+    if(c.bld) blds.push({type:"Feature", geometry:c.bld.g, properties:{color:col, h:c.bld.h}});
   }
+  map.getSource("saved-bld")?.setData({type:"FeatureCollection", features:blds});
 }
 
 // ---------- снег/дождь на фоне — по реальной погоде (или в симуляции −25°) ----------
@@ -463,6 +517,10 @@ mapReady.then(async () => {
     paint:{"fill-extrusion-color":["interpolate",["linear"],["coalesce",["get","render_height"],8],0,"#1a222d",60,"#24303f",200,"#2e3d51"],
       "fill-extrusion-height":["interpolate",["linear"],["zoom"],13.5,0,14.5,["coalesce",["get","render_height"],8]],
       "fill-extrusion-base":["coalesce",["get","render_min_height"],0], "fill-extrusion-opacity":.85}});
+  map.addSource("saved-bld", {type:"geojson", data:empty});
+  map.addLayer({id:"saved-bld", type:"fill-extrusion", source:"saved-bld",
+    paint:{"fill-extrusion-color":["get","color"], "fill-extrusion-height":["+",["get","h"],0.6], "fill-extrusion-opacity":.75}});
+  drawSaved();
   map.addSource("route-walk", {type:"geojson", data:empty});
   map.addSource("route-taxi", {type:"geojson", data:empty});
   try {
@@ -491,10 +549,10 @@ function setPoint(lat, lon, label){
 }
 map.on("click", e => {
   if(e.originalEvent.target.closest(".mk")) return;
-  setPoint(e.lngLat.lat, e.lngLat.lng, T("point"));
+  closeSavePop(); setPoint(e.lngLat.lat, e.lngLat.lng, T("point")); state.click = e.lngLat;
   toast(T("mark"));
 });
-function clearPoint(){ state.point=null; if(meMarker){meMarker.remove(); meMarker=null;}
+function clearPoint(){ state.point=null; state.click=null; closeSavePop(); if(meMarker){meMarker.remove(); meMarker=null;}
   $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>${T("here")}</span>`; $("#pt").classList.remove("on"); renderSaved(); }
 function locate(){
   if(!navigator.geolocation){ toast(T("noGeo")); return; }
@@ -543,7 +601,7 @@ function showSteps(){
 // ---------- запрос ----------
 async function run(extra={}){
   const text = $("#q").value.trim(); if(!text && !extra.parsed) return;
-  const body = {text, point:state.point, now:state.nowOverride, weather:state.weather, saved, ...extra};
+  const body = {text, point:state.point, now:state.nowOverride, weather:state.weather, saved:savedForServer(), ...extra};
   state.lastReq = body;
   $("#go").disabled = true; $("#ex").classList.remove("show"); $("#exBtn").classList.remove("on"); showSteps(); stopSpeak();
   $("#deck").style.opacity = .35;
