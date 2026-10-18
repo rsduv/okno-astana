@@ -162,23 +162,30 @@ def _rules(text: str) -> dict:
     """Запасной разбор без ИИ (если сеть/ключ недоступны)."""
     t = text.lower()
     d = {"origin": None, "destination": None, "return_to_origin": False, "deadline": None, "duration_min": None,
-         "prefs": [], "with_kids": "ребён" in t or "дет" in t, "group_size": None, "mobility": "normal",
+         "prefs": [], "with_kids": bool(re.search(r"ребён|дет[ейи]|kid|child|\bбала", t)), "group_size": None,
+         "mobility": "limited" if re.search(r"коляск|wheelchair|\bарба|трудно ходить", t) else "normal",
          "transport": "any", "language": "en" if re.search(r"[a-z]{4}", t) and not re.search(r"[а-я]", t)
          else "kk" if re.search(r"[әіңғүұқөһ]", t) else "ru",
          "rules": True}
-    m = re.search(r"(?:к|до|by)\s*(\d{1,2})[:.](\d{2})", t) or re.search(r"к\s*(\d{1,2})\b(?!\s*мин)", t)
+    m = (re.search(r"(?:к|до|by|at|в)\s*(\d{1,2})[:.](\d{2})", t) or re.search(r"(\d{1,2})[:.](\d{2})\s*-?\s*(?:ге|ке|да|де|та|те)\b", t)
+         or re.search(r"к\s*(\d{1,2})\b(?!\s*мин)", t))
+    if not m and re.search(r"вылет|рейс|flight|поезд|train|концерт|concert|матч|спектакл|ұшақ|пойыз", t):
+        m = re.search(r"(\d{1,2})[:.](\d{2})", t)   # «вылет 18:30» — время события и есть срок
     if m:
         h = int(m.group(1)); mm = int(m.group(2)) if m.lastindex and m.lastindex >= 2 else 0
         d["deadline"] = f"{h:02d}:{mm:02d}"
     m = re.search(r"(\d+)\s*(?:мин|min)", t)
     if m:
         d["duration_min"] = int(m.group(1))
-    m = re.search(r"(\d+(?:[.,]\d)?)\s*(?:час|ч\b|hour|h\b)", t)
+    m = re.search(r"(\d+(?:[.,]\d)?)\s*(?:час|ч\b|hour|h\b|сағат)", t)
+    kk = re.search(r"(бір|екі|үш)\s+(жарым\s+)?сағат|жарты сағат", t)
     if m:
         d["duration_min"] = int(float(m.group(1).replace(",", ".")) * 60)
+    elif kk:   # казахский: «бір сағат», «екі сағат», «бір жарым сағат», «жарты сағат»
+        d["duration_min"] = 30 if kk.group(0).startswith("жарты") else {"бір": 60, "екі": 120, "үш": 180}[kk.group(1)] + (30 if kk.group(2) else 0)
     elif re.search(r"полтора|полчаса|пол часа|пар[уы] час|два часа|три часа", t) and not d["duration_min"]:
         d["duration_min"] = 90 if "полтора" in t else 30 if re.search(r"полчаса|пол часа", t) else 180 if "три" in t else 120
-    elif ("час" in t or "hour" in t) and not d["duration_min"]:
+    elif ("час" in t or "hour" in t or "сағат" in t) and not d["duration_min"]:
         d["duration_min"] = 60
     parts = re.split(r"\s(?:в|до|к|потом в|надо быть в|нужно в|to)\s", t, maxsplit=1)
     lm_found = []
@@ -190,14 +197,20 @@ def _rules(text: str) -> dict:
                 break
     lm_found.sort()
     if lm_found:
-        d["origin"] = lm_found[0][1]
-        if len(lm_found) > 1:
-            d["destination"] = lm_found[-1][1]
+        # старт — место после «я у / я в / I'm at / from» (или с казахским «-да/-де/-та/-те»), иначе первое упомянутое
+        here = re.compile(r"(?:я\s+(?:у|в|возле|около)|i'?m\s+at|i\s+am\s+at|from|мен)\s*$")
+        mine = [x for x in lm_found if here.search(t[max(0, x[0] - 14):x[0]])]
+        start = mine[0] if mine else lm_found[0]
+        d["origin"] = start[1]
+        others = [x for x in lm_found if x[1] != start[1]]
+        if others:
+            d["destination"] = others[-1][1]
     if "вылет" in t or "рейс" in t or "flight" in t:
         d["destination"] = "аэропорт"
-    for k, words in {"coffee": ["кофе", "coffee"], "food": ["поесть", "обед", "ужин", "food"], "walk": ["погул", "прогул", "walk"],
-                     "sights": ["посмотреть", "турист", "sight"], "night": ["ноч", "бар", "night"], "work": ["розетк", "поработ", "ноут"],
-                     "kids": ["ребён", "дет", "kid"]}.items():
+    for k, words in {"coffee": ["кофе", "coffee"], "food": ["поесть", "обед", "ужин", "food", "eat", "lunch", "dinner", "тамақ"],
+                     "walk": ["погул", "прогул", "walk", "серуен"], "sights": ["посмотреть", "турист", "sight", "see the city", "қала көр"],
+                     "night": ["ноч", "бар ", "night", "түн"], "work": ["розетк", "поработ", "ноут", "laptop", "work"],
+                     "kids": ["ребён", "дет", "kid", "child", "бала"]}.items():
         if any(w in t for w in words):
             d["prefs"].append(k)
     if not d["destination"]:
@@ -315,7 +328,8 @@ def _why_fallback(s, language=None):
     if f.get("википедия") and i == 0:
         parts.append(f["википедия"].split(". ")[0].rstrip(".") + " (Википедия)")
     if f.get("рейтинг_2гис"):
-        parts.append(("рейтинг " if i == 0 else "rating " if i == 1 else "рейтинг ") + f["рейтинг_2гис"].split(" ")[0] + " в 2GIS")
+        r = f["рейтинг_2гис"].split(" ")[0]
+        parts.append({0: f"рейтинг {r} в 2GIS", 1: f"rated {r} on 2GIS", 2: f"2GIS-те рейтингі {r}"}[i])
     if f.get("по_пути"):
         parts.append({0: f["по_пути"], 1: "right on your way", 2: "жолыңызда"}[i])
     if f.get("внутри"):
@@ -334,7 +348,8 @@ def _todo_fallback(s, language=None):
 
 def _headline_fallback(stops, arrive, language=None):
     i = LANG_IX.get(language or "", 0)
-    names = ", ".join(x["name"] for x in stops[:3])
+    key = {1: "name_en", 2: "name_kk"}.get(i)
+    names = ", ".join((key and x.get(key)) or x["name"] for x in stops[:3])
     return {0: f"{names} — на месте в {arrive}", 1: f"{names} — arrive by {arrive}", 2: f"{names} — {arrive}-де орнында"}[i]
 
 
