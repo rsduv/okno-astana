@@ -208,7 +208,7 @@ PREF_CATS = {
                "батутный парк", "аквапарк", "каток", "боулинг", "книжный"},
 }
 UNMET = {"coffee": "Кафе", "food": "Места поесть", "work": "Места для работы", "culture": "Музея или галереи",
-         "cinema": "Кино", "kids": "Детского места", "night": "Бара или ночного места"}
+         "cinema": "Кино", "kids": "Детского места", "night": "Бара или ночного места", "shopping": "Магазина или ТРЦ"}
 DEFAULT_CATS = {"кафе", "достопримечательность", "памятник", "парк", "сад", "торговый центр", "музей",
                 "галерея", "смотровая", "фонтан", "арт-центр", "книжный", "мечеть"}
 LONG_STAYS = {"театр", "кино", "ночной клуб", "аквапарк"}
@@ -761,6 +761,48 @@ def _nearest_explicit(A, start, ctx) -> str | None:
             f"Напиши, сколько у тебя времени, — например «есть 3 часа».").replace(".0 км", " км")
 
 
+def _nearest_of(cats: set, A, start, ctx):
+    """Ближайшее место нужного типа, открытое к приходу: (место, мин пешком, сколько нужно на «туда-побыть-обратно»)."""
+    best = None
+    for p in POIS:
+        if p["category"] not in cats or p.get("unnamed"):
+            continue
+        d = geo.haversine_km(A, (p["lat"], p["lon"]))
+        if d > 3 or (best and d >= best[0]):
+            continue
+        walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
+        arrive = start + timedelta(minutes=walk)
+        if interval_status(p.get("tags"), p["category"], arrive, arrive + timedelta(minutes=stay_of(p, ctx)))[0] == "open":
+            best = (d, p, walk)
+    if not best:
+        return None
+    _, p, walk = best
+    return p, walk, 2 * walk + stay_of(p, ctx)
+
+
+def _glance(A, ctx) -> str | None:
+    """Совсем короткое окно, хочется «что-то посмотреть»: одно известное место на улице, куда успеешь дойти и вернуться."""
+    window = getattr(ctx, "window", 0) or 0
+    best = None
+    for p in POIS:
+        if p["category"] not in ("памятник", "достопримечательность", "фонтан", "смотровая") or p.get("unnamed"):
+            continue
+        d = geo.haversine_km(A, (p["lat"], p["lon"]))
+        if d > 0.8 or d < 0.12:   # ближе 120 м — ты уже там, это не совет
+            continue
+        walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
+        if 2 * walk + 4 > window:
+            continue
+        fame = ((p.get("wiki") or {}).get("sitelinks") or 0) + (3 if p.get("wiki") else 0)
+        if best is None or (fame, -walk) > (best[0], -best[1]):
+            best = (fame, walk, p)
+    if not best:
+        return None
+    _, walk, p = best
+    return (f"Успеешь одно: {p['name']} — {round(walk)} мин пешком. Посмотри пару минут снаружи и возвращайся — "
+            f"туда-обратно около {round(2 * walk + 3)} мин из {round(window)}.")
+
+
 def _grab_and_go(A, start, ctx) -> str | None:
     """Совсем короткое окно, но человек хочет поесть/кофе: ближайшее открытое место — «возьми с собой»."""
     cats = set()
@@ -768,7 +810,7 @@ def _grab_and_go(A, start, ctx) -> str | None:
         if pr in ctx.prefs:
             cats |= PREF_CATS[pr]
     if not cats:
-        return None
+        return _glance(A, ctx)
     best = None
     for p in POIS:
         if p["category"] not in cats:
@@ -917,7 +959,14 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         hit_any = True
     for pref, word in UNMET.items():
         if pref in ctx.prefs and not (got & PREF_CATS[pref]) and not hit_any:
-            notes.insert(0, f"{word} по пути, открытых к твоему приходу, не нашёл — предлагаю то, что работает. Это честно, а не сбой.")
+            near = _nearest_of(PREF_CATS[pref], A, start, ctx)
+            if near:   # конкретно: что ближайшее и почему не поместилось — полезнее, чем «не нашёл»
+                p0, walk, need = near
+                notes.insert(0, f"{word} в это окно не помещается: ближайшее — {p0['name']}, {round(walk)} мин пешком; "
+                                f"туда, {stay_of(p0, ctx)} мин там и обратно — около {round(need)} мин, а окно {round(window)}. "
+                                "Предлагаю, что успеешь рядом.")
+            else:
+                notes.insert(0, f"{word} по пути, открытых к твоему приходу, не нашёл — предлагаю то, что работает. Это честно, а не сбой.")
             break
     est = sum(1 for s in stops if s["hours"]["confidence"] == "estimate")
     if est:
