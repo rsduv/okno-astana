@@ -220,7 +220,10 @@ def _make_plan(req: PlanReq, request: Request):
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
     lang = parsed.get("language")
     if not origin:
-        msg = (f"Не нашёл «{parsed['origin']}» в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
+        other = OTHER_CITIES.match((parsed.get("origin") or "").strip())
+        msg = ("Похоже, ты не в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
+               "(«я у Байтерека») или ткни в карту." if other else
+               f"Не нашёл «{parsed['origin']}» в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
                "(«я у Байтерека») или ткни в карту." if parsed.get("origin") else
                "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.")
         return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
