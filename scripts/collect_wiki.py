@@ -84,6 +84,22 @@ def add_images(out: dict) -> None:
                 out[q]["image"] = f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(fn)}?width=480"
 
 
+def add_labels(out: dict) -> None:
+    """Названия на английском и казахском из Wikidata — для туристов и ответа на языке запроса."""
+    ids = list(out)
+    for i in range(0, len(ids), 50):
+        try:
+            j = httpx.get("https://www.wikidata.org/w/api.php", headers=UA, timeout=30, params={
+                "action": "wbgetentities", "ids": "|".join(ids[i:i + 50]), "props": "labels", "languages": "en|kk", "format": "json"}).json()
+        except Exception:
+            continue
+        for q, e in (j.get("entities") or {}).items():
+            for lang in ("en", "kk"):
+                v = ((e.get("labels") or {}).get(lang) or {}).get("value")
+                if v and q in out:
+                    out[q][f"name_{lang}"] = v
+
+
 def main():
     r = httpx.get("https://query.wikidata.org/sparql", params={"query": QUERY, "format": "json"}, headers=UA, timeout=60)
     rows = r.json()["results"]["bindings"]
@@ -103,6 +119,7 @@ def main():
         print(f"{out[qid]['sitelinks']:3} {label} [{cat}] {'+текст' if out[qid]['extract'] else ''}")
         time.sleep(0.3)
     add_images(out)
+    add_labels(out)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"готово: {len(out)} мест → {OUT}")
 

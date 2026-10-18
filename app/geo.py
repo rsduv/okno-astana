@@ -284,7 +284,8 @@ def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = N
         best = _fuzzy_landmark(q)
     if best:
         lm = best[1]
-        return {"lat": lm["lat"], "lon": lm["lon"], "label": lm["name"], "source": "справочник ориентиров"}
+        return {"lat": lm["lat"], "lon": lm["lon"], "label": lm["name"], "label_en": lm.get("name_en"), "label_kk": lm.get("name_kk"),
+                "source": "справочник ориентиров"}
     if pois:
         for p in pois:
             n = _norm(p["name"])

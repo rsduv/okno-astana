@@ -119,6 +119,9 @@ def _merge_wiki() -> int:
         ext = (w.get("extract") or "").replace(chr(0x301), "") or None  # убираем знаки ударения из Википедии
         best["wiki"] = {"sitelinks": w["sitelinks"], "extract": ext, "article": w.get("article"), "image": w.get("image")}
         best["tags"].setdefault("wikidata", w["qid"])
+        for lang in ("en", "kk"):
+            if not best.get(f"name_{lang}") and w.get(f"name_{lang}"):
+                best[f"name_{lang}"] = re.sub(r"\s*\([^)]*\)|,\s*(Astana|Nur-Sultan|Астана)$", "", w[f"name_{lang}"]).strip()
     return added
 
 
@@ -642,7 +645,8 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
             st, conf, text = interval_status(p.get("tags"), p["category"], arrive, leave)
             if st in ("closed", "closes_soon"):
                 return None
-            steps.append({"type": "stop", "id": p["id"], "name": p["name"], "category": p["category"],
+            steps.append({"type": "stop", "id": p["id"], "name": p["name"], "name_en": p.get("name_en"), "name_kk": p.get("name_kk"),
+                          "category": p["category"],
                           "lat": p["lat"], "lon": p["lon"], "arrive": _fmt(arrive), "leave": _fmt(leave), "stay": stay,
                           "hours": {"status": st, "confidence": conf, "source": p.get("hours_src", "OSM"),
                                     "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},

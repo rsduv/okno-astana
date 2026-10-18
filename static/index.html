@@ -402,6 +402,7 @@ let LANG = "ru";
 try { LANG = localStorage.getItem("okno_lang") || ({en:"en", kk:"kk"}[(navigator.language||"ru").slice(0,2)] || "ru"); } catch(e) {}
 const T = k => (I18N[LANG] && I18N[LANG][k] !== undefined ? I18N[LANG][k] : I18N.ru[k]);
 const TH = s => (T("hours")||[]).reduce((a,[ru,x]) => a.split(ru).join(x), String(s ?? ""));
+const DN = x => (LANG === "en" && x.name_en) || (LANG === "kk" && x.name_kk) || x.name;   // название на языке интерфейса
 const TC = c => c;   // категории пока по-русски на всех языках
 // телефон и сайт места (из OpenStreetMap) — нажал и звонишь / открываешь
 const contactsHtml = x => (x && (x.phone || x.website)) ? `<div class="ct">${x.phone ? `<a href="tel:${esc(x.phone.replace(/[^+\d]/g,""))}" onclick="event.stopPropagation()">${svg("Phone",13)}${esc(x.phone)}</a>` : ""}${x.website ? `<a href="${esc(/^https?:/.test(x.website) ? x.website : "https://" + x.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${svg(/instagram/.test(x.website) ? "AtSign" : "Globe",13)}${/instagram/.test(x.website) ? "Instagram" : T("site")}</a>` : ""}</div>` : "";
@@ -640,7 +641,7 @@ async function openPin(lat, lon, ll, mine=false){
   let d = {};
   try { d = await (await fetch(`/api/place?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&lang=${LANG}`)).json(); } catch(e) {}
   if(pinPopup !== my) return;   // уже ткнули в другое место
-  const poi = d.poi, title = mine ? T("pcMine") : (poi ? poi.name : (d.address || T("pcPlace")));
+  const poi = d.poi, title = mine ? T("pcMine") : (poi ? DN(poi) : (d.address || T("pcPlace")));
   state.pin.title = poi ? poi.name : (d.address || null);
   const floors = b ? Math.max(1, Math.round(b.h / 3)) : 0;
   const lines = [];
@@ -885,7 +886,7 @@ function render(r){
         ${st.image ? `<div class="ph" style="background-image:url('${esc(st.image)}')"><small>${T("photo")}</small></div>` : ""}
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico">${ic(st.category)}<i>${n}</i></div>
-          <div style="min-width:0"><h3>${esc(st.name)}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} ${T("min")}${TH(inside)}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
+          <div style="min-width:0"><h3>${esc(DN(st))}</h3><div class="sub">${st.arrive}–${st.leave} · ${st.stay} ${T("min")}${TH(inside)}${st.rating?` · <span class="rt">★ ${String(st.rating).replace(".",",")}</span>`:""}</div></div>
           <button class="swap" title="${T("replace")}" aria-label="${T("replace")}" data-ex="${esc(st.id)}" data-keep="${esc(others.join("|"))}">${svg("RefreshCw",15)}</button></div>
         ${st.wheelchair && T("wc")[st.wheelchair] ? `<div class="wc ${esc(st.wheelchair)}">${svg("Accessibility",13)}${T("wc")[st.wheelchair]}</div>` : ""}
         <div class="why">${esc(st.why)}</div>
@@ -899,7 +900,7 @@ function render(r){
       html += `<div class="card glass fin" data-lat="${r.destination.lat}" data-lon="${r.destination.lon}" style="animation-delay:${(n+1)*80}ms">
         <div class="leg">${legText(lastLeg)}</div>
         <div class="ch"><div class="ico" style="background:rgba(61,220,151,.18)">${svg(back?"Undo2":"Flag",20)}</div>
-          <div style="min-width:0"><h3>${esc(/Ты здесь/.test(r.destination.label) && meAddr ? meAddr : r.destination.label.replace("обратно: ",""))}</h3><div class="sub">${T("buf")} ${s.buffer_min} ${T("min")}</div></div></div>
+          <div style="min-width:0"><h3>${esc(/Ты здесь/.test(r.destination.label) && meAddr ? meAddr : (LANG === "en" && r.destination.label_en) || (LANG === "kk" && r.destination.label_kk) || r.destination.label.replace("обратно: ",""))}</h3><div class="sub">${T("buf")} ${s.buffer_min} ${T("min")}</div></div></div>
         <div class="big" style="margin-top:10px">${st.time}</div></div>`;
     }
   }

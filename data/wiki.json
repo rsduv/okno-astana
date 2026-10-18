@@ -8,7 +8,9 @@
   "sitelinks": 29,
   "article": "https://ru.wikipedia.org/wiki/%D0%90%D0%BA%D0%BE%D1%80%D0%B4%D0%B0_(%D1%80%D0%B5%D0%B7%D0%B8%D0%B4%D0%B5%D0%BD%D1%86%D0%B8%D1%8F)",
   "extract": "Акорда́ — резиденция президента Республики Казахстан. Является штаб-квартирой Администрации Президента Казахстана.",
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana-2021-10_-_25.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana-2021-10_-_25.jpg?width=480",
+  "name_en": "Ak Orda Presidential Palace",
+  "name_kk": "Ақ Орда (резиденция)"
  },
  "Q1813417": {
   "qid": "Q1813417",
@@ -18,7 +20,9 @@
   "lon": 71.415737,
   "sitelinks": 30,
   "article": "https://ru.wikipedia.org/wiki/%D0%90%D0%B1%D1%83_%D0%9D%D0%B0%D1%81%D1%8B%D1%80%D0%B0_%D0%B0%D0%BB%D1%8C-%D0%A4%D0%B0%D1%80%D0%B0%D0%B1%D0%B8_(%D0%BC%D0%B5%D1%87%D0%B5%D1%82%D1%8C)",
-  "extract": "Абу Насыра аль-Фараби — мечеть, расположенная в Астане. До открытия мечети Хазрет Султан являлась самой большой мечетью в Казахстане и в Центральной Азии. Мечеть имеет четыре минарета высотой по 62 метра, высота главного купола 43 метра, а общая площадь равна 3930 м²."
+  "extract": "Абу Насыра аль-Фараби — мечеть, расположенная в Астане. До открытия мечети Хазрет Султан являлась самой большой мечетью в Казахстане и в Центральной Азии. Мечеть имеет четыре минарета высотой по 62 метра, высота главного купола 43 метра, а общая площадь равна 3930 м².",
+  "name_en": "Nur-Astana Mosque",
+  "name_kk": "Нұр-Астана мешіті"
  },
  "Q1899549": {
   "qid": "Q1899549",
@@ -29,7 +33,9 @@
   "sitelinks": 6,
   "article": "https://ru.wikipedia.org/wiki/%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_(%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0)",
   "extract": "Кафедральный собор в честь Успения Пресвятой Богородицы — кафедральный собор Астанайской епархии в Астане.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D1%8B_%D1%84%D0%BE%D1%82%D0%BE3.jpg/500px-%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D1%8B_%D1%84%D0%BE%D1%82%D0%BE3.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D1%8B_%D1%84%D0%BE%D1%82%D0%BE3.jpg/500px-%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D1%8B_%D1%84%D0%BE%D1%82%D0%BE3.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Assumption Cathedral",
+  "name_kk": "Әулие Мария Успен соборы"
  },
  "Q2119741": {
   "qid": "Q2119741",
@@ -40,7 +46,9 @@
   "sitelinks": 26,
   "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%B2%D0%BE%D1%80%D0%B5%D1%86_%D0%BC%D0%B8%D1%80%D0%B0_%D0%B8_%D1%81%D0%BE%D0%B3%D0%BB%D0%B0%D1%81%D0%B8%D1%8F",
   "extract": "Дворец мира и согласия — здание пирамидальной формы, созданное архитектором Норманом Фостером в столице Казахстана — Астане для проведения Съезда лидеров мировых и традиционных религий.",
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana_DSC04116_%287709631558%29.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana_DSC04116_%287709631558%29.jpg?width=480",
+  "name_en": "Palace of Peace and Reconciliation",
+  "name_kk": "Бейбітшілік және келісім сарайы"
  },
  "Q804210": {
   "qid": "Q804210",
@@ -51,7 +59,9 @@
   "sitelinks": 29,
   "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%B0%D0%B9%D1%82%D0%B5%D1%80%D0%B5%D0%BA_(%D0%BC%D0%BE%D0%BD%D1%83%D0%BC%D0%B5%D0%BD%D1%82)",
   "extract": "«Байтере́к» — монумент и смотровая башня в столице Казахстана — Астане. Монумент был построен как символ переноса столицы Казахстана в 1997 году. Входит в список памятников истории и культуры местного значения Астаны.",
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Night_at_Esil_District%2C_Astana_%28P1190721%29.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Night_at_Esil_District%2C_Astana_%28P1190721%29.jpg?width=480",
+  "name_en": "Bayterek",
+  "name_kk": "Бәйтерек (монументі)"
  },
  "Q573362": {
   "qid": "Q573362",
@@ -62,7 +72,9 @@
   "sitelinks": 12,
   "article": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD_(%D0%BA%D0%BE%D0%BD%D1%86%D0%B5%D1%80%D1%82%D0%BD%D1%8B%D0%B9_%D0%B7%D0%B0%D0%BB)",
   "extract": "Центральный концертный зал «Казахстан» — концертный зал в городе Астана. Его также называют «Цветок пустыни». Спроектирован итальянским архитектором Манфреди Николетти. Является самой большой концертной площадкой в стране. Вместимость — 3500 гостей. Был открыт в 2009 году.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD_%D0%A6%D0%9A%D0%97_2011_02.jpg/500px-%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD_%D0%A6%D0%9A%D0%97_2011_02.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD_%D0%A6%D0%9A%D0%97_2011_02.jpg/500px-%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD_%D0%A6%D0%9A%D0%97_2011_02.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Kazakhstan Central Concert Hall",
+  "name_kk": "Қазақстан Орталық концерт залы"
  },
  "Q4155890": {
   "qid": "Q4155890",
@@ -72,7 +84,9 @@
   "lon": 71.4721,
   "sitelinks": 8,
   "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%B2%D0%BE%D1%80%D0%B5%D1%86_%D0%9D%D0%B5%D0%B7%D0%B0%D0%B2%D0%B8%D1%81%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D0%B8_(%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0)",
-  "extract": "Дворец Независимости — дворец в Астане. Во дворце проводятся официальные государственные мероприятия, форумы, совещания, встречи, съезды. Вместимость внутренних помещений, их техническое оснащение и комфорт в полной мере позволяют проводить и освещать события на высшем международном уровне."
+  "extract": "Дворец Независимости — дворец в Астане. Во дворце проводятся официальные государственные мероприятия, форумы, совещания, встречи, съезды. Вместимость внутренних помещений, их техническое оснащение и комфорт в полной мере позволяют проводить и освещать события на высшем международном уровне.",
+  "name_en": "Palace of Independence",
+  "name_kk": "Тәуелсіздік Сарайы"
  },
  "Q4230441": {
   "qid": "Q4230441",
@@ -83,7 +97,9 @@
   "sitelinks": 4,
   "article": "https://ru.wikipedia.org/wiki/%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0_(%D0%BA%D0%BE%D0%BD%D1%86%D0%B5%D1%80%D1%82%D0%BD%D1%8B%D0%B9_%D0%B7%D0%B0%D0%BB)",
   "extract": "Концертный зал «Астана» — достопримечательность Астаны, место проведения общественно-государственных мероприятий. В 1982 году был включен в список памятников истории и культуры республиканского значения и охраняется государством.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Astana_Concert_Hall.jpg/500px-Astana_Concert_Hall.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Astana_Concert_Hall.jpg/500px-Astana_Concert_Hall.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Astana Concert Hall",
+  "name_kk": "Тың игерушілер сарайы"
  },
  "Q4314789": {
   "qid": "Q4314789",
@@ -94,7 +110,9 @@
   "sitelinks": 3,
   "article": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F_%D0%B0%D0%BA%D0%B0%D0%B4%D0%B5%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F_%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA%D0%B0_%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD%D0%B0",
   "extract": "«Национальная академическая библиотека Республики Казахстан» в городе Астана была создана постановлением Правительства РК от 23 апреля 2004 года за № 461. Главная цель - дальнейшее развитие информационной, образовательной и культурно-просветительной инфраструктуры столицы.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Library_of_the_Republic_of_Kazakhstan.jpg/500px-Library_of_the_Republic_of_Kazakhstan.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Library_of_the_Republic_of_Kazakhstan.jpg/500px-Library_of_the_Republic_of_Kazakhstan.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "National Academic Library of the Republic of Kazakhstan",
+  "name_kk": "ҚР Ұлттық академиялық кітапханасы"
  },
  "Q4494668": {
   "qid": "Q4494668",
@@ -105,7 +123,9 @@
   "sitelinks": 25,
   "article": "https://ru.wikipedia.org/wiki/%D0%A5%D0%B0%D0%B7%D1%80%D0%B5%D1%82_%D0%A1%D1%83%D0%BB%D1%82%D0%B0%D0%BD_(%D0%BC%D0%B5%D1%87%D0%B5%D1%82%D1%8C)",
   "extract": "Хазре́т Султа́н — мечеть в Астане. Памятник истории и культуры местного значения.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Rustam_Minnikhanov_on_Expo_2017_72.jpg/500px-Rustam_Minnikhanov_on_Expo_2017_72.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Rustam_Minnikhanov_on_Expo_2017_72.jpg/500px-Rustam_Minnikhanov_on_Expo_2017_72.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Khazret Sultan Mosque",
+  "name_kk": "Әзірет Сұлтан мешіті"
  },
  "Q97496724": {
   "qid": "Q97496724",
@@ -127,7 +147,8 @@
   "sitelinks": 4,
   "article": "https://ru.wikipedia.org/wiki/%D0%A2%D1%80%D0%B8%D0%B0%D1%82%D0%BB%D0%BE%D0%BD_%D0%BF%D0%B0%D1%80%D0%BA_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0",
   "extract": "Триатлон парк Астана — городской парк в Астане который используется как зона отдыха для бега, катания на лыжах и езды на велосипеде. Парк открыли в июле 2016 года в качестве подарка к 18-летию столицы от крупнейшего строительного холдинга Казахстана Bi Group.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Astana_Triathlon_Park_View.jpg/500px-Astana_Triathlon_Park_View.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Astana_Triathlon_Park_View.jpg/500px-Astana_Triathlon_Park_View.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Astana Triathlon Park"
  },
  "Q113675887": {
   "qid": "Q113675887",
@@ -137,7 +158,9 @@
   "lon": 71.4095,
   "sitelinks": 16,
   "article": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B5%D1%87%D0%B5%D1%82%D1%8C_%D0%9D%D1%83%D1%80%D1%81%D1%83%D0%BB%D1%82%D0%B0%D0%BD",
-  "extract": "Мечеть Нурсултан — соборная мечеть в Астане, самая большая по вместимости мечеть Казахстана и Центральной Азии."
+  "extract": "Мечеть Нурсултан — соборная мечеть в Астане, самая большая по вместимости мечеть Казахстана и Центральной Азии.",
+  "name_en": "Astana Grand Mosque",
+  "name_kk": "Астана қаласының бас мешіті"
  },
  "Q117835598": {
   "qid": "Q117835598",
@@ -187,7 +210,9 @@
   "lon": 71.479657347,
   "sitelinks": 3,
   "article": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D0%BA%D0%B8%D0%B9_%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE-%D0%B4%D1%80%D0%B0%D0%BC%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%82%D0%B5%D0%B0%D1%82%D1%80_%D0%B8%D0%BC%D0%B5%D0%BD%D0%B8_%D0%9A._%D0%9A%D1%83%D0%B0%D0%BD%D1%8B%D1%88%D0%B1%D0%B0%D0%B5%D0%B2%D0%B0",
-  "extract": "Казахский музыкально-драматический театр имени К. Куанышбаева — учреждение культуры в Астане. Открыт 15 ноября 1991 года. Первая постановка — трагедия Г. Мусрепова «Акан сери — Актокты», в которой играли заслуженные артисты Казахстана Ж. Омаров и Р. Омарханова, артисты Ш. Жунисов, Б. Ибраев, Т. Атымтаев."
+  "extract": "Казахский музыкально-драматический театр имени К. Куанышбаева — учреждение культуры в Астане. Открыт 15 ноября 1991 года. Первая постановка — трагедия Г. Мусрепова «Акан сери — Актокты», в которой играли заслуженные артисты Казахстана Ж. Омаров и Р. Омарханова, артисты Ш. Жунисов, Б. Ибраев, Т. Атымтаев.",
+  "name_en": "Kalibek Kuanyshpaev Theatre",
+  "name_kk": "Астана қалалық музыкалық драма театры"
  },
  "Q12572863": {
   "qid": "Q12572863",
@@ -198,7 +223,9 @@
   "sitelinks": 3,
   "article": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D0%B7%D0%B0%D0%BA_%D0%B5%D0%BB%D0%B8_(%D0%BC%D0%BE%D0%BD%D1%83%D0%BC%D0%B5%D0%BD%D1%82)",
   "extract": "«Казак ели» — памятник культуры и архитектуры, расположенный на площади Независимости в городе Астана. Памятник был открыт в 2009 году. Авторами памятника являются Сарсенбек Жунисов и Жанбыршы Нуркенов.",
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Kazakh_Eli.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Kazakh_Eli.jpg?width=480",
+  "name_en": "Kazakh Eli monument",
+  "name_kk": "Қазақ елі (монумент)"
  },
  "Q16433519": {
   "qid": "Q16433519",
@@ -209,7 +236,9 @@
   "sitelinks": 3,
   "article": "https://ru.wikipedia.org/wiki/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9_%D0%B4%D1%80%D0%B0%D0%BC%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%82%D0%B5%D0%B0%D1%82%D1%80_%D0%B8%D0%BC%D0%B5%D0%BD%D0%B8_%D0%9C._%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE",
   "extract": "Академический русский театр драмы имени М. Горького — старейший театр драмы в Астане.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Astana_-_190217_DSC_3875.jpg/500px-Astana_-_190217_DSC_3875.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Astana_-_190217_DSC_3875.jpg/500px-Astana_-_190217_DSC_3875.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "State Russian Dramatic Theatre Maxim Gorky",
+  "name_kk": "Ақмола Облыстық Орыс Драма Театры"
  },
  "Q16538413": {
   "qid": "Q16538413",
@@ -220,7 +249,8 @@
   "sitelinks": 7,
   "article": "https://ru.wikipedia.org/wiki/%D0%A1%D0%BE%D0%B1%D0%BE%D1%80_%D0%91%D0%BE%D0%B6%D0%B8%D0%B5%D0%B9_%D0%9C%D0%B0%D1%82%D0%B5%D1%80%D0%B8_%D0%9D%D0%B5%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BD%D0%BE%D0%B9_%D0%9F%D0%BE%D0%BC%D0%BE%D1%89%D0%B8",
   "extract": "Собор Божией Матери Неустанной Помощи — католический собор в городе Астана — столице Республики Казахстан.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Astana_Katedra_1.jpg/500px-Astana_Katedra_1.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Astana_Katedra_1.jpg/500px-Astana_Katedra_1.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Our Mother of Perpetual Help Cathedral, Astana"
  },
  "Q18405670": {
   "qid": "Q18405670",
@@ -230,7 +260,9 @@
   "lon": 71.4701,
   "sitelinks": 13,
   "article": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9_%D0%BC%D1%83%D0%B7%D0%B5%D0%B9_%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD%D0%B0",
-  "extract": "Национальный музей Республики Казахстан — крупнейший музей Казахстана, основанный 2 июля 2013 года. Расположен в Астане."
+  "extract": "Национальный музей Республики Казахстан — крупнейший музей Казахстана, основанный 2 июля 2013 года. Расположен в Астане.",
+  "name_en": "National Museum of the Republic of Kazakhstan",
+  "name_kk": "Қазақстан Республикасының Ұлттық музейі"
  },
  "Q21371563": {
   "qid": "Q21371563",
@@ -241,7 +273,9 @@
   "sitelinks": 25,
   "article": "https://ru.wikipedia.org/wiki/%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0_%D0%9E%D0%BF%D0%B5%D1%80%D0%B0",
   "extract": "Государственный театр оперы и балета «Астана Опера» — театр в Астане, основанный по инициативе первого президента Казахстана Нурсултана Назарбаева. Здание театра, построенное в 2013 году, признано памятником архитектуры национального значения.",
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Inside_Astana%27s_New_Opera_House_%288282915665%29.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Inside_Astana%27s_New_Opera_House_%288282915665%29.jpg?width=480",
+  "name_en": "Astana Opera",
+  "name_kk": "Астана Опера (театр)"
  },
  "Q21843144": {
   "qid": "Q21843144",
@@ -251,7 +285,8 @@
   "lon": 71.41901,
   "sitelinks": 2,
   "article": "https://ru.wikipedia.org/wiki/%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B8%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%86%D0%B8%D1%80%D0%BA",
-  "extract": "Астанинский цирк — развлекательное учреждение города Астаны, структурное подразделение управления культуры Астаны. Является единственным в городе и одним из трёх главных цирков Казахстана. Действует с 2005 года. Расположен на проспекте Кабанбай-батыра."
+  "extract": "Астанинский цирк — развлекательное учреждение города Астаны, структурное подразделение управления культуры Астаны. Является единственным в городе и одним из трёх главных цирков Казахстана. Действует с 2005 года. Расположен на проспекте Кабанбай-батыра.",
+  "name_en": "Astana Circus"
  },
  "Q25500354": {
   "qid": "Q25500354",
@@ -261,7 +296,9 @@
   "lon": 71.4187769,
   "sitelinks": 4,
   "article": "https://ru.wikipedia.org/wiki/%D0%9C%D1%83%D0%B7%D0%B5%D0%B9_%D0%9F%D0%B5%D1%80%D0%B2%D0%BE%D0%B3%D0%BE_%D0%9F%D1%80%D0%B5%D0%B7%D0%B8%D0%B4%D0%B5%D0%BD%D1%82%D0%B0_%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD%D0%B0",
-  "extract": "Музей Первого Президента Республики Казахстан — музей в Астане, посвящённый Первому Президенту Республики Казахстан Нурсултану Назарбаеву."
+  "extract": "Музей Первого Президента Республики Казахстан — музей в Астане, посвящённый Первому Президенту Республики Казахстан Нурсултану Назарбаеву.",
+  "name_en": "The Museum of the First President of the Republic of Kazakhstan",
+  "name_kk": "Тұңғыш Президент мұражайы"
  },
  "Q42422250": {
   "qid": "Q42422250",
@@ -272,7 +309,9 @@
   "sitelinks": 5,
   "article": "https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D1%80%D0%BA_%D0%B2%D0%BB%D1%8E%D0%B1%D0%BB%D1%91%D0%BD%D0%BD%D1%8B%D1%85_(%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0)",
   "extract": "Парк влюблённых или Парк молодежи — городской парк в Астане, Казахстан. Он был открыт 6 июля 2005 года на праздновании Дня столицы. Парк расположен сразу за штаб-квартирой «КазМунайГаз», между площадью Донгелек и напротив Хан Шатыр.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/KazMunayGas_03.jpg/500px-KazMunayGas_03.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/KazMunayGas_03.jpg/500px-KazMunayGas_03.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Lovers' Park (Astana)",
+  "name_kk": "Жастар саябағы"
  },
  "Q48780885": {
   "qid": "Q48780885",
@@ -283,7 +322,9 @@
   "sitelinks": 11,
   "article": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BB%D0%BE%D1%89%D0%B0%D0%B4%D1%8C_%D0%9D%D0%B5%D0%B7%D0%B0%D0%B2%D0%B8%D1%81%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D0%B8_(%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0)",
   "extract": "Площадь Независимости — главная площадь Астаны, столицы Казахстана.",
-  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Kazakh_Eli.jpg/500px-Kazakh_Eli.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Kazakh_Eli.jpg/500px-Kazakh_Eli.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "name_en": "Independence Square, Astana",
+  "name_kk": "Тәуелсіздік алаңы"
  },
  "Q85758095": {
   "qid": "Q85758095",
@@ -293,7 +334,8 @@
   "lon": 71.4145,
   "sitelinks": 2,
   "article": "https://ru.wikipedia.org/wiki/%D0%9A%D1%80%D1%83%D0%B3%D0%BB%D0%B0%D1%8F_%D0%BF%D0%BB%D0%BE%D1%89%D0%B0%D0%B4%D1%8C_(%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0)",
-  "extract": "Круглая площадь — городская площадь, одна из основных достопримечательностей в столице Казахстана, находится в самом центре Астаны, в окружении уникальных архитектурных объектов, скульптурных композиций и цветочных аллей."
+  "extract": "Круглая площадь — городская площадь, одна из основных достопримечательностей в столице Казахстана, находится в самом центре Астаны, в окружении уникальных архитектурных объектов, скульптурных композиций и цветочных аллей.",
+  "name_en": "Dóńgelek Square"
  },
  "Q97166399": {
   "qid": "Q97166399",
@@ -315,7 +357,9 @@
   "sitelinks": 4,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%AD%D1%82%D0%BD%D0%BE-%D0%BC%D0%B5%D0%BC%D0%BE%D1%80%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%C2%AB%D0%9A%D0%B0%D1%80%D1%82%D0%B0_%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD%D0%B0_%D0%90%D1%82%D0%B0%D0%BC%D0%B5%D0%BA%D0%B5%D0%BD%C2%BB.JPG?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%AD%D1%82%D0%BD%D0%BE-%D0%BC%D0%B5%D0%BC%D0%BE%D1%80%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%C2%AB%D0%9A%D0%B0%D1%80%D1%82%D0%B0_%D0%9A%D0%B0%D0%B7%D0%B0%D1%85%D1%81%D1%82%D0%B0%D0%BD%D0%B0_%D0%90%D1%82%D0%B0%D0%BC%D0%B5%D0%BA%D0%B5%D0%BD%C2%BB.JPG?width=480",
+  "name_en": "Atameken miniature park",
+  "name_kk": "Атамекен (мұражай)"
  },
  "Q1516792": {
   "qid": "Q1516792",
@@ -326,7 +370,8 @@
   "sitelinks": 4,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Transport_Tower%2C_Astana.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Transport_Tower%2C_Astana.jpg?width=480",
+  "name_en": "Transport Tower"
  },
  "Q1916973": {
   "qid": "Q1916973",
@@ -337,7 +382,8 @@
   "sitelinks": 3,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Mega_Center_Astana.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Mega_Center_Astana.jpg?width=480",
+  "name_kk": "МЕГА Астана"
  },
  "Q28402868": {
   "qid": "Q28402868",
@@ -348,7 +394,9 @@
   "sitelinks": 8,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana%2C_by_the_River_%284054863149%29.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Astana%2C_by_the_River_%284054863149%29.jpg?width=480",
+  "name_en": "Ramstore Bridge",
+  "name_kk": "Рамстор көпірі"
  },
  "Q28671333": {
   "qid": "Q28671333",
@@ -358,7 +406,8 @@
   "lon": 73.19194,
   "sitelinks": 0,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Church of St. Joseph the Betrothed"
  },
  "Q33811540": {
   "qid": "Q33811540",
@@ -368,7 +417,8 @@
   "lon": 71.431719,
   "sitelinks": 0,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Cinema City"
  },
  "Q42416691": {
   "qid": "Q42416691",
@@ -379,7 +429,8 @@
   "sitelinks": 2,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Beit_Rachel_Synagogue%2C_Astana.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Beit_Rachel_Synagogue%2C_Astana.jpg?width=480",
+  "name_en": "Beit Rachel Chabad Lubavitch Synagogue"
  },
  "Q42422896": {
   "qid": "Q42422896",
@@ -389,7 +440,9 @@
   "lon": 71.430083333,
   "sitelinks": 5,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Triumphal Arch Mangilik El",
+  "name_kk": "Мәңгілік ел қақпасы"
  },
  "Q42768422": {
   "qid": "Q42768422",
@@ -399,7 +452,8 @@
   "lon": 71.433333333,
   "sitelinks": 0,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Zashtar Theatre"
  },
  "Q96035145": {
   "qid": "Q96035145",
@@ -409,7 +463,8 @@
   "lon": 71.410889,
   "sitelinks": 0,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Kazakh National Academy of Music"
  },
  "Q122526919": {
   "qid": "Q122526919",
@@ -420,7 +475,8 @@
   "sitelinks": 0,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0_%D0%B1%D0%B0%D0%BB%D0%B5%D1%82.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0_%D0%B1%D0%B0%D0%BB%D0%B5%D1%82.jpg?width=480",
+  "name_en": "Astana Ballet Theatre"
  },
  "Q124371412": {
   "qid": "Q124371412",
@@ -430,7 +486,9 @@
   "lon": 71.432057941,
   "sitelinks": 0,
   "article": null,
-  "extract": null
+  "extract": null,
+  "name_en": "Atatürk Monument",
+  "name_kk": "Ататүрік ескерткіш"
  },
  "Q130080414": {
   "qid": "Q130080414",
@@ -441,7 +499,9 @@
   "sitelinks": 1,
   "article": null,
   "extract": null,
-  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Saryarka_District%2C_Astana_%28P1190733%29.jpg?width=480"
+  "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Saryarka_District%2C_Astana_%28P1190733%29.jpg?width=480",
+  "name_en": "Seruen Bridge",
+  "name_kk": "Серуен көпірі"
  },
  "Q130081292": {
   "qid": "Q130081292",
