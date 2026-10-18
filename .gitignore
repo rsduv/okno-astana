@@ -11,3 +11,4 @@ data/route_cache.json
 shots/
 data/dgis_cache.json
 data/dgis_pois.json
+data/bench_cache.json

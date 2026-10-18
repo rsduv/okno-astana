@@ -117,7 +117,7 @@ def _merge_wiki() -> int:
             POIS.append(best)
             added += 1
         ext = (w.get("extract") or "").replace(chr(0x301), "") or None  # убираем знаки ударения из Википедии
-        best["wiki"] = {"sitelinks": w["sitelinks"], "extract": ext, "article": w.get("article")}
+        best["wiki"] = {"sitelinks": w["sitelinks"], "extract": ext, "article": w.get("article"), "image": w.get("image")}
         best["tags"].setdefault("wikidata", w["qid"])
     return added
 
@@ -611,7 +611,8 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                                     "text": text + (" · по 2GIS" if p.get("hours_src") == "2GIS" else "")},
                           "rating": (p.get("dgis") or {}).get("rating"), "reviews": (p.get("dgis") or {}).get("reviews"),
                           "dgis_id": (p.get("dgis") or {}).get("id"),
-                          "wiki_url": (p.get("wiki") or {}).get("article"),
+                          "wiki_url": (p.get("wiki") or {}).get("article"), "image": (p.get("wiki") or {}).get("image"),
+                          "wheelchair": (p.get("tags") or {}).get("wheelchair"),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
                                                 "в_помещении": p["category"] not in OUTDOOR},

@@ -6,6 +6,7 @@
 Результат: data/wiki.json (публикуется вместе с репозиторием).
 """
 import json
+import urllib.parse
 import re
 import time
 from pathlib import Path
@@ -14,7 +15,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "wiki.json"
-UA = {"User-Agent": "OknoAstanaHackathon/1.0 (https://github.com/rsduv/okno-astana)"}
+UA = {"User-Agent": "OknoAstana/0.1 (https://github.com/rsduv/okno-astana)"}  # формат по правилам Wikimedia: Имя/версия (контакт)
 QUERY = """
 SELECT ?item ?itemLabel ?coord ?sl ?article (GROUP_CONCAT(DISTINCT ?tl; separator="|") AS ?types) WHERE {
   ?item wdt:P131 wd:Q1520; wdt:P625 ?coord; wikibase:sitelinks ?sl.
@@ -42,11 +43,19 @@ def category(types: str, label: str) -> str | None:
     return None
 
 
+IMAGES: dict[str, str] = {}   # статья → миниатюра фото (Wikimedia Commons, через Википедию)
+
+
 def summary(article_url: str) -> str | None:
     title = article_url.rsplit("/", 1)[-1]
     try:
+        title = urllib.parse.unquote(title)  # httpx сам кодирует URL — иначе «%» кодируется дважды
         r = httpx.get(f"https://ru.wikipedia.org/api/rest_v1/page/summary/{title}", headers=UA, timeout=15)
-        txt = r.json().get("extract", "")
+        j = r.json()
+        txt = j.get("extract", "")
+        th = (j.get("thumbnail") or {}).get("source")
+        if th:
+            IMAGES[article_url] = th
     except Exception:
         return None
     txt = re.sub(r"\s*\([^)]*\)", "", txt)  # убираем скобки с транслитерацией и датами
@@ -73,6 +82,8 @@ def main():
         art = b.get("article", {}).get("value")
         out[qid] = {"qid": qid, "name": label, "category": cat, "lat": lat, "lon": lon, "sitelinks": int(b["sl"]["value"]),
                     "article": art, "extract": summary(art) if art else None}
+        if art and art in IMAGES:
+            out[qid]["image"] = IMAGES[art]
         print(f"{out[qid]['sitelinks']:3} {label} [{cat}] {'+текст' if out[qid]['extract'] else ''}")
         time.sleep(0.3)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
