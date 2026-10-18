@@ -23,6 +23,8 @@ from app.hours import interval_status  # noqa: E402
 API = "http://127.0.0.1:8010/api/plan"
 Q = json.loads((ROOT / "docs/benchmark_queries.json").read_text(encoding="utf-8"))
 BASE = json.loads((ROOT / "docs/benchmark_baseline.json").read_text(encoding="utf-8"))
+_G = ROOT / "docs/benchmark_baseline_gemini.json"   # тот же Gemini, что внутри «Окна», но без наших данных
+GEM = json.loads(_G.read_text(encoding="utf-8")) if _G.exists() else None
 CACHE_F = ROOT / "data/bench_cache.json"
 cache = json.loads(CACHE_F.read_text(encoding="utf-8")) if CACHE_F.exists() else {}
 TODAY = datetime.now(geo.KZ).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
@@ -49,7 +51,7 @@ for lm in geo.LANDMARKS:
 
 # «прогулка по бульвару», «кафе в ТРЦ Хан Шатыр», «фуд-корт» — это не точка, а зона/место внутри другого:
 # расстояния до них не проверяем (иначе судья нечестно «ловит» чатбот на переходах)
-AREA = re.compile(r"прогулк|бульвар|набережн|территори|галере|фуд-корт|фудкорт|уровн|район|рядом|внутри|\bв (трц|тц|хан шатыр|mega|керуен)|\bи\b|с собой", re.I)
+AREA = re.compile(r"прогулк|бульвар|набережн|территори|галере|фуд-корт|фудкорт|уровн|район|рядом|возле|около|внутри|автобус|такси|\bв (трц|тц|хан шатыр|mega|керуен)|\bи\b|с собой", re.I)
 
 
 def match(name, near=None):
@@ -120,9 +122,11 @@ def check(plan, start_pt, end_pt, now, hard_deadline):
         if not p:
             o = osm_exists(re.sub(r"\([^)]*\)", "", s["name"]).strip())
             unknown += 1   # нет в базе: существует или нет — не утверждаем, часов нет — не проверить
-            pt = (o["lat"], o["lon"]) if o else None
+            pt = None   # нашлось только поиском по названию — может быть другое место с тем же именем: переходы не проверяем
             if not o:
                 notfound.append(s["name"])
+            pos, t_prev = None, lv   # где это на самом деле — не знаем: следующий переход тоже не проверяем
+            continue
         else:
             st, conf, txt = interval_status(p.get("tags"), p["category"], arr, max(lv, arr + timedelta(minutes=5)))
             if conf == "verified" and st in ("closed", "closes_soon"):
@@ -178,8 +182,11 @@ for q in Q["queries"]:
         oi, ou, oo = check(okno, start_pt, end_pt, now, hard)
     b = next((a for a in BASE["answers"] if a["id"] == q["id"]), {})
     bi, bu, bo = check(b, start_pt, end_pt, now, hard)
-    rows.append({"q": q, "okno": okno, "oi": oi, "ou": ou, "oo": oo, "base": b, "bi": bi, "bu": bu, "bo": bo})
-    print(q["id"], "Окно:", len(oi), "| чатбот:", len(bi), flush=True)
+    g = next((a for a in (GEM or {}).get("answers", []) if a["id"] == q["id"]), {})
+    gi, gu, go_ = check(g, start_pt, end_pt, now, hard) if GEM else ([], 0, 0)
+    rows.append({"q": q, "okno": okno, "oi": oi, "ou": ou, "oo": oo, "base": b, "bi": bi, "bu": bu, "bo": bo,
+                 "gem": g, "gi": gi, "gu": gu, "go": go_})
+    print(q["id"], "Окно:", len(oi), "| чатбот:", len(bi), "| Gemini без данных:", len(gi), flush=True)
 
 
 def agg(key_i, key_plan):
@@ -195,8 +202,9 @@ def agg(key_i, key_plan):
 
 
 A, B = agg("oi", "okno"), agg("bi", "base")
+G = agg("gi", "gem") if GEM else None
 L = []
-L.append("# «Окно» против обычного ИИ-чатбота — 30 одинаковых запросов\n")
+L.append("# «Окно» против обычных ИИ-чатботов — 30 одинаковых запросов\n")
 L.append(f"Дата прогона: {datetime.now(geo.KZ):%d.%m.%Y %H:%M}. Чатбот: {BASE.get('model_note', 'Claude')} — его попросили ответить "
          "как обычный ИИ-ассистент в чате, из своих знаний, без интернета. «Окно» — наш сервис с данными OSM + 2GIS + Wikidata.\n")
 L.append("Оба ответа проверяет **один и тот же скрипт** (`scripts/benchmark.py`) по одним правилам:\n"
@@ -204,14 +212,19 @@ L.append("Оба ответа проверяет **один и тот же ск�
          "- **закрыто** — только если часы известны точно (OSM/2GIS); где часов нет, ошибкой не считаем;\n"
          "- **физически не успеть** — на переход заложено меньше 60% от минимума (пешком или такси) — с большим запасом в пользу ответа;\n"
          "- **опоздание** — к сроку, который назвал человек (для рейса — за 40 мин до вылета, без наших запасов).\n")
-L.append("| | Обычный ИИ-чатбот | **Окно** |\n|---|---|---|")
-L.append(f"| Ответов с планом | {B['plans']} из 30 | {A['plans']} из 30" + (" (остальное — честный отказ с советом)" if A['plans'] < 30 else "") + " |")
-L.append(f"| Остановок предложено | {B['stops']} | {A['stops']} |")
-L.append(f"| Визит в **закрытое** место | {B['closed']} | **{A['closed']}** |")
-L.append(f"| Остановок, которые нельзя проверить (нет часов в данных, «прогулка по бульвару») | {B['unknown']} | {A['unknown']} |")
-L.append(f"| Переходы, на которые **физически не хватает времени** | {B['rush']} | **{A['rush']}** |")
-L.append(f"| **Опоздания** к сроку | {B['late']} | **{A['late']}** |")
-L.append(f"| **Ответов хотя бы с одной ошибкой** | **{B['bad']} из 30** | **{A['bad']} из 30** |\n")
+gc = (lambda k, bold=False: f" {('**' if bold else '')}{G[k]}{('**' if bold else '')} |") if G else (lambda k, bold=False: "")
+L.append("| | Обычный ИИ-чатбот (Claude) |" + (" Gemini **без** наших данных |" if G else "") + " **Окно** (Gemini **+** данные) |")
+L.append("|---|---|" + ("---|" if G else "") + "---|")
+L.append(f"| Остановок предложено | {B['stops']} |" + gc("stops") + f" {A['stops']} |")
+L.append(f"| Визит в **закрытое** место | {B['closed']} |" + gc("closed") + f" **{A['closed']}** |")
+L.append(f"| Переходы, на которые **физически не хватает времени** | {B['rush']} |" + gc("rush") + f" **{A['rush']}** |")
+L.append(f"| **Опоздания** к сроку | {B['late']} |" + gc("late") + f" **{A['late']}** |")
+L.append(f"| Остановок, которые нельзя проверить (нет часов в данных, «прогулка по бульвару») | {B['unknown']} |" + gc("unknown") + f" {A['unknown']} |")
+L.append(f"| **Ответов хотя бы с одной ошибкой** | **{B['bad']} из 30** |" + (f" **{G['bad']} из 30** |" if G else "") + f" **{A['bad']} из 30** |\n")
+if G:
+    L.append(f"**Самое показательное — средняя колонка:** это та же модель Gemini, что работает внутри «Окна», но без наших данных. "
+             f"Без retrieval она ошибается в {G['bad']} ответах из 30, с нашими данными и проверками — в {A['bad']}. "
+             "Разница — это и есть вклад RAG-части.\n")
 L.append("Честные оговорки: судья использует нашу базу часов (OSM/2GIS) — она реальная, но не полная, поэтому места без часов "
          "не засчитываются ни как ошибка, ни как успех. Места, которых нет ни в базе, ни в OpenStreetMap, тоже **не** считаем ошибкой "
          "(они могут существовать) — просто перечисляем ниже. Время в пути — наша оценка (пешком 4,5 км/ч, такси с пробками), "
@@ -232,6 +245,11 @@ for x in rows:
     L.append("- **Чатбот:** " + ("; ".join(f"{s['arrive']} {s['name']}" for s in bs) or "—")
              + f" → финиш {(x['base'].get('end') or {}).get('arrive', '?')}")
     L.append("  - " + ("✅ ошибок не найдено" if not x["bi"] else "❌ " + "; ".join(x["bi"])))
+    if GEM:
+        gs = x["gem"].get("stops") or []
+        L.append("- **Gemini без данных:** " + ("; ".join(f"{s.get('arrive')} {s.get('name')}" for s in gs) or "—")
+                 + f" → финиш {(x['gem'].get('end') or {}).get('arrive', '?')}")
+        L.append("  - " + ("✅ ошибок не найдено" if not x["gi"] else "❌ " + "; ".join(x["gi"])))
     if x["okno"].get("refused"):
         L.append(f"- **Окно:** честный отказ — {x['okno']['refused']}")
     else:
@@ -239,4 +257,4 @@ for x in rows:
         L.append("  - " + ("✅ ошибок не найдено" if not x["oi"] else "❌ " + "; ".join(x["oi"])))
     L.append("")
 (ROOT / "docs/benchmark.md").write_text("\n".join(L), encoding="utf-8")
-print(json.dumps({"okno": A, "chatbot": B}, ensure_ascii=False))
+print(json.dumps({"okno": A, "chatbot": B, "gemini_no_data": G}, ensure_ascii=False))

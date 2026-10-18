@@ -53,15 +53,18 @@ def shots():
 
 
 def bench():
+    """Цифры со слайда — прямо из docs/benchmark.md: [Claude без данных, Gemini без данных, Окно]."""
     t = (ROOT / "docs" / "benchmark.md").read_text(encoding="utf-8")
-    row = lambda name: re.search(r"\| " + re.escape(name) + r"[^|]*\| ([^|]+) \| ([^|]+) \|", t)
     out = {}
-    for k, name in [("bad", "**Ответов хотя бы с одной ошибкой**"), ("closed", "Визит в **закрытое** место"),
-                    ("rush", "Переходы, на которые **физически не хватает времени**"), ("late", "**Опоздания** к сроку")]:
-        m = row(name)
-        out[k] = (m.group(1).replace("*", "").strip(), m.group(2).replace("*", "").strip()) if m else ("?", "?")
-    m = re.search(r"а (\d+)% его остановок невозможно проверить.*?проверяемы (\d+)%", t)
-    out["unver"] = (m.group(1), m.group(2)) if m else ("?", "?")
+    names = {"bad": "Ответов хотя бы с одной ошибкой", "closed": "Визит в **закрытое** место", "stops": "Остановок предложено",
+             "rush": "Переходы, на которые **физически не хватает времени**", "late": "**Опоздания** к сроку",
+             "unknown": "Остановок, которые нельзя проверить"}
+    for k, name in names.items():
+        line = next((l for l in t.splitlines() if l.startswith("|") and name in l), "")
+        cells = [c.replace("*", "").strip() for c in line.strip().strip("|").split("|")[1:]]
+        out[k] = (cells + ["?", "?", "?"])[:3]
+    num = lambda x: int(re.sub(r"\D.*", "", x) or 0)
+    out["unver"] = [f"{round(100 * num(u) / max(num(st), 1))}" for u, st in zip(out["unknown"], out["stops"])]
     return out
 
 
@@ -153,11 +156,11 @@ def html(b):
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
 <div class="card"><b>43</b><span>автотеста в GitHub Actions при каждом изменении (ядро + API)</span></div>
 <div class="card"><b>~2–6 с</b><span>ответ; без ИИ — запасной режим, демо не зависает</span></div></div>
-<p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — «Окну» и обычному ИИ-чатботу</b> (Claude без наших данных), проверка одним скриптом:</p>
-<table><tr><th></th><th>Обычный ИИ-чатбот</th><th>Окно</th></tr>
-<tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">{bad[0]}</td><td class="y">{bad[1]}</td></tr>
-<tr><td>Визит в закрытое место · физически не успеть · опоздание</td><td class="warn">{closed[0]} · {rush[0]} · {late[0]}</td><td class="y">{closed[1]} · {rush[1]} · {late[1]}</td></tr>
-<tr><td>Советов, которые невозможно проверить («прогулка по бульвару»)</td><td class="warn">{unv[0]}%</td><td class="y">{100 - int(unv[1]) if unv[1].isdigit() else "?"}%</td></tr></table>{n(6)}</section>""")
+<p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — трём системам</b>, проверка одним скриптом. Средняя колонка — <b style="color:#e8eef5">та же модель Gemini, что внутри «Окна», но без наших данных</b>:</p>
+<table><tr><th></th><th>Claude (чат)</th><th>Gemini без данных</th><th>Окно = Gemini + RAG</th></tr>
+<tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">{bad[0]}</td><td class="warn">{bad[1]}</td><td class="y">{bad[2]}</td></tr>
+<tr><td>Закрыто · не успеть · опоздание</td><td class="warn">{closed[0]} · {rush[0]} · {late[0]}</td><td class="warn">{closed[1]} · {rush[1]} · {late[1]}</td><td class="y">{closed[2]} · {rush[2]} · {late[2]}</td></tr>
+<tr><td>Советов, которые невозможно проверить</td><td class="warn">{unv[0]}%</td><td class="warn">{unv[1]}%</td><td class="y">{unv[2]}%</td></tr></table>{n(6)}</section>""")
     # 7. отличия
     Y, N = '<td class="y">да</td>', '<td class="no">—</td>'
     add(f"""<section class="s"><span class="tag">Чем мы отличаемся</span><h2>Мы не конкурируем с картами — мы решаем «что успеть»</h2>
