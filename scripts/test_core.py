@@ -108,6 +108,18 @@ r = api.post("/api/plan", json={"text": "jdjdjd", "now": "15:00"}).json()
 check("API: непонятный запрос — честная ошибка, не падение", bool(r.get("error")))
 pl = api.get("/api/place", params={"lat": 51.1283, "lon": 71.4305}).json()
 check("API: карточка «что здесь» узнаёт Байтерек", (pl.get("poi") or {}).get("name") == "Байтерек")
+home = {"Здесь мой дом": {"lat": 51.083, "lon": 71.418, "kind": "home"}}
+r = api.post("/api/plan", json={"text": "домой", "now": "14:00", "point": {"lat": 51.157, "lon": 71.437, "mine": True},
+                                "saved": home}).json()
+check("«домой» = закладка со значком «Дом», как бы она ни называлась",
+      not r.get("error") and r.get("destination", {}).get("label") == "Здесь мой дом")
+r = api.post("/api/plan", json={"text": "Мне нужно в Назарбаев Университет, потом в Mega Silk Way и в конце домой", "now": "14:00",
+                                "point": {"lat": 51.157, "lon": 71.437, "mine": True}, "saved": home,
+                                "parsed": {"origin": None, "destination": "домой", "return_to_origin": False, "deadline": None,
+                                           "duration_min": None, "prefs": [], "language": "ru",
+                                           "via": [{"place": "Назарбаев Университет"}, {"place": "Mega Silk Way"}]}}).json()
+st = [s["name"] for s in r.get("steps", []) if s["type"] == "stop"]
+check("цепочка «НУ → Мега → домой» в порядке человека", r.get("chain") and len(st) == 2 and "Назарбаев" in st[0] and "Mega" in st[1])
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

@@ -877,6 +877,56 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
     return f"Не успеть даже на такси: ~{taxi} мин (оценка), а окно {round(window)} мин. Стоит предупредить, что опоздаешь."
 
 
+VIA_STAY = {"торговый центр": 60, "университет": 45, "музей": 60, "кафе": 30, "ресторан": 60, "парк": 30}
+
+
+def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False) -> dict:
+    """Человек сам перечислил, куда зайти по порядку («в НУ, потом в Мегу, в конце домой»): ничего не подбираем,
+    а считаем этот маршрут честно — время пешком/на такси с пробками, сколько побыть в каждом пункте, во сколько будешь дома."""
+    ctx = Ctx(intent, now, w)
+    A = (intent["origin"]["lat"], intent["origin"]["lon"])
+    B = (intent["destination"]["lat"], intent["destination"]["lon"])
+    deadline = datetime.fromisoformat(intent["deadline"]) if has_deadline else now + timedelta(hours=14)
+    ctx.window = (deadline - now).total_seconds() / 60
+    seq, ctx.bonus = [], {}
+    for i, v in enumerate(intent["via"]):
+        pt_v = (v["lat"], v["lon"])
+        big = [p for p in POIS if p["category"] in ("торговый центр", "музей", "театр", "кино")
+               and geo.haversine_km(pt_v, (p["lat"], p["lon"])) < 0.25]
+        near = min(big or POIS, key=lambda p: geo.haversine_km(pt_v, (p["lat"], p["lon"])))   # ТРЦ важнее кафе внутри него
+        same = geo.haversine_km(pt_v, (near["lat"], near["lon"])) < (0.25 if big else 0.15)
+        pid = f"via/{i}"
+        cat = near["category"] if same else "пункт"
+        stay = v.get("stay") or VIA_STAY.get(cat, 30)
+        seq.append({"id": pid, "name": v["label"], "category": cat, "lat": v["lat"], "lon": v["lon"],
+                    "tags": dict(near.get("tags") or {}) if same else {"opening_hours": "24/7"},
+                    "dgis": near.get("dgis") if same else None, "wiki": near.get("wiki") if same else None,
+                    "source": near["source"] if same else "твой пункт маршрута"})
+        ctx.bonus[pid] = int(stay)
+    best = refine(seq, A, B, now, deadline, ctx)
+    if not best:
+        # не успеваешь к сроку или место закрыто — честно говорим, что именно, и всё равно показываем, сколько займёт
+        relaxed = refine([{**p, "tags": {"opening_hours": "24/7"}} for p in seq], A, B, now, now + timedelta(hours=20), ctx)
+        if not relaxed:
+            return {"error": "Не получилось посчитать этот маршрут — проверь названия пунктов."}
+        fin = relaxed["finish"]
+        why = (f"к {deadline:%H:%M} не успеть: по этим пунктам будешь в конце только в {_fmt(fin)}" if has_deadline and fin > deadline
+               else "кто-то из пунктов будет закрыт к твоему приходу")
+        return {"error": f"Так по порядку не выйдет — {why}. Сократи время в пунктах или поменяй порядок.", "notes": []}
+    for s in best["steps"]:
+        if s["type"] == "stop" and s["source"] == "твой пункт маршрута":
+            s["hours"] = {"status": "open", "confidence": "outdoor", "source": "—", "text": "твой пункт — часы не проверяю"}
+    notes = ["Маршрут по твоим пунктам в твоём порядке — ничего не подбирал. Время в каждом месте можно указать: «в Меге час»."]
+    if not has_deadline:
+        notes.append(f"Срока ты не назвал — просто посчитал: в конце будешь в {_fmt(best['finish'])}.")
+    return {"steps": best["steps"], "notes": notes,
+            "summary": {"arrive": _fmt(best["finish"]), "buffer_min": best["slack"] if has_deadline else 0,
+                        "outdoor_min": best["outdoor"], "walk_km": best["walk_km"], "max_outdoor_leg": best["max_outdoor_leg"],
+                        "taxis": best["taxis"], "window_min": round((best["finish"] - now).total_seconds() / 60)},
+            "cold": ctx.cold, "max_leg": ctx.max_leg, "chain": True,
+            "considered": {"candidates": len(seq), "plans": 1, "pois_total": len(POIS), "rejected": {}, "rejected_ex": {}}}
+
+
 def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     ctx = Ctx(intent, now, w)
     ctx.window = (datetime.fromisoformat(intent["deadline"]) - now).total_seconds() / 60

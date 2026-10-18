@@ -228,8 +228,14 @@ def _make_plan(req: PlanReq, request: Request):
                "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.")
         return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
     dest = None
+    # «домой» = закладка со значком «Дом» (как бы она ни называлась: «Здесь мой дом», «Квартира»…)
+    home = next((k for k, v in req.saved.items() if isinstance(v, dict) and v.get("kind") == "home"), None) or \
+        next((k for k in req.saved if HOME.match(k) or re.search(r"\bдом\b|\bhome\b|\bүй", k.lower())), None)
+    for key in ("origin", "destination"):
+        if home and parsed.get(key) and HOME.match(str(parsed[key]).strip()):
+            parsed[key] = home
     if parsed.get("destination") and not parsed.get("return_to_origin"):
-        if HOME.match(parsed["destination"].strip()) and not any(HOME.match(k) for k in req.saved):
+        if HOME.match(parsed["destination"].strip()) and not home:
             return {"error": llm.translate(["Не знаю, где твой дом. Отметь его на карте и нажми «сохранить точку» → «Дом» — "
                                             "тогда «домой к 23:00» будет работать. Точка хранится только в твоём браузере."], lang)[0],
                     "parsed": parsed}
@@ -238,6 +244,17 @@ def _make_plan(req: PlanReq, request: Request):
         if not dest:
             return {"error": llm.translate([f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе."], lang)[0],
                     "parsed": parsed}
+    # «сначала X, потом Y, в конце Z» — человек сам задал пункты: строим цепочку в его порядке
+    via = []
+    for v in parsed.get("via") or []:
+        name = (v.get("place") if isinstance(v, dict) else str(v)) or ""
+        if home and HOME.match(name.strip()):
+            name = home
+        pt = geo.find_place(name, planner.POIS, req.saved) if name.strip() else None
+        if not pt:
+            return {"error": llm.translate([f"Не нашёл «{name}» в Астане. Попробуй назвать иначе."], lang)[0], "parsed": parsed}
+        stay = v.get("stay_min") if isinstance(v, dict) else None
+        via.append({**pt, "stay": int(stay) if isinstance(stay, (int, float)) and 0 < stay <= 600 else None})
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
     if not parsed.get("deadline") and not parsed.get("duration_min") and \
             set(explicit_cats(req.text)) & {"боулинг", "кино", "театр", "каток", "музей"}:
@@ -257,7 +274,7 @@ def _make_plan(req: PlanReq, request: Request):
             m, what, why = EVENT_BUFFER[parsed["event"]]
             deadline -= timedelta(minutes=m)
             travel_note = f"{what} в {parsed['deadline']}: лучше прийти за {m} минут ({why}) — к {deadline:%H:%M}."
-    if parsed.get("_default_window") or (not parsed.get("deadline") and not parsed.get("duration_min")):
+    if not parsed.get("via") and (parsed.get("_default_window") or (not parsed.get("deadline") and not parsed.get("duration_min"))):
         mins = parsed.get("duration_min") or 90
         travel_note = (travel_note + " " if travel_note else "") + \
             f"Ты не назвал время — взял окно {mins} минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
@@ -286,7 +303,13 @@ def _make_plan(req: PlanReq, request: Request):
               "language": parsed.get("language"), "explicit": wanted_cats(req.text, parsed),
               "kazakh_food": bool(re.search(r"национальн|казахск|qazaq|kazakh|ұлттық|қазақ", req.text.lower()))}
     t2 = time.time()
-    result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
+    if via:
+        intent["via"] = via
+        result = planner.plan_chain(intent, now, w, has_deadline=bool(parsed.get("deadline")))
+        if result.get("summary") and not parsed.get("deadline"):
+            deadline = now + timedelta(minutes=result["summary"]["window_min"])   # срока нет — шкала до конца маршрута
+    else:
+        result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
     timings["plan"] = round((time.time() - t2) * 1000)
     # афиша: событие сегодня, которое целиком помещается в окно; спросил про театр/концерт — ближайшие события
     A, Bp = (origin["lat"], origin["lon"]), (destination["lat"], destination["lon"])
