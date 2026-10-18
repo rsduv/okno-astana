@@ -131,6 +131,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .ex.show{display:block}
 .ex h4{margin:0 0 4px;font-size:15px}
 .ex p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
+#exBtn.hint{animation:hintp 1.6s ease-in-out 3;color:var(--text)}
+@keyframes hintp{50%{box-shadow:0 0 0 6px rgba(76,201,240,.25);border-color:var(--accent)}}
 .ex .near{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
 .ex .near button{display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;font-size:12.5px;font-weight:700;background:rgba(76,201,240,.12);border:1px solid rgba(76,201,240,.35);color:var(--text);cursor:pointer}
 .ex .near button svg{color:var(--accent)}
@@ -807,6 +809,8 @@ function phCycle(){
   type();
 }
 if(!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(phCycle, 2500);
+// первый визит — мягко подсветить «примеры» (сам блок не открываем: он мешал)
+try { if(!localStorage.getItem("okno_seen")){ localStorage.setItem("okno_seen", "1"); setTimeout(() => .classList.add("hint"), 1800); } } catch(e) {}
 $("#exBtn").onclick = () => { const on = $("#ex").classList.toggle("show"); $("#exBtn").classList.toggle("on", on); };
 
 // ---------- отрисовка ----------
