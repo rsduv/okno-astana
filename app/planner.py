@@ -223,6 +223,8 @@ class Ctx:
         self.cold = geo.cold_level(w)
         self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
         self.rejected: dict[str, int] = {}
+        self.rejected_ex: dict[str, list] = {}
+        self.rejected_seen: set = set()
         # темп: коляска / трудно ходить — медленнее и короче отрезки; с ребёнком — тоже медленнее
         self.pace = 1.0
         if intent.get("mobility") == "limited":
@@ -472,18 +474,33 @@ def contacts(t: dict) -> dict:
 
 def _why_not(p, A, start, ctx):
     """Причина, по которой подходящее по типу место не попало в маршрут — считаем для прозрачности."""
-    if p["category"] not in ctx.wanted:
+    if p["category"] not in ctx.wanted or p["id"] in ctx.rejected_seen:
         return
+    ctx.rejected_seen.add(p["id"])   # второй проход поиска не должен считать то же место дважды
     walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
     move = walk if walk <= ctx.max_leg else geo.car_min_est(A, (p["lat"], p["lon"]), start) + geo.TAXI_WAIT_MIN
     arrive = start + timedelta(minutes=move)
+    extra = ""
     if stop_score(p, ctx, arrive) is None:
         key = "мороз, темнота или не то, что просили"
-    elif interval_status(p.get("tags"), p["category"], arrive, arrive + timedelta(minutes=stay_of(p, ctx)))[0] in ("closed", "closes_soon"):
-        key = "закрыто к приходу или закроется во время визита"
     else:
-        key = "не успеть туда и к сроку"
+        st, conf, txt = interval_status(p.get("tags"), p["category"], arrive, arrive + timedelta(minutes=stay_of(p, ctx)))
+        if st in ("closed", "closes_soon"):
+            key = "закрыто к приходу или закроется во время визита"
+            extra = txt.split(" · ")[0].strip() if conf == "verified" else ""
+        else:
+            key = "не успеть туда и к сроку"
+            extra = f"{geo.haversine_km(A, (p['lat'], p['lon'])):.1f} км".replace(".", ",")
     ctx.rejected[key] = ctx.rejected.get(key, 0) + 1
+    # примеры для «Почему не другие места» — самые известные из отсеянных (Википедия / отзывы 2GIS)
+    if not p.get("unnamed") and not p["name"].lower().startswith("детская площадка") and p["name"].strip().lower() not in GENERIC             and len(p["name"]) > 3:
+        fame = ((p.get("wiki") or {}).get("sitelinks") or 0) * 50 + ((p.get("dgis") or {}).get("reviews") or 0)
+        ex = ctx.rejected_ex.setdefault(key, [])
+        label = p["name"] + (f" ({extra})" if extra else "")
+        if all(n != label for _, n in ex):
+            ex.append((fame, label))
+        ex.sort(key=lambda x: -x[0])
+        del ex[2:]
 
 
 def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
@@ -907,5 +924,6 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
                     "walk_km": best["walk_km"], "max_outdoor_leg": best["max_outdoor_leg"], "taxis": best["taxis"],
                     "window_min": round(window)},
         "cold": ctx.cold, "max_leg": ctx.max_leg,
-        "considered": {"candidates": n_cands, "plans": len(results), "pois_total": len(POIS), "rejected": ctx.rejected},
+        "considered": {"candidates": n_cands, "plans": len(results), "pois_total": len(POIS), "rejected": ctx.rejected,
+                       "rejected_ex": {k: [n for _, n in v] for k, v in ctx.rejected_ex.items()}},
     }
