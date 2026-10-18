@@ -81,7 +81,7 @@ python -m uvicorn app.main:app --port 8010
 - `app/events.py` — афиша в окне · `app/citystats.py` — спрос для города (только счётчики) · `app/planner.py` — планировщик · `app/hours.py` — часы работы · `app/geo.py` — маршруты, погода, воздух, геокодер ·
   `app/dgis.py` — 2GIS (места, пробки, лимиты) · `app/llm.py` — Gemini · `app/main.py` — API.
 - `static/index.html` — интерфейс (MapLibre + OpenFreeMap, иконки Lucide).
-- Проверки: `scripts/stress.py` (инварианты «не опоздал» и «всё открыто»), `scripts/qa.py` (32 живые фразы), `scripts/benchmark.py` (сравнение с чатботом),
+- Проверки: `scripts/stress.py` (инварианты «не опоздал» и «всё открыто»), `scripts/qa.py` (38 живых фраз), `scripts/benchmark.py` (сравнение с чатботом),
   `scripts/test_core.py` (43 проверки: ядро + API, запускаются в GitHub Actions), `scripts/record_demo.py` (демо-видео), `scripts/make_slides.py` (презентация),
   `scripts/ux_flow.py` (прогон интерфейса), `scripts/make_scenarios_doc.py` (документ со сценариями).
 
