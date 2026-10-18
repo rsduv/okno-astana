@@ -196,6 +196,21 @@ def _fuzzy_landmark(q: str):
     return (len(best[1]["name"]), best[1]) if best else None
 
 
+def reverse(lat: float, lon: float, lang: str = "ru") -> str | None:
+    """Адрес «улица, дом» по точке — для плашки «я здесь». Nominatim (OpenStreetMap), без ключа; ничего не сохраняем."""
+    try:
+        r = _client.get("https://nominatim.openstreetmap.org/reverse", timeout=5, params={
+            "lat": lat, "lon": lon, "format": "jsonv2", "zoom": 18, "addressdetails": 1,
+            "accept-language": {"kk": "kk,ru", "en": "en,ru"}.get(lang, "ru")})
+        a = r.json().get("address", {})
+    except Exception:
+        return None
+    street = a.get("road") or a.get("pedestrian") or a.get("footway") or a.get("residential")
+    if street:
+        return street + (f", {a['house_number']}" if a.get("house_number") else "")
+    return a.get("neighbourhood") or a.get("suburb") or a.get("city_district")
+
+
 def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = None) -> dict | None:
     """Ищет место по названию: свои места пользователя («дом», «тётя Гуля») → справочник ориентиров → база POI →
     поиск 2GIS (понимает сокращения: «мну универ») → геокодер OSM."""

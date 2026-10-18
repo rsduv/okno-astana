@@ -90,6 +90,31 @@ def meta():
             "categories": cats, "landmarks": geo.LANDMARKS, "now": _now(None).strftime("%H:%M")}
 
 
+@app.get("/api/where")
+def where(lat: float, lon: float, lang: str = "ru"):
+    """Адрес текущей точки пользователя (улица, дом). Координаты не сохраняются и не пишутся в лог."""
+    return {"label": geo.reverse(round(lat, 4), round(lon, 4), lang)}
+
+
+@app.get("/api/place")
+def place(lat: float, lon: float, lang: str = "ru"):
+    """Карточка точки, куда ткнули на карте: адрес + ближайшее место из нашей базы (в пределах ~60 м)."""
+    best, bd = None, 0.06
+    for p in planner.POIS:
+        if abs(p["lat"] - lat) > 0.001 or abs(p["lon"] - lon) > 0.0015:
+            continue
+        d = geo.haversine_km((lat, lon), (p["lat"], p["lon"]))
+        if d < bd:
+            best, bd = p, d
+    poi = None
+    if best:
+        dg = best.get("dgis") or {}
+        poi = {"name": best["name"], "category": best["category"], "rating": dg.get("rating"), "reviews": dg.get("reviews"),
+               "hours": best["tags"].get("opening_hours"), "dgis_id": dg.get("id"), "wiki": (best.get("wiki") or {}).get("article"),
+               "lat": best["lat"], "lon": best["lon"], "m": round(bd * 1000)}
+    return {"address": geo.reverse(round(lat, 4), round(lon, 4), lang), "poi": poi}
+
+
 @app.get("/api/pois")
 def pois():
     """Все места базы — лёгкая версия для точек на карте."""
@@ -130,7 +155,13 @@ def _make_plan(req: PlanReq, request: Request):
     timings["understand"] = round((time.time() - t0) * 1000)
 
     t1 = time.time()
-    if req.point and req.point.get("lat") is not None:
+    origin = None
+    # моё GPS-место — по умолчанию; но если человек сам написал «я у Байтерека», верим тексту
+    if req.point and req.point.get("mine") and parsed.get("origin") and not OTHER_CITIES.match(parsed["origin"].strip()):
+        origin = geo.find_place(parsed["origin"], planner.POIS, req.saved)
+    if origin:
+        pass
+    elif req.point and req.point.get("lat") is not None:
         lat, lon = geo.round_point(req.point["lat"], req.point["lon"])
         origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
     elif OTHER_CITIES.match((parsed.get("origin") or "").strip()):
