@@ -246,8 +246,24 @@ def _fuzzy_landmark(q: str):
     return (len(best[1]["name"]), best[1]) if best else None
 
 
+_nomi_last = [0.0]
+_nomi_lock = __import__("threading").Lock()
+
+
+@lru_cache(maxsize=4000)
+def reverse_cached(lat: float, lon: float, lang: str = "ru") -> str | None:
+    """Адрес точки, куда ткнули на карте (не геопозиция человека) — с кэшем, как требуют правила Nominatim."""
+    return reverse(lat, lon, lang)
+
+
 def reverse(lat: float, lon: float, lang: str = "ru") -> str | None:
-    """Адрес «улица, дом» по точке — для плашки «я здесь». Nominatim (OpenStreetMap), без ключа; ничего не сохраняем."""
+    """Адрес «улица, дом» по точке. Nominatim (OpenStreetMap), без ключа; не чаще 1 запроса в секунду (правила Nominatim).
+    Для «где я» вызывается без кэша — геопозиция человека нигде не остаётся, даже в памяти."""
+    with _nomi_lock:
+        wait = 1.0 - (time.time() - _nomi_last[0])
+        if wait > 0:
+            time.sleep(wait)
+        _nomi_last[0] = time.time()
     try:
         r = _client.get("https://nominatim.openstreetmap.org/reverse", timeout=5, params={
             "lat": lat, "lon": lon, "format": "jsonv2", "zoom": 18, "addressdetails": 1,

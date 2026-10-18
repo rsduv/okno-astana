@@ -104,7 +104,7 @@ def meta():
 @app.get("/api/where")
 def where(lat: float, lon: float, lang: str = "ru"):
     """Адрес текущей точки пользователя (улица, дом). Координаты не сохраняются и не пишутся в лог."""
-    return {"label": geo.reverse(round(lat, 4), round(lon, 4), lang)}
+    return {"label": geo.reverse(round(lat, 4), round(lon, 4), lang if lang in ("ru", "en", "kk") else "ru")}
 
 
 @app.get("/api/place")
@@ -142,7 +142,7 @@ def place(lat: float, lon: float, lang: str = "ru"):
                "hours": best["tags"].get("opening_hours"), "dgis_id": dg.get("id"), "wiki": (best.get("wiki") or {}).get("article"),
                "lat": best["lat"], "lon": best["lon"], "m": round(bd * 1000), "image": (best.get("wiki") or {}).get("image"),
                **planner.contacts(best.get("tags") or {})}
-    return {"address": geo.reverse(round(lat, 4), round(lon, 4), lang), "poi": poi}
+    return {"address": geo.reverse_cached(round(lat, 4), round(lon, 4), lang if lang in ("ru", "en", "kk") else "ru"), "poi": poi}
 
 
 class TrReq(BaseModel):
