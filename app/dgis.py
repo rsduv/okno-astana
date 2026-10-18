@@ -31,10 +31,16 @@ DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 OSM_DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 _lock = threading.Lock()
-try:
-    _cache = json.loads(CACHE.read_text(encoding="utf-8"))
-except Exception:
-    _cache = {"_count": 0}
+# локально — data/dgis_cache.json; на хостинге при первом запуске — «секретный файл» с уже собранным кэшем
+# (Render: /etc/secrets/dgis_cache.json), чтобы не сжечь дневной лимит демо-ключа на повторных запросах
+_SEED = Path(os.getenv("DGIS_CACHE_SEED", "/etc/secrets/dgis_cache.json"))
+_cache = {"_count": 0}
+for _f in (CACHE, _SEED):
+    try:
+        _cache = json.loads(_f.read_text(encoding="utf-8"))
+        break
+    except Exception:
+        continue
 
 
 _dead = {"until": 0.0}  # 2GIS ответил «лимит/ключ не работает» — пауза, живём на OSM

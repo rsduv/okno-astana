@@ -1,5 +1,8 @@
 # Деплой на Render (бесплатный план): New → Blueprint → этот репозиторий. Ключи вводятся в панели Render, не в git.
-# Слой популярных мест 2GIS: Environment → Secret Files → dgis_pois.json (файл из data/, в git его нет).
+# Данные 2GIS (в git их нет): Environment → Secret Files → загрузить два файла из data/:
+#   dgis_pois.json  — слой популярных мест 2GIS;
+#   dgis_cache.json — уже собранные часы/рейтинги кандидатов (иначе демо-ключ быстро упрётся в дневной лимит).
+# Геолокация и микрофон в браузере работают только по https — Render даёт https сам.
 services:
   - type: web
     name: okno-astana
