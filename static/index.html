@@ -875,6 +875,17 @@ function render(r){
   sum.className = "sum glass show";
   if(r.error){
     const tips = (r.notes||[]).map(n=>`<div class="tip">${esc(n)}</div>`).join("");
+    // «успеешь одно» / «возьми с собой» — не ошибка, а совет: место на карте и маршрут туда
+    if(r.tip){
+      const o = r.origin || {}, t = r.tip;
+      sum.innerHTML = `<div class="err">${esc(r.error)}${tips}<div class="links">
+        <a class="primary" target="_blank" rel="noopener" href="https://2gis.kz/astana/directions/points/${o.lon}%2C${o.lat}%7C${t.lon}%2C${t.lat}">${T("open2gis")}</a></div></div>`;
+      deck.innerHTML = evCards(r.events); clearRoute();
+      mapReady.then(() => { mk(ic(t.category), "", [t.lon, t.lat], 1); if(o.lat) mk("А", "a", [o.lon, o.lat]);
+        map.fitBounds([[Math.min(o.lon ?? t.lon, t.lon), Math.min(o.lat ?? t.lat, t.lat)], [Math.max(o.lon ?? t.lon, t.lon), Math.max(o.lat ?? t.lat, t.lat)]],
+          {padding: PAD(), maxZoom: 16, duration: 900}); });
+      return;
+    }
     sum.innerHTML = `<div class="err">${esc(r.error)}${tips}<div class="tip" style="margin-top:10px">${T("tryT")}</div>
       <div class="links">${[0,2,3].map(i=>`<button class="tryq" data-i="${i}">${esc(T("quick")[i][0])}</button>`).join("")}</div></div>`;
     sum.querySelectorAll(".tryq").forEach(b => b.onclick = () => { $("#q").value = T("quick")[b.dataset.i][2]; setTime(QUICK[b.dataset.i][4]); clearPoint(); run(); });

@@ -799,6 +799,7 @@ def _glance(A, ctx) -> str | None:
     if not best:
         return None
     _, walk, p = best
+    ctx.tip = {"name": p["name"], "lat": p["lat"], "lon": p["lon"], "walk_min": round(walk), "category": p["category"]}
     return (f"Успеешь одно: {p['name']} — {round(walk)} мин пешком. Посмотри пару минут снаружи и возвращайся — "
             f"туда-обратно около {round(2 * walk + 3)} мин из {round(window)}.")
 
@@ -825,6 +826,7 @@ def _grab_and_go(A, start, ctx) -> str | None:
     if not best:
         return None
     walk, p, conf = best
+    ctx.tip = {"name": p["name"], "lat": p["lat"], "lon": p["lon"], "walk_min": round(walk), "category": p["category"]}
     hours = "" if conf == "verified" else " (часы — оценка)"
     return (f"Посидеть не успеешь, но можно взять с собой: {p['name']} — {round(walk)} мин пешком{hours}. "
             "Туда, заказ навынос и обратно как раз помещается в окно.")
@@ -903,7 +905,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         elif dw > window * 0.6:
             notes.append(f"Пешком напрямую {dw} мин из {round(window)}: на остановки времени мало, часть пути — на такси.")
     if not best:
-        return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes}
+        return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes, "tip": getattr(ctx, "tip", None)}
     if ctx.pace > 1.2:
         notes.append("Время пешком посчитано для спокойного темпа (≈3,3 км/ч) и коротких отрезков — с коляской или когда трудно ходить.")
     elif ctx.pace > 1:
