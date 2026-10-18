@@ -873,8 +873,14 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
     if ctx.work:
         max_stops = 1
-        ctx.work_stay = int(max(30, min(150, window * 0.6)) // 10 * 10)
-    results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+        # поработать: сидеть как можно дольше — пробуем 80% окна, если рядом нет такого места — меньше
+        for k in (0.8, 0.65, 0.5):
+            ctx.work_stay = int(max(30, min(240, window * k)) // 10 * 10)
+            results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+            if results:
+                break
+    else:
+        results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
     if ctx.explicit & SHORT_OK and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
         ctx.short_explicit = True  # названное место не помещается — пробуем короткий заход (10 мин), а не подмену
         r2, n2 = search(A, B, start, deadline, ctx, exclude, required, max_stops)
