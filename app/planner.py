@@ -544,13 +544,21 @@ def _projection(A, B, p) -> float:
     return (px * bx + py * by) / L if L else 0
 
 
+PRUNE = True   # отсечение троек по парам (выключается для сравнения в тестах)
+
+
 def search(A, B, start, deadline, ctx: Ctx, exclude=frozenset(), required=frozenset(), max_stops=3):
     cands = _candidates(A, B, start, deadline, ctx, set(exclude), set(required))
     loop = geo.haversine_km(A, B) < 0.3
     results = []
+    ok_pairs: set[frozenset] = set()   # пары, которые помещаются хотя бы в одном порядке
     for k in range(1, max_stops + 1):
         for combo in itertools.combinations(cands, k):
             if required and not set(required) <= {p["id"] for p in combo}:
+                continue
+            # если тройка помещается, то и любая её пара помещается (без одного места времени только больше) —
+            # тройки с «невозможной» парой не перебираем: в разы быстрее на длинных окнах, результат тот же
+            if PRUNE and k == 3 and not required and not all(frozenset((a["id"], b["id"])) in ok_pairs for a, b in itertools.combinations(combo, 2)):
                 continue
             if loop:
                 orders = itertools.permutations(combo) if k > 1 else [combo]
@@ -560,6 +568,8 @@ def search(A, B, start, deadline, ctx: Ctx, exclude=frozenset(), required=frozen
                 sim = simulate(list(seq), A, B, start, deadline, ctx)
                 if sim:
                     results.append((sim["score"], list(seq), sim))
+                    if k == 2:
+                        ok_pairs.add(frozenset(p["id"] for p in seq))
     results.sort(key=lambda x: -x[0])
     return results, len(cands)
 

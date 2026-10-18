@@ -135,7 +135,13 @@ def _fmt(week, day: datetime) -> str:
 
 
 def interval_status(tags: dict, category: str, arrive: datetime, leave: datetime):
-    raw = (tags or {}).get("opening_hours", "")
+    """Открыто ли место на весь визит [arrive, leave]. Результат запоминаем: при переборе маршрутов
+    одни и те же «место + время» проверяются тысячи раз."""
+    return _status((tags or {}).get("opening_hours", ""), category, arrive, leave)
+
+
+@lru_cache(maxsize=200_000)
+def _status(raw: str, category: str, arrive: datetime, leave: datetime):
     if category in OUTDOOR and not raw:
         return "open", "outdoor", "открытое место — часы не нужны"
     if raw.strip().lower() == "closed":

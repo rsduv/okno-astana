@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+from functools import lru_cache
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -34,7 +35,13 @@ _weather_cache: dict = {}
 
 
 def haversine_km(a, b) -> float:
-    lat1, lon1, lat2, lon2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    return _hav(a[0], a[1], b[0], b[1])
+
+
+@lru_cache(maxsize=300_000)
+def _hav(la1, lo1, la2, lo2) -> float:
+    """Расстояние по прямой; запоминаем — перебор маршрутов спрашивает одни и те же пары тысячи раз."""
+    lat1, lon1, lat2, lon2 = map(math.radians, (la1, lo1, la2, lo2))
     h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
     return 6371 * 2 * math.asin(math.sqrt(h))
 
