@@ -32,6 +32,12 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .search input::placeholder{color:var(--dim)}
 .go{flex:none;height:40px;padding:0 16px;border-radius:13px;border:0;background:var(--accent);color:#08111a;font-weight:800;font-size:14px;cursor:pointer}
 .go:disabled{opacity:.5;cursor:wait}
+.mic{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:#252c36;color:#aeb6c1;display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s}
+.mic:hover{color:#fff;background:#2e3743}
+.mic svg{width:19px;height:19px}
+.mic.on{background:#e5484d;border-color:#e5484d;color:#fff;animation:micp 1.3s ease-in-out infinite}
+@keyframes micp{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.55)}50%{box-shadow:0 0 0 9px rgba(229,72,77,0)}}
+#speak.on{color:var(--accent);border-color:var(--accent)}
 .row{display:flex;flex-wrap:wrap;gap:6px;padding:1px}
 .row::-webkit-scrollbar{display:none}
 .pill{flex:none;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--muted);border-radius:999px;padding:7px 11px;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
@@ -108,7 +114,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .card.fin .big{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 
 /* старт: примеры */
-.ex{position:fixed;left:16px;bottom:16px;z-index:5;width:min(540px,calc(100vw - 32px));border-radius:20px;padding:14px}
+.ex{display:none;position:fixed;left:16px;bottom:16px;z-index:5;width:min(540px,calc(100vw - 32px));border-radius:20px;padding:14px}
+.ex.show{display:block}
 .ex h4{margin:0 0 4px;font-size:15px}
 .ex p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.45}
 .ex .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -210,6 +217,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   <div class="search glass">
     <div class="logo">О</div>
     <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?" aria-label="Запрос: где ты, куда нужно и к скольки">
+    <button class="mic" id="mic" title="Сказать голосом" aria-label="Сказать голосом"><i data-lucide="mic"></i></button>
     <button class="go" id="go">Найти</button>
   </div>
   <div class="row">
@@ -217,6 +225,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
     <label class="pill glass" id="tpill" title="время старта (для демо)"><i data-lucide="clock-3"></i><input type="time" id="now"><span id="tnow">сейчас</span></label>
     <button class="pill glass on" id="wnow"><i data-lucide="cloud-sun"></i><span id="wxl">погода</span></button>
     <button class="pill glass cold" id="wcold"><i data-lucide="snowflake"></i>−25°</button>
+    <button class="pill glass" id="exBtn"><i data-lucide="lightbulb"></i><span id="exL">примеры</span></button>
     <span id="savedChips" style="display:contents"></span>
   </div>
   <div class="sum glass" id="sum" aria-live="polite"></div>
@@ -259,7 +268,7 @@ const I18N = {
   steps:["Понимаю запрос","Ищу места по пути","Проверяю время, часы работы, погоду","Пишу, почему туда стоит идти"], down:"Сервер не ответил. Проверь, что он запущен.",
   howT:"Как «Окно» поняло запрос", from:"откуда", to:"куда", loop:"потом обратно", win:"окно", lang:"язык", out:"на улице", maxOut:"макс. подряд", km:"км", walkKm:"пешком",
   cands:"мест рассмотрено", plans:"вариантов маршрута", tUnd:"понял / посчитал", dataT:"Данные и оговорки", copy:"Скопировать план", copied:"Скопировано ✓", close:"Закрыть",
-  tryT:"Попробуй, например:", rejT:"Почему не другие места", rej:{}, p1:"понял запрос", p3:"маршрутов", p3s:"время, часы, погода", p4:"текст по фактам", rules:"правила", tpl:"шаблон", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
+  examples:"примеры", micT:"Сказать голосом", micOn:"Слушаю… скажи, где ты, куда и к скольки.", micDen:"Нет доступа к микрофону — разреши его в адресной строке.", micErr:"Не расслышал — попробуй ещё раз.", noMic:"Голосовой ввод работает в Chrome и Edge.", speakT:"Озвучить маршрут", tryT:"Попробуй, например:", rejT:"Почему не другие места", rej:{}, p1:"понял запрос", p3:"маршрутов", p3s:"время, часы, погода", p4:"текст по фактам", rules:"правила", tpl:"шаблон", shareT:"Поделиться ссылкой на этот маршрут", shared:"Ссылка скопирована — отправь другу. Твоя точная геопозиция в неё не попадает.", txtAi:"текст: ИИ по фактам", txtTpl:"текст: шаблон", replace:"заменить это место",
   quick:[["ЭКСПО → Хан Шатыр к 19:00","встреча вечером, есть 1,5 часа","Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре"],
    ["Турист, вылет в 18:30","посмотреть город до самолёта","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["Прогулка 45 минут","от Mega Silk Way и обратно","Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"],
@@ -278,7 +287,7 @@ const I18N = {
   steps:["Understanding your request","Finding places on the way","Checking time, opening hours, weather","Writing why it's worth it"], down:"The server didn't respond.",
   howT:"How Okno understood you", from:"from", to:"to", loop:"then back", win:"window", lang:"language", out:"outdoors", maxOut:"longest outdoor", km:"km", walkKm:"walking",
   cands:"places considered", plans:"route options", tUnd:"understood / planned", dataT:"Data and caveats", copy:"Copy plan", copied:"Copied ✓", close:"Close",
-  tryT:"Try, for example:", rejT:"Why not other places", rej:{"мороз, темнота или не то, что просили":"frost, darkness or not what you asked for","закрыто к приходу или закроется во время визита":"closed on arrival or closing during the visit","не успеть туда и к сроку":"can't make it there and back in time"}, p1:"understood", p3:"routes", p3s:"time, hours, weather", p4:"text from facts", rules:"rules", tpl:"template", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
+  examples:"examples", micT:"Speak", micOn:"Listening… say where you are, where to and by when.", micDen:"No microphone access — allow it in the address bar.", micErr:"Didn't catch that — try again.", noMic:"Voice input works in Chrome and Edge.", speakT:"Read the route aloud", tryT:"Try, for example:", rejT:"Why not other places", rej:{"мороз, темнота или не то, что просили":"frost, darkness or not what you asked for","закрыто к приходу или закроется во время визита":"closed on arrival or closing during the visit","не успеть туда и к сроку":"can't make it there and back in time"}, p1:"understood", p3:"routes", p3s:"time, hours, weather", p4:"text from facts", rules:"rules", tpl:"template", shareT:"Share a link to this route", shared:"Link copied — send it to a friend. Your exact location is not included.", txtAi:"text: AI from facts", txtTpl:"text: template", replace:"replace this place",
   quick:[["EXPO → Khan Shatyr by 7 pm","evening meeting, 1.5 h free","I'm at EXPO, need to be at Khan Shatyr by 19:00"],
    ["Tourist, flight at 6:30 pm","see the city before the flight","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45-minute walk","from Mega Silk Way and back","I'm at Mega Silk Way, want a 45 minute walk and come back"],
@@ -299,7 +308,7 @@ const I18N = {
   steps:["Сұрауды түсініп жатырмын","Жолдағы орындарды іздеп жатырмын","Уақыт, жұмыс кестесі, ауа райын тексеріп жатырмын","Неге баруға тұрарлық екенін жазып жатырмын"], down:"Сервер жауап бермеді.",
   howT:"«Окно» сұрауды қалай түсінді", from:"қайдан", to:"қайда", loop:"сосын кері", win:"терезе", lang:"тіл", out:"далада", maxOut:"ең ұзақ далада", km:"км", walkKm:"жаяу",
   cands:"орын қаралды", plans:"бағыт нұсқасы", tUnd:"түсінді / есептеді", dataT:"Деректер мен ескертулер", copy:"Жоспарды көшіру", copied:"Көшірілді ✓", close:"Жабу",
-  tryT:"Мысалы, былай жазып көр:", rejT:"Неге басқа орындар емес", rej:{"мороз, темнота или не то, что просили":"аяз, қараңғы немесе сұралғаны емес","закрыто к приходу или закроется во время визита":"барғанда жабық немесе ішінде жабылады","не успеть туда и к сроку":"уақытында үлгермейсің"}, p1:"сұрауды түсінді", p3:"бағыт", p3s:"уақыт, кесте, ауа райы", p4:"деректер бойынша мәтін", rules:"ережелер", tpl:"үлгі", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
+  examples:"мысалдар", micT:"Дауыспен айту", micOn:"Тыңдап тұрмын… қайдасың, қайда және сағат нешеге?", micDen:"Микрофонға рұқсат жоқ — мекенжай жолында рұқсат бер.", micErr:"Естімедім — қайталап көр.", noMic:"Дауыспен енгізу Chrome мен Edge-де жұмыс істейді.", speakT:"Бағытты дауыстап оқу", tryT:"Мысалы, былай жазып көр:", rejT:"Неге басқа орындар емес", rej:{"мороз, темнота или не то, что просили":"аяз, қараңғы немесе сұралғаны емес","закрыто к приходу или закроется во время визита":"барғанда жабық немесе ішінде жабылады","не успеть туда и к сроку":"уақытында үлгермейсің"}, p1:"сұрауды түсінді", p3:"бағыт", p3s:"уақыт, кесте, ауа райы", p4:"деректер бойынша мәтін", rules:"ережелер", tpl:"үлгі", shareT:"Бағыт сілтемесімен бөлісу", shared:"Сілтеме көшірілді — досыңа жібер. Нақты орның оған кірмейді.", txtAi:"мәтін: ЖИ, деректер бойынша", txtTpl:"мәтін: үлгі", replace:"бұл орынды ауыстыру",
   quick:[["ЭКСПО → Хан Шатыр 19:00-ге","кешкі кездесу, 1,5 сағат бар","Мен ЭКСПО-дамын, 19:00-ге Хан Шатырда болуым керек"],
    ["Турист, ұшақ 18:30-да","ұшар алдында қаланы көру","I'm at Baiterek, my flight is at 18:30, want to see the city"],
    ["45 минут серуен","Mega Silk Way-ден және кері","Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"],
@@ -320,7 +329,8 @@ function applyLang(){
   $("#go").textContent = T("find"); $("#q").placeholder = T("ph");
   if(!state.point) $("#pt").innerHTML = `${svg("LocateFixed",15)}<span>${T("here")}</span>`;
   $("#tnow").textContent = T("now"); if(typeof showNow === "function") showNow();
-  $("#exT").textContent = T("heroT"); $("#exP").textContent = T("heroP");
+  $("#exT").textContent = T("heroT"); $("#exP").textContent = T("heroP"); $("#exL").textContent = T("examples");
+  $("#mic").title = T("micT"); $("#mic").setAttribute("aria-label", T("micT"));
   $("#quick").innerHTML = QUICK.map((q,i)=>`<button data-i="${i}"><span class="qi">${svg(q[0],16)}</span><span>${T("quick")[i][0]}<small>${T("quick")[i][1]}</small></span></button>`).join("");
   document.querySelectorAll("#langs button").forEach(b => b.classList.toggle("on", b.dataset.l === LANG));
   if(state.wx) $("#wxl").textContent = state.wx();
@@ -535,7 +545,7 @@ async function run(extra={}){
   const text = $("#q").value.trim(); if(!text && !extra.parsed) return;
   const body = {text, point:state.point, now:state.nowOverride, weather:state.weather, saved, ...extra};
   state.lastReq = body;
-  $("#go").disabled = true; $("#ex").style.display = "none"; showSteps();
+  $("#go").disabled = true; $("#ex").classList.remove("show"); $("#exBtn").classList.remove("on"); showSteps(); stopSpeak();
   $("#deck").style.opacity = .35;
   try{
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 35000);  // не ждём бесконечно
@@ -545,10 +555,58 @@ async function run(extra={}){
     state.last = r;
     const rl = r.parsed?.language;
     if(rl && rl !== LANG && I18N[rl] && !extra.parsed){ LANG = rl; applyLang(); } else render(r);
+    if(voiceAsk){ voiceAsk = false; speak(r); }
   }catch(e){ pipeTimers.forEach(clearTimeout); $("#sum").innerHTML = `<div class="err">${T("down")}</div>`; }
   $("#go").disabled = false; $("#deck").style.opacity = 1;
 }
 function rerun(){ if(state.lastReq) run({parsed: state.last?.parsed, exclude: state.lastReq.exclude || [], keep: []}); }
+
+// ---------- голос: сказать запрос и услышать ответ (Web Speech API, встроен в Chrome/Edge) ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const VLANG = {ru:"ru-RU", en:"en-US", kk:"kk-KZ"};
+let rec = null, voiceAsk = false;
+$("#mic").onclick = () => {
+  if(!SR){ toast(T("noMic")); return; }
+  if(rec){ rec.stop(); return; }
+  stopSpeak();
+  rec = new SR(); rec.lang = VLANG[LANG] || "ru-RU"; rec.interimResults = true; rec.continuous = false;
+  let heard = "";
+  rec.onresult = e => { heard = Array.from(e.results).map(x => x[0].transcript).join(""); $("#q").value = heard; };
+  rec.onerror = e => { toast(/not-allowed|service-not-allowed/.test(e.error) ? T("micDen") : T("micErr")); };
+  rec.onend = () => { $("#mic").classList.remove("on"); rec = null;
+    if(heard.trim()){ if(state.fromExample) setTime(null); voiceAsk = true; run(); } };
+  $("#mic").classList.add("on"); toast(T("micOn"));
+  try { rec.start(); } catch(e) { $("#mic").classList.remove("on"); rec = null; toast(T("micErr")); }
+};
+function speechText(r){
+  if(r.error) return [r.error, ...(r.notes||[]).slice(0,1)].join(" ");
+  const st = r.steps.filter(x => x.type==="stop"), s = r.summary;
+  const W = {
+    ru: [x => `${x.name}: в ${x.arrive}, ${x.stay} минут. ${x.why}`, `На месте в ${s.arrive}, запас ${s.buffer_min} минут.`],
+    en: [x => `${x.name}: at ${x.arrive}, ${x.stay} minutes. ${x.why}`, `You arrive at ${s.arrive}, with ${s.buffer_min} minutes to spare.`],
+    kk: [x => `${x.name}: ${x.arrive}, ${x.stay} минут. ${x.why}`, `Орнында ${s.arrive}, қор ${s.buffer_min} минут.`],
+  }[LANG] || [];
+  return [r.headline + ".", ...st.map(W[0]), W[1]].join(" ");
+}
+function pickVoice(lang){
+  const vs = speechSynthesis.getVoices(), pre = lang.slice(0,2);
+  return vs.find(v => v.lang.startsWith(pre) && /Google|Natural|Online/.test(v.name)) || vs.find(v => v.lang.startsWith(pre))
+    || (pre==="kk" ? pickVoice("ru-RU") : null);   // казахского голоса часто нет — читаем русским
+}
+function speak(r){
+  if(!("speechSynthesis" in window) || !r) return;
+  stopSpeak();
+  const lang = VLANG[LANG] || "ru-RU", v = pickVoice(lang);
+  // длинный текст режем на фразы: Chrome обрывает одну длинную реплику через ~15 с
+  const parts = speechText(r).match(/[^.!?]+[.!?]*/g) || [];
+  parts.forEach((t, i) => { const u = new SpeechSynthesisUtterance(t.trim()); u.lang = v ? v.lang : lang; if(v) u.voice = v; u.rate = 1.05;
+    if(i === parts.length - 1) u.onend = () => $("#speak")?.classList.remove("on");
+    speechSynthesis.speak(u); });
+  $("#speak")?.classList.add("on");
+}
+function stopSpeak(){ if("speechSynthesis" in window) speechSynthesis.cancel(); $("#speak")?.classList.remove("on"); }
+if("speechSynthesis" in window) speechSynthesis.getVoices();   // список голосов грузится асинхронно — прогреваем
+$("#exBtn").onclick = () => { const on = $("#ex").classList.toggle("show"); $("#exBtn").classList.toggle("on", on); };
 
 // ---------- отрисовка ----------
 const PREF_RU = {coffee:"кофе", food:"поесть", sights:"посмотреть город", nature:"природа", culture:"культура", shopping:"шопинг",
@@ -603,6 +661,7 @@ function render(r){
     <div class="links">
       <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">${T("open2gis")}</a>
       <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps</a>
+      <button id="speak" title="${T("speakT")}" aria-label="${T("speakT")}">${svg("Volume2",14)}</button>
       <button id="shareLink" title="${T("shareT")}" aria-label="${T("shareT")}">${svg("Share2",14)}</button>
       <button class="ghost" id="how">${T("how")}</button>
     </div>`;
@@ -641,6 +700,7 @@ function render(r){
     run({parsed:r.parsed, exclude:[...(state.lastReq.exclude||[]), b.dataset.ex], keep:b.dataset.keep?b.dataset.keep.split("|"):[]}); });
   deck.querySelectorAll(".card").forEach(c => c.onclick = () => focusCard(c));
   $("#how").onclick = () => showHow(r);
+  $("#speak").onclick = () => { $("#speak").classList.contains("on") ? stopSpeak() : speak(state.last); };
   $("#shareLink").onclick = () => {
     // ссылка на тот же запрос: текст, время старта, погода; точная точка пользователя в ссылку не попадает
     const u = new URL(location.origin + location.pathname);
