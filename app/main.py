@@ -111,7 +111,8 @@ def place(lat: float, lon: float, lang: str = "ru"):
         dg = best.get("dgis") or {}
         poi = {"name": best["name"], "category": best["category"], "rating": dg.get("rating"), "reviews": dg.get("reviews"),
                "hours": best["tags"].get("opening_hours"), "dgis_id": dg.get("id"), "wiki": (best.get("wiki") or {}).get("article"),
-               "lat": best["lat"], "lon": best["lon"], "m": round(bd * 1000), "image": (best.get("wiki") or {}).get("image")}
+               "lat": best["lat"], "lon": best["lon"], "m": round(bd * 1000), "image": (best.get("wiki") or {}).get("image"),
+               **planner.contacts(best.get("tags") or {})}
     return {"address": geo.reverse(round(lat, 4), round(lon, 4), lang), "poi": poi}
 
 

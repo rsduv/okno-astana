@@ -460,6 +460,16 @@ def _same_place(p: dict, label: str) -> bool:
     return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
 
 
+def contacts(t: dict) -> dict:
+    """Базовые контакты из OpenStreetMap (кейс просит «время работы / базовые контактные данные, если есть»)."""
+    phone = (t.get("contact:phone") or t.get("phone") or "").split(";")[0].strip() or None
+    site = t.get("contact:website") or t.get("website")
+    ig = t.get("contact:instagram")
+    if not site and ig:
+        site = ig if ig.startswith("http") else "https://instagram.com/" + ig.lstrip("@").split("/")[-1]
+    return {"phone": phone, "website": site}
+
+
 def _why_not(p, A, start, ctx):
     """Причина, по которой подходящее по типу место не попало в маршрут — считаем для прозрачности."""
     if p["category"] not in ctx.wanted:
@@ -613,6 +623,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                           "dgis_id": (p.get("dgis") or {}).get("id"),
                           "wiki_url": (p.get("wiki") or {}).get("article"), "image": (p.get("wiki") or {}).get("image"),
                           "wheelchair": (p.get("tags") or {}).get("wheelchair"),
+                          **contacts(p.get("tags") or {}),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
                                                 "в_помещении": p["category"] not in OUTDOOR},
