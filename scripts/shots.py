@@ -25,7 +25,7 @@ with sync_playwright() as p:
     for name, (q, t, w) in SC.items():
         if flt not in name:
             continue
-        pg.goto(f"http://127.0.0.1:8000/?q={urllib.parse.quote(q)}&t={t}&w={w}")
+        pg.goto(f"http://127.0.0.1:8010/?q={urllib.parse.quote(q)}&t={t}&w={w}")
         pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000)
         pg.wait_for_timeout(9000)
         out = ROOT / "shots" / f"{name}.png"

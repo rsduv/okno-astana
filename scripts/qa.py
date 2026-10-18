@@ -42,7 +42,7 @@ for q, t, w, pt in CASES:
     if flt and flt not in q:
         continue
     t0 = time.time()
-    r = c.post("http://127.0.0.1:8000/api/plan", json={"text": q, "now": t, "weather": w, "point": pt}).json()
+    r = c.post("http://127.0.0.1:8010/api/plan", json={"text": q, "now": t, "weather": w, "point": pt}).json()
     dt = time.time() - t0
     p = r.get("parsed") or {}
     print(f"\n### {q}  [{t}{', −25' if w == 'cold' else ''}]  {dt:.1f}s")

@@ -8,7 +8,7 @@ with sync_playwright() as p:
         pg = b.new_page(viewport=vp, device_scale_factor=scale)
         pg.on("console", lambda m: errs.append(f"{name}: {m.text}") if m.type == "error" else None)
         pg.on("pageerror", lambda e: errs.append(f"{name} PAGEERROR: {e}"))
-        pg.goto("http://127.0.0.1:8000/"); pg.wait_for_timeout(3500); pg.screenshot(path=OUT + name + "_1home.png")
+        pg.goto("http://127.0.0.1:8010/"); pg.wait_for_timeout(3500); pg.screenshot(path=OUT + name + "_1home.png")
         pg.click("#quick button[data-i='0']"); pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000); pg.wait_for_timeout(4000)
         pg.screenshot(path=OUT + name + "_2result.png")
         pg.click("#deck .card[data-i='1'] .swap"); pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000); pg.wait_for_timeout(4000)
