@@ -351,6 +351,8 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
 
 
 def stay_of(p: dict, ctx: "Ctx") -> int:
+    if p["id"] in getattr(ctx, "bonus", {}):
+        return ctx.bonus[p["id"]]   # продлённое время: свободный запас отдали месту, а не «вернуться раньше»
     if ctx.work and p["category"] in ("кафе", "коворкинг", "библиотека"):
         return ctx.work_stay
     if getattr(ctx, "short_explicit", False) and p["category"] in ctx.explicit:
@@ -924,6 +926,20 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         best = refine(seq, A, B, start, deadline, ctx)
         if best:
             break
+    # большой запас при одной остановке, где можно посидеть (кафе, парк, музей…) — отдаём его месту: «45 минут на кофе»
+    # значит посидеть ~35 минут, а не 20 и вернуться за 20 минут до срока
+    EXTEND = {"кафе", "ресторан", "бар", "парк", "сад", "музей", "галерея", "библиотека", "торговый центр", "детский центр", "книжный"}
+    if best and not ctx.work:
+        stops_b = [x for x in best["steps"] if x["type"] == "stop"]
+        if len(stops_b) == 1 and stops_b[0]["category"] in EXTEND and best["slack"] > 18:
+            sid = stops_b[0]["id"]
+            new = stops_b[0]["stay"] + min(best["slack"] - 12, 60)
+            ctx.bonus = {sid: int(new // 5 * 5)}
+            longer = refine([q for q in POIS if q["id"] == sid], A, B, start, deadline, ctx)
+            if longer and longer["slack"] >= 8:
+                best = longer
+            else:
+                ctx.bonus = {}
     geo.save_cache()
     if direct_walk:
         dw = round(direct_walk["min"])
