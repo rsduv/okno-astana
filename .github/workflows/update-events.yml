@@ -1,0 +1,30 @@
+# Афиша Астаны: каждый день заново собирает события (scripts/collect_events.py → data/events.json).
+name: Обновление афиши
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # каждый день, 05:00 по Астане
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Собрать афишу
+        run: |
+          pip install httpx
+          python scripts/collect_events.py
+      - name: Сохранить, если афиша изменилась
+        run: |
+          git config user.name "poi-bot"
+          git config user.email "poi-bot@users.noreply.github.com"
+          git add data/events.json
+          git diff --cached --quiet || git commit -m "data: афиша $(date -u +%F)"
+          git push

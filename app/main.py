@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import geo, llm, planner
+from . import geo, llm, planner, events
 
 ROOT = Path(__file__).resolve().parent.parent
 KZ = timezone(timedelta(hours=5))  # Казахстан живёт по UTC+5
@@ -236,7 +236,10 @@ def _make_plan(req: PlanReq, request: Request):
     t2 = time.time()
     result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
     timings["plan"] = round((time.time() - t2) * 1000)
-    base = {"parsed": parsed, "origin": origin, "destination": destination, "now": now.strftime("%H:%M"),
+    # афиша: событие сегодня, которое целиком помещается в окно; спросил про театр/концерт — ближайшие события
+    A, Bp = (origin["lat"], origin["lon"]), (destination["lat"], destination["lon"])
+    evs = events.fitting(A, Bp, now, deadline) or (events.upcoming(A, now) if events.WANTS.search(req.text or "") else [])
+    base = {"parsed": parsed, "origin": origin, "destination": destination, "now": now.strftime("%H:%M"), "events": evs,
             "deadline": deadline.strftime("%H:%M"), "window_label": window_label,
             "weather": {k: v for k, v in w.items() if k != "_hourly"}}
     if travel_note:
@@ -261,6 +264,10 @@ def _make_plan(req: PlanReq, request: Request):
                 "только для мест-кандидатов; помечено «2GIS».",
                 f"Погода: {w['source']}.",
                 "Тексты «почему» и «что делать»: Gemini 3.5 Flash (Google), только по фактам выше. Места выбирает алгоритм, не ИИ.",
+                (f"Афиша: официальный сайт Astana Opera (обновлено {events.UPDATED}) — "
+                 + ("в это окно ничего не помещается, показаны ближайшие события по твоему запросу." if evs and evs[0].get("later")
+                    else "событие показано, потому что целиком помещается в окно." if evs
+                    else "событий, которые помещаются в это окно, нет.")),
                 "Приватность: геопозиция округляется до ~150 м; адрес «где я» — OpenStreetMap (Nominatim); закладки и последняя точка "
                 "живут только в твоём браузере. Голосовой ввод распознаёт сам браузер (в Chrome — сервис Google). Аккаунтов и истории нет.",
             ]}
