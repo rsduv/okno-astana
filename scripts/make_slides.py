@@ -34,6 +34,8 @@ def shots():
             pg.screenshot(path=str(IMG / f"{name}.png"))
 
         go(q("Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "17:20"), "main")
+        (IMG / "main.json").write_text(__import__("json").dumps(pg.evaluate(
+            "() => ({arrive: state.last.summary.arrive, buffer: state.last.summary.buffer_min})")), encoding="utf-8")
         pg.click("#how"); pg.wait_for_timeout(900); pg.screenshot(path=str(IMG / "how.png")); pg.click("#closeHow")
         go(q("Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "17:20", "cold"), "cold")
         go(q("Хан Шатырдың жанындамын, бір сағат бар, кофе ішкім келеді", "16:00"), "kk")
@@ -102,6 +104,10 @@ td.y{color:#3ddc97;font-weight:800}td.no{color:#5d6b7c}
 
 
 def html(b):
+    try:
+        M = __import__("json").loads((IMG / "main.json").read_text(encoding="utf-8"))
+    except Exception:
+        M = {"arrive": "18:43", "buffer": 17}
     S = []
     add = S.append
     n = lambda i: f'<div class="n">{i}</div>'
@@ -122,7 +128,7 @@ def html(b):
     # 3. решение
     add(f"""<section class="s"><span class="tag">Решение</span><h2>Одна фраза → 1–3 места по пути → точно успеешь</h2>
 <div class="grid" style="grid-template-columns:1.55fr 1fr;align-items:start">
-<div><img class="shot" src="img/main.png"><div class="cap">«Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре» → на месте в 18:43, запас 17 минут</div></div>
+<div><img class="shot" src="img/main.png"><div class="cap">«Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре» → на месте в {M["arrive"]}, запас {M["buffer"]} минут</div></div>
 <ul style="font-size:30px">
 <li><b class="acc">Успеешь точно</b> — реальное время пешком по улицам, пробки 2GIS для такси</li>
 <li><b class="acc">Открыто, когда дойдёшь</b> — часы проверяются на весь визит, а не «сейчас»</li>
