@@ -150,6 +150,15 @@ def main():
         else:
             cap("Честно: пешком не успеть — <b>бери такси</b>. Без выдуманных маршрутов", 5200)
         uncap()
+        # 8.5 спрос для города
+        pg.goto(URL + "city")
+        pg.add_style_tag(content=CAP_CSS)
+        pg.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; c.style.left = '50%'; document.body.appendChild(c); }""")
+        w(1800)
+        cap("Для города: <b>обезличенный спрос</b> — что ищут люди и <b>чего им не хватило</b>. Без координат и текстов запросов", 5200)
+        pg.evaluate("() => window.scrollTo({top: 600, behavior: 'smooth'})")
+        w(2600)
+        uncap()
         # 9. итог
         title("Окно", "Проверено, а не обещано",
               [("44 / 44", "тестовых сценария"), ("0 из 30", "ответов с ошибкой<br>(у обычного ИИ — 5)"), ("1465", "мест: OSM · 2GIS · Wikidata"), ("RU · KZ · EN", "три языка")],
