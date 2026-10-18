@@ -8,6 +8,15 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
 
 **Проверено цифрами:** 44/44 автопроверок в 13 тестовых сценариях · 100 случайных запросов — 0 опозданий и 0 закрытых мест · на 30 одинаковых запросах у Claude без данных 5 ответов с ошибками, у **того же Gemini без наших данных** — 4, у «Окна» (Gemini + RAG) — 0 · 43 автотеста в GitHub Actions.
 
+<p align="center">
+  <img src="docs/slides/img/main.png" alt="Окно: маршрут ЭКСПО → Хан Шатыр" width="68%">
+  <img src="docs/slides/img/phone.png" alt="Окно на телефоне" width="22%">
+</p>
+<p align="center">
+  <img src="docs/slides/img/cold.png" alt="Мороз −25°: маршрут через тёплые места" width="45%">
+  <img src="docs/slides/img/pin.png" alt="Карточка здания и закладки" width="45%">
+</p>
+
 ## Материалы для жюри
 - **Презентация:** [docs/Okno_presentation.pdf](docs/Okno_presentation.pdf) (текст выступления — [docs/pitch.md](docs/pitch.md))
 - **Тестовые сценарии, ограничения, этика:** [docs/Okno_scenarios.pdf](docs/Okno_scenarios.pdf) · [docs/scenarios.md](docs/scenarios.md) — 44/44 автопроверок
