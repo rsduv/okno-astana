@@ -109,7 +109,8 @@ def where(lat: float, lon: float, lang: str = "ru"):
 
 @app.get("/api/place")
 def place(lat: float, lon: float, lang: str = "ru"):
-    """Карточка точки, куда ткнули на карте: адрес + ближайшее место из нашей базы (в пределах ~60 м)."""
+    """Карточка точки, куда ткнули на карте: адрес + ближайшее место из нашей базы (в пределах ~60 м).
+    Большие здания-ориентиры (Хан Шатыр, ТРЦ, арены) важнее кафе внутри них — если ткнули в такое здание, показываем его."""
     best, bd = None, 0.06
     for p in planner.POIS:
         if abs(p["lat"] - lat) > 0.001 or abs(p["lon"] - lon) > 0.0015:
@@ -117,6 +118,23 @@ def place(lat: float, lon: float, lang: str = "ru"):
         d = geo.haversine_km((lat, lon), (p["lat"], p["lon"]))
         if d < bd:
             best, bd = p, d
+    SMALL = ("кафе", "ресторан", "фастфуд", "бар", "детский центр", "развлечения", "кино", "книжный")
+    if best and best["category"] in SMALL:   # кафе внутри ТРЦ → сам ТРЦ, если он рядом (центр здания бывает в 100–150 м)
+        mall = min(((geo.haversine_km((lat, lon), (p["lat"], p["lon"])), p) for p in planner.POIS
+                    if p["category"] in ("торговый центр", "музей", "театр", "стадион")
+                    and abs(p["lat"] - lat) < 0.002 and abs(p["lon"] - lon) < 0.003), key=lambda x: x[0], default=(9, None))
+        if mall[1] and mall[0] < 0.15:
+            best, bd = mall[1], mall[0]
+    big = min(((geo.haversine_km((lat, lon), (l["lat"], l["lon"])), l) for l in geo.LANDMARKS), key=lambda x: x[0], default=(9, None))
+    if big[1] and big[0] < 0.12 and (not best or best["category"] in ("кафе", "ресторан", "фастфуд", "бар", "детский центр", "развлечения")):
+        lm = big[1]
+        twin = next((p for p in planner.POIS if geo.haversine_km((lm["lat"], lm["lon"]), (p["lat"], p["lon"])) < 0.3
+                     and (p["name"].lower() in {n.lower() for n in [lm["name"], *lm.get("aliases", [])]})), None)
+        best = twin or {"name": lm["name"], "name_en": lm.get("name_en"), "name_kk": lm.get("name_kk"), "category": "ориентир",
+                        "lat": lm["lat"], "lon": lm["lon"], "tags": {}}
+        if not best.get("name_en"):
+            best = {**best, "name_en": lm.get("name_en"), "name_kk": lm.get("name_kk")}
+        bd = big[0]
     poi = None
     if best:
         dg = best.get("dgis") or {}
