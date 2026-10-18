@@ -15,7 +15,7 @@ URL = "http://127.0.0.1:8010/"
 W, H = 1920, 1080
 
 CAP_CSS = """
-#cap{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);z-index:99;max-width:1250px;padding:16px 28px;border-radius:18px;
+#cap{position:fixed;left:calc(50% + 290px);bottom:42px;transform:translateX(-50%);z-index:99;max-width:1180px;width:max-content;padding:16px 28px;border-radius:18px;
   background:rgba(8,12,18,.88);border:1px solid rgba(255,255,255,.14);color:#fff;font:600 30px/1.35 Manrope,system-ui,sans-serif;
   text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.6);transition:opacity .35s;opacity:0;pointer-events:none}
 #cap.on{opacity:1}
@@ -130,19 +130,28 @@ def main():
         w(3200)
         xy = pg.evaluate("() => { const q = map.project([71.4305,51.1283]); return [q.x, q.y]; }")
         pg.mouse.click(xy[0] + 4, xy[1] + 4)
-        w(3200)
+        pg.wait_for_selector(".pc [data-a=save]", timeout=20000)
+        w(4500)
         cap("«В закладки» — выбираешь значок, <b>здание подсвечивается</b> цветом закладки", 1500)
         pg.click(".pc [data-a=save]")
         w(900)
         pg.click(".savepop .kinds button[data-k='work']")
         w(900)
         pg.click("#svOk")
-        w(3600)
+        w(1200)
+        pg.evaluate("() => map.easeTo({zoom:16.8, pitch:60, bearing:20, duration:2500})")
+        w(3400)
+        pg.evaluate("() => map.easeTo({zoom:12.5, pitch:0, bearing:0, duration:1500})")   # обратно в плоский вид — 3D тяжёлое для записи
+        w(1700)
         uncap()
         # 8. честный отказ
         cap("А если <b>не успеть</b>? «Окно» не выдумывает маршрут")
         ask("Я в ЭКСПО, через 30 минут надо быть на вокзале Астана-1", "12:00")
-        cap("Честно: пешком не успеть — <b>бери такси</b>. Никаких выдуманных мест и обещаний", 4600)
+        said = pg.inner_text(".sum")
+        if "даже на такси" in said:
+            cap("Честно: <b>не успеть даже на такси</b> — лучше предупредить, что опоздаешь. Без выдуманных маршрутов", 5200)
+        else:
+            cap("Честно: пешком не успеть — <b>бери такси</b>. Без выдуманных маршрутов", 5200)
         uncap()
         # 9. итог
         title("Окно", "Проверено, а не обещано",
