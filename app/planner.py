@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import itertools
+import time
 import os
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -567,8 +568,14 @@ def _projection(A, B, p) -> float:
 PRUNE = True   # отсечение троек по парам (выключается для сравнения в тестах)
 
 
+# предел времени на перебор троек: на слабом сервере (бесплатный хостинг) длинное окно перебиралось бы десятки секунд.
+# Кандидаты отсортированы от лучших, поэтому ранние тройки — самые сильные; одиночки и пары перебираются всегда целиком.
+PLAN_BUDGET = float(os.getenv("PLAN_BUDGET", "2.5"))
+
+
 def search(A, B, start, deadline, ctx: Ctx, exclude=frozenset(), required=frozenset(), max_stops=3):
     cands = _candidates(A, B, start, deadline, ctx, set(exclude), set(required))
+    t_begin = time.time()
     loop = geo.haversine_km(A, B) < 0.3
     results = []
     ok_pairs: set[frozenset] = set()   # пары, которые помещаются хотя бы в одном порядке
@@ -578,6 +585,9 @@ def search(A, B, start, deadline, ctx: Ctx, exclude=frozenset(), required=frozen
                 continue
             # если тройка помещается, то и любая её пара помещается (без одного места времени только больше) —
             # тройки с «невозможной» парой не перебираем: в разы быстрее на длинных окнах, результат тот же
+            if k == 3 and time.time() - t_begin > PLAN_BUDGET:
+                ctx.cut = True
+                break
             if PRUNE and k == 3 and not required and not all(frozenset((a["id"], b["id"])) in ok_pairs for a, b in itertools.combinations(combo, 2)):
                 continue
             if loop:
