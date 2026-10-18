@@ -76,6 +76,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .links{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .links a,.links button{font-size:12.5px;font-weight:700;text-decoration:none;padding:7px 11px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--text);cursor:pointer}
 .links .primary{background:var(--accent);color:#08111a;border-color:var(--accent)}
+.links .ghost svg{display:none}
 .links .ghost{background:none;border-color:transparent;color:var(--muted);margin-left:auto}
 .err{font-size:14px;line-height:1.5}
 .err .tip{color:var(--muted);font-size:13px;margin-top:6px}
@@ -228,6 +229,32 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .links{margin-top:8px}
   .links a,.links button{padding:6px 10px;font-size:12px}
   .sum.mini .hl,.sum.mini .track,.sum.mini .ticks,.sum.mini .note,.sum.mini .links{display:none}
+  .top{top:calc(8px + env(safe-area-inset-top))}
+  .deck{bottom:calc(8px + env(safe-area-inset-bottom));align-items:flex-end}
+  .ex{bottom:calc(8px + env(safe-area-inset-bottom));max-height:58vh;overflow:auto}
+  .sum .l1 b{font-size:21px}
+  .sum .hl{font-size:12.8px;margin:1px 0 6px}
+  .track{height:6px}.ticks{font-size:10px;margin-top:2px}
+  .note{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .note ~ .note{display:none}
+  .links{margin-top:7px;gap:5px;flex-wrap:nowrap}
+  .links .ghost{margin-left:auto;padding:6px 9px;border:1px solid var(--line);color:var(--text)}
+  .links .ghost svg{display:block}.links .ghost .hw{display:none}
+  .card{max-height:38vh;overflow:hidden}
+  .card .ph{height:64px;margin:-11px -12px 8px;border-radius:17px 17px 0 0}
+  .card .why{-webkit-line-clamp:2}
+  .card .todo{-webkit-line-clamp:1}
+  .card .leg{margin-bottom:6px}
+  .card .wc{margin-top:4px}
+  .card.fin{max-height:none}
+  /* карточка «что здесь» на телефоне — нижняя панель на всю ширину, как в 2GIS */
+  .maplibregl-popup.pc{position:fixed;transform:none!important;left:8px!important;right:8px!important;top:auto!important;
+    bottom:calc(8px + env(safe-area-inset-bottom))!important;max-width:none!important;z-index:8}
+  .maplibregl-popup.pc .maplibregl-popup-tip{display:none}
+  .maplibregl-popup.pc .maplibregl-popup-content{min-width:0;width:100%;max-width:none;box-sizing:border-box;border-radius:20px;padding:14px 16px}
+  body.pinopen .deck,body.pinopen .ex{display:none}
+  .pc .ph{height:96px}
+  .pc .bt button{font-size:12px;padding:8px 4px}
   .sum .l1{cursor:pointer}
   .deck{bottom:8px;padding:4px 8px 4px;gap:8px}
   .card{width:80vw;padding:11px 12px;border-radius:18px}
@@ -588,14 +615,15 @@ function clearPoint(){ state.point=null; closeSavePop(); if(startMarker){startMa
 
 // ---------- пин + карточка «что здесь» (как в 2GIS): адрес, место из базы, здание; В закладки / Сюда / Отсюда ----------
 let pinPopup = null, startMarker = null;
-function closePin(){ if(pinPopup){ const p = pinPopup; pinPopup = null; p.remove(); } if(clickMarker){ clickMarker.remove(); clickMarker = null; } state.pin = null; state.click = null; }
+function closePin(){ document.body.classList.remove("pinopen"); if(pinPopup){ const p = pinPopup; pinPopup = null; p.remove(); } if(clickMarker){ clickMarker.remove(); clickMarker = null; } state.pin = null; state.click = null; }
 async function openPin(lat, lon, ll, mine=false){
   closePin();
   state.click = ll; state.pin = {lat, lon, title:null};
   if(!mine){ const el = document.createElement("div"); el.className = "mk pick"; el.innerHTML = svg("MapPin", 32);
     clickMarker = new maplibregl.Marker({element:el, anchor:"bottom"}).setLngLat([lon, lat]).addTo(map); }
   const b = buildingAt(ll);
-  pinPopup = new maplibregl.Popup({className:"pc", offset: mine ? 14 : 36, maxWidth:"320px", closeOnClick:false})
+  document.body.classList.add("pinopen");
+  pinPopup = new maplibregl.Popup({className:"pc", offset: mine ? 14 : 36, maxWidth: mobile() ? "none" : "320px", closeOnClick:false})
     .setLngLat([lon, lat]).setHTML(`<div class="ld">${T("pcLoad")}</div>`).addTo(map);
   pinPopup.on("close", () => { if(pinPopup) closePin(); });
   const my = pinPopup;
@@ -805,7 +833,7 @@ function render(r){
       <a class="primary" href="${dgis(r)}" target="_blank" rel="noopener">${T("open2gis")}</a>
       <a href="${gmaps(r)}" target="_blank" rel="noopener">Google Maps</a>
       <button id="shareLink" title="${T("shareT")}" aria-label="${T("shareT")}">${svg("Share2",14)}</button>
-      <button class="ghost" id="how">${T("how")}</button>
+      <button class="ghost" id="how" title="${T("how")}" aria-label="${T("how")}">${svg("Info",15)}<span class="hw">${T("how")}</span></button>
     </div>`;
   // карточки: у каждой остановки сверху — как до неё добраться
   const stops = r.steps.filter(x=>x.type==="stop");
