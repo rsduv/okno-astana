@@ -179,7 +179,9 @@ def _make_plan(req: PlanReq, request: Request):
         pass
     elif req.point and req.point.get("lat") is not None:
         lat, lon = geo.round_point(req.point["lat"], req.point["lon"])
-        origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else "Точка на карте (±150 м)", "source": "карта, округлено"}
+        pl = str(req.point.get("label") or "")[:60].strip()   # «Отсюда» с карточки места — его название
+        origin = {"lat": lat, "lon": lon, "label": "Ты здесь (±150 м)" if req.point.get("mine") else (pl or "Точка на карте (±150 м)"),
+                  "source": "карта, округлено"}
     elif OTHER_CITIES.match((parsed.get("origin") or "").strip()):
         origin = None
     else:
