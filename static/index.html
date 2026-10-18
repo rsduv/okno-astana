@@ -509,7 +509,7 @@ function openSavePop(){
     if(!P) return closeSavePop();
     const at = bld ? bld.center : (state.click ? [state.click.lng, state.click.lat] : [P.lon, P.lat]);
     saved[n] = {lat:at[1], lon:at[0], kind, ...(bld ? {bld:{g:bld.g, h:bld.h}} : {})};
-    storeSaved(); closeSavePop(); closePin();
+    storeSaved(); closeSavePop(); closePin(); renderSaved();
     $$(".pill.sv").forEach(b => { if(b.dataset.n===n) b.classList.add("new"); });
     map.flyTo({center:at, zoom:Math.max(map.getZoom(), 15), speed:1.2});
     toast(T("savedT")(n));

@@ -16,6 +16,15 @@ with sync_playwright() as p:
         pg.click("#how"); pg.wait_for_timeout(800); pg.screenshot(path=OUT + name + "_4how.png")
         pg.click("#closeHow"); pg.fill("#q", "jdjdjd"); pg.click("#go"); pg.wait_for_selector(".sum .err", timeout=60000); pg.wait_for_timeout(500)
         pg.screenshot(path=OUT + name + "_5err.png")
+        if name == "desk":   # карточка «что здесь» → закладка: метка, кнопка и подсветка здания — сразу, без перезагрузки
+            pg.evaluate("map.jumpTo({center:[71.4305,51.1283],zoom:16.4,pitch:50})"); pg.wait_for_timeout(2500)
+            xy = pg.evaluate("(()=>{const q=map.project([71.4305,51.1283]);return [q.x,q.y]})()")
+            pg.mouse.click(xy[0] + 4, xy[1] + 4); pg.wait_for_selector(".pc [data-a=save]", timeout=20000)
+            pg.click(".pc [data-a=save]"); pg.click(".savepop .kinds button[data-k='work']"); pg.click("#svOk"); pg.wait_for_timeout(1200)
+            got = pg.evaluate("[document.querySelectorAll('.mk.bm').length, document.querySelectorAll('.pill.sv').length]")
+            if got != [1, 1]:
+                errs.append(f"закладка не появилась сразу: {got}")
+            pg.screenshot(path=OUT + name + "_6bookmark.png")
         pg.close()
     b.close()
 print("\n".join(errs) or "no console errors")
