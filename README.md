@@ -6,7 +6,7 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
 > реальное время пешком по улицам, часы работы **на момент прихода**, погода и ветер, пробки для такси.
 > Только реальные места — ничего не выдумано; где данных нет, так и пишем.
 
-**Документ со сценариями и ограничениями:** [`docs/scenarios.md`](docs/scenarios.md) (PDF: `docs/Okno_scenarios.pdf`) — 10 сценариев, 37/37 автопроверок, стресс-тест.
+**Проверено цифрами:** 44/44 автопроверок в 13 тестовых сценариях · 100 случайных запросов — 0 опозданий и 0 закрытых мест · на 30 одинаковых запросах у обычного ИИ-чатбота 5 ответов с ошибками, у «Окна» — 0 · 43 автотеста в GitHub Actions.
 
 ## Материалы для жюри
 - **Презентация:** [docs/Okno_presentation.pdf](docs/Okno_presentation.pdf) (текст выступления — [docs/pitch.md](docs/pitch.md))
@@ -58,12 +58,13 @@ python -m uvicorn app.main:app --port 8010
 - `scripts/collect_osm.py` — автоматический сбор мест из OpenStreetMap → `data/poi.json`;
   `scripts/collect_wiki.py` — известные места и описания из Wikidata/Википедии → `data/wiki.json`.
   **GitHub Actions** (`.github/workflows/update-poi.yml`) обновляет обе базы каждый понедельник.
+  `scripts/collect_events.py` — афиша Astana Opera → `data/events.json` (GitHub Actions `update-events.yml` — каждый день).
 - `scripts/collect_2gis.py` — популярные места из 2GIS по своему ключу (локально, в репозиторий не публикуется).
-- `app/planner.py` — планировщик · `app/hours.py` — часы работы · `app/geo.py` — маршруты, погода, воздух, геокодер ·
+- `app/events.py` — афиша в окне · `app/citystats.py` — спрос для города (только счётчики) · `app/planner.py` — планировщик · `app/hours.py` — часы работы · `app/geo.py` — маршруты, погода, воздух, геокодер ·
   `app/dgis.py` — 2GIS (места, пробки, лимиты) · `app/llm.py` — Gemini · `app/main.py` — API.
 - `static/index.html` — интерфейс (MapLibre + OpenFreeMap, иконки Lucide).
 - Проверки: `scripts/stress.py` (инварианты «не опоздал» и «всё открыто»), `scripts/qa.py` (32 живые фразы), `scripts/benchmark.py` (сравнение с чатботом),
-  `scripts/test_core.py` (27 проверок, запускаются в GitHub Actions),
+  `scripts/test_core.py` (43 проверки: ядро + API, запускаются в GitHub Actions), `scripts/record_demo.py` (демо-видео), `scripts/make_slides.py` (презентация),
   `scripts/ux_flow.py` (прогон интерфейса), `scripts/make_scenarios_doc.py` (документ со сценариями).
 
 ## Приватность и честность
