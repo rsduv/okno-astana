@@ -68,6 +68,22 @@ def summary(article_url: str) -> str | None:
     return out or None
 
 
+def add_images(out: dict) -> None:
+    """Фото мест: главное изображение из Wikidata (P18) → миниатюра с Wikimedia Commons (свободные лицензии)."""
+    ids = [q for q, w in out.items() if not w.get("image")]
+    for i in range(0, len(ids), 50):
+        try:
+            j = httpx.get("https://www.wikidata.org/w/api.php", headers=UA, timeout=30, params={
+                "action": "wbgetentities", "ids": "|".join(ids[i:i + 50]), "props": "claims", "format": "json"}).json()
+        except Exception:
+            continue
+        for q, e in (j.get("entities") or {}).items():
+            c = (e.get("claims") or {}).get("P18")
+            if c and q in out:
+                fn = c[0]["mainsnak"]["datavalue"]["value"].replace(" ", "_")
+                out[q]["image"] = f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(fn)}?width=480"
+
+
 def main():
     r = httpx.get("https://query.wikidata.org/sparql", params={"query": QUERY, "format": "json"}, headers=UA, timeout=60)
     rows = r.json()["results"]["bindings"]
@@ -86,6 +102,7 @@ def main():
             out[qid]["image"] = IMAGES[art]
         print(f"{out[qid]['sitelinks']:3} {label} [{cat}] {'+текст' if out[qid]['extract'] else ''}")
         time.sleep(0.3)
+    add_images(out)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"готово: {len(out)} мест → {OUT}")
 
