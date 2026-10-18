@@ -1010,8 +1010,11 @@ function gmaps(r){ const P = pts(r); const ll = p=>`${p.lat},${p.lon}`;
   return `https://www.google.com/maps/dir/?api=1&origin=${ll(P[0])}&destination=${ll(P[P.length-1])}&waypoints=${P.slice(1,-1).map(ll).join("|")}&travelmode=walking`; }
 function dgis(r){ return `https://2gis.kz/astana/directions/points/${pts(r).map(p=>`${p.lon}%2C${p.lat}`).join("%7C")}`; }
 function planText(r){
-  return [`Окно: ${r.headline}`, ...r.steps.filter(x=>x.type==="stop").map((x,i)=>`${i+1}. ${x.arrive} ${x.name} — ${x.todo}`),
-    `На месте в ${r.summary.arrive}, запас ${r.summary.buffer_min} мин.`].join("\n");
+  const end = {ru: `На месте в ${r.summary.arrive}, запас ${r.summary.buffer_min} мин.`,
+               en: `Arrive at ${r.summary.arrive}, ${r.summary.buffer_min} min to spare.`,
+               kk: `Орнында ${r.summary.arrive}, қор ${r.summary.buffer_min} мин.`}[LANG];
+  return [`Окно / Okno: ${r.headline}`, ...r.steps.filter(x=>x.type==="stop").map((x,i)=>`${i+1}. ${x.arrive} ${DN(x)} — ${x.todo}`),
+    end, location.origin].join("\n");
 }
 
 // ---------- маршрут на карте ----------
