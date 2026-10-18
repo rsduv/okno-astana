@@ -108,6 +108,9 @@ r = api.post("/api/plan", json={"text": "jdjdjd", "now": "15:00"}).json()
 check("API: непонятный запрос — честная ошибка, не падение", bool(r.get("error")))
 pl = api.get("/api/place", params={"lat": 51.1283, "lon": 71.4305}).json()
 check("API: карточка «что здесь» узнаёт Байтерек", (pl.get("poi") or {}).get("name") == "Байтерек")
+cs = api.get("/api/city").json()
+check("API: спрос для города — только счётчики, без координат и текстов",
+      cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))
 
 print(f"\n{ok} ок, {fail} провалено")
 sys.exit(1 if fail else 0)

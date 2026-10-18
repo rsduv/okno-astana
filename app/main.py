@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import geo, llm, planner, events
+from . import citystats, geo, llm, planner, events
 
 ROOT = Path(__file__).resolve().parent.parent
 KZ = timezone(timedelta(hours=5))  # Казахстан живёт по UTC+5
@@ -77,6 +77,17 @@ def _now(s: str | None) -> datetime:
 @app.get("/")
 def index():
     return FileResponse(ROOT / "static" / "index.html")
+
+
+@app.get("/city")
+def city_page():
+    """Спрос для города: обезличенная статистика (только счётчики, без координат и текстов запросов)."""
+    return FileResponse(ROOT / "static" / "city.html")
+
+
+@app.get("/api/city")
+def city_stats():
+    return citystats.snapshot()
 
 
 @app.get("/api/meta")
@@ -152,7 +163,10 @@ def _too_many(ip: str, limit=60, per=600) -> bool:
 @app.post("/api/plan")
 def make_plan(req: PlanReq, request: Request):
     try:
-        return _make_plan(req, request)
+        r = _make_plan(req, request)
+        if r.get("error") and "weather" not in r:   # отказ ещё до планирования (не понял, где ты / другой город)
+            citystats.refused((r.get("parsed") or {}).get("language"))
+        return r
     except Exception:
         import traceback
         traceback.print_exc()
@@ -261,6 +275,7 @@ def _make_plan(req: PlanReq, request: Request):
             "weather": {k: v for k, v in w.items() if k != "_hourly"}}
     if travel_note:
         result.setdefault("notes", []).insert(0, travel_note)
+    citystats.record(parsed, result, req.weather == "cold", len(evs), now.hour)   # обезличенные счётчики для города
     if result.get("error"):
         tr = llm.translate([result["error"], *(result.get("notes") or [])], lang)
         result["error"], result["notes"] = tr[0], tr[1:]
