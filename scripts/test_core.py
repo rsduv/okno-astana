@@ -94,5 +94,20 @@ check("афиша: не успеть к началу — не предлагае
 check("афиша: закончится после срока — не предлагаем", events.fitting(bt, bt, at(13, 30), at(15, 50)) == [])
 check("афиша: спросил про театр — ближайшие события", len(events.upcoming(bt, at(9))) == 1 and events.WANTS.search("хочу в театр"))
 
+# --- API целиком (без ключей: разбор правилами, тексты шаблоном) ---
+from fastapi.testclient import TestClient  # noqa: E402
+from app.main import app  # noqa: E402
+api = TestClient(app)
+check("API: главная страница", api.get("/").status_code == 200)
+r = api.post("/api/plan", json={"text": "Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре", "now": "17:20"}).json()
+check("API: план ЭКСПО → Хан Шатыр", not r.get("error") and r["summary"]["arrive"] <= "19:00")
+check("API: у каждой остановки есть «почему», «что делать» и источник",
+      all(s.get("why") and s.get("todo") and s.get("source") for s in r.get("steps", []) if s["type"] == "stop"))
+check("API: «какие данные использованы» в ответе", len(r.get("data_used") or []) >= 5)
+r = api.post("/api/plan", json={"text": "jdjdjd", "now": "15:00"}).json()
+check("API: непонятный запрос — честная ошибка, не падение", bool(r.get("error")))
+pl = api.get("/api/place", params={"lat": 51.1283, "lon": 71.4305}).json()
+check("API: карточка «что здесь» узнаёт Байтерек", (pl.get("poi") or {}).get("name") == "Байтерек")
+
 print(f"\n{ok} ок, {fail} провалено")
 sys.exit(1 if fail else 0)
