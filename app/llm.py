@@ -245,7 +245,10 @@ EXPLAIN = """Ты — «Окно», городской помощник по А�
 - Если «надёжность_часов» = estimate — не говори «точно открыто», говори «обычно открыто до …».
 Язык ответа: %s. Тон — дружелюбный, коротко, без восклицательных знаков и эмодзи. Пиши простым грамотным языком, как живой
 человек: «сфотографируй», а не «залей кадры»; без канцелярита («осуществите», «оцените»); обращение на «ты» по всему ответу.
-На казахском — простой литературный язык без калек с русского (обращение «сен»), названия мест не переводи; на английском — plain English.
+На казахском — простой литературный язык без калек с русского (обращение «сен»); на английском — plain English.
+Если язык ответа не русский и у места в фактах нет названия на этом языке («название_на_языке» пусто), добавь в этот stop поле
+"name": общепринятое название на языке ответа (перевод описательного названия вроде «Аллея мира и согласия» → «Peace and Accord Alley»;
+имена собственные и бренды — транслитом или как есть, например «Chaplin Cinema»).
 Верни ТОЛЬКО JSON: {"headline": "...", "stops": [{"id": "...", "why": "...", "todo": "..."}]%s}"""
 
 
@@ -275,6 +278,7 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
                                        "коляска_или_трудно_ходить": intent.get("mobility") == "limited",
                                        "размер_группы": intent.get("group_size")}.items() if v},
         "места": [{"id": s["id"], "название": s["name"], "категория": s["category"], "время_там_мин": s["stay"],
+                   "название_на_языке": s.get({"en": "name_en", "kk": "name_kk"}.get(intent.get("language"), "name")),
                    "приход": s["arrive"], "часы": s["hours"]["text"], "надёжность_часов": s["hours"]["confidence"],
                    "как_добраться": reach.get(s["id"]), "доп_факты": s["facts"]} for s in stops],
     }
@@ -292,6 +296,9 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
         s["why"] = _tidy(x.get("why")) or _why_fallback(s, intent.get("language"))
         s["todo"] = _tidy(x.get("todo")) or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
+        key = {"en": "name_en", "kk": "name_kk"}.get(intent.get("language"))
+        if key and not s.get(key) and isinstance(x.get("name"), str) and 2 <= len(x["name"]) <= 80:
+            s[key] = x["name"].strip()   # название на языке запроса (ИИ перевёл/транслитерировал; оригинал остаётся в s["name"])
     result["headline"] = (d or {}).get("headline") or _headline_fallback(stops, result["summary"]["arrive"], intent.get("language"))
     return result
 
