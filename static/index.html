@@ -286,6 +286,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .sheet{padding:8px;align-items:flex-end}
   .sheet .box{max-height:80vh;border-radius:20px 20px 16px 16px}
   .sheet .kv{grid-template-columns:repeat(3,1fr)}
+  .rag{display:grid;grid-template-columns:1fr 1fr;gap:6px}.rag .ar{display:none}.rag .st b{font-size:13px}
 }
 </style>
 </head>
@@ -949,6 +950,7 @@ function focusCard(c){
   markers.forEach(m=>m.getElement().firstElementChild?.classList.toggle("sel", !!m._i && m._i==c.dataset.i));
   map.flyTo({center:[+c.dataset.lon,+c.dataset.lat], zoom:16.3, pitch:58, bearing:-20, speed:1.2, padding:PAD()});
 }
+const NUM = n => n == null ? "—" : Number(n).toLocaleString(LANG === "en" ? "en-US" : "ru-RU");   // 17 378, а не 17378
 function showHow(r){
   const p = r.parsed||{}, s = r.summary, ch = [];
   const LB = x => (LANG === "en" && x.label_en) || (LANG === "kk" && x.label_kk) || x.label;
@@ -960,14 +962,14 @@ function showHow(r){
   const c = r.considered||{}, tm = r.timings||{}, sec = k => tm[k] ? (tm[k]/1000).toFixed(1)+(LANG==="en" ? " s" : LANG==="kk" ? " с" : " с") : "—";
   const llm = r.parsed?.llm !== false, ai = (r.steps||[]).some(x=>x.text_source==="ai");
   const pipe = [[svg("MessageSquareText",16), T("p1"), llm ? "Gemini" : T("rules")],
-                [svg("Database",16), `${c.pois_total??"—"} → ${c.candidates??"—"}`, "OSM · 2GIS · Wikipedia"],
-                [svg("Route",16), `${c.plans??"—"} ${T("p3")}`, T("p3s")],
+                [svg("Database",16), `${NUM(c.pois_total)} → ${NUM(c.candidates)}`, "OSM · 2GIS · Wikipedia"],
+                [svg("Route",16), `${NUM(c.plans)} ${T("p3")}`, T("p3s")],
                 [svg("Sparkles",16), T("p4"), ai ? "Gemini" : T("tpl")]];
   $("#sheetBox").innerHTML = `<div class="rag">${pipe.map((x,i)=>`<div class="st"><i>${x[0]}</i><b>${x[1]}</b><small>${x[2]}</small></div>${i<3?'<span class="ar">→</span>':""}`).join("")}</div>
     <h4>${T("howT")}</h4>
     <div class="chips">${ch.map(x=>`<span>${x}</span>`).join("")}</div>
     <div class="kv"><div><b>${s.outdoor_min} ${T("min")}</b>${T("out")}</div><div><b>${s.max_outdoor_leg} ${T("min")}</b>${T("maxOut")}</div><div><b>${String(s.walk_km).replace(".",",")} ${T("km")}</b>${T("walkKm")}</div></div>
-    <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${c.plans??"—"}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
+    <div class="kv"><div><b>${c.candidates??"—"}</b>${T("cands")}</div><div><b>${NUM(c.plans)}</b>${T("plans")}</div><div><b>${sec("understand")} / ${sec("plan")}</b>${T("tUnd")}</div></div>
     ${Object.keys(c.rejected||{}).length ? `<h4>${T("rejT")}</h4><div class="chips">${Object.entries(c.rejected).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span><b>${v}</b> — ${esc(LANG==="ru"?k:(T("rej")[k]||k))}${(c.rejected_ex||{})[k]?.length ? `<i class="eg">${T("eg")} ${esc(c.rejected_ex[k].join(", "))}</i>` : ""}</span>`).join("")}</div>` : ""}
     <h4>${T("dataT")}</h4>
     <ul id="dataList">${howList(r).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
