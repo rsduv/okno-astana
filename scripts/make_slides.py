@@ -151,7 +151,7 @@ def html(b):
 <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:38px">
 <div class="card"><b>44 / 44</b><span>автопроверок в 13 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
-<div class="card"><b>31</b><span>автотест в GitHub Actions при каждом изменении</span></div>
+<div class="card"><b>36</b><span>автотестов в GitHub Actions при каждом изменении</span></div>
 <div class="card"><b>~2–6 с</b><span>ответ; без ИИ — запасной режим, демо не зависает</span></div></div>
 <p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — «Окну» и обычному ИИ-чатботу</b> (Claude без наших данных), проверка одним скриптом:</p>
 <table><tr><th></th><th>Обычный ИИ-чатбот</th><th>Окно</th></tr>
