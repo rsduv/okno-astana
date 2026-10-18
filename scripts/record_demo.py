@@ -44,6 +44,9 @@ def main():
         pg.add_style_tag(content=CAP_CSS)
         pg.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; document.body.appendChild(c); }""")
         w = pg.wait_for_timeout
+        t_start = time.time()
+        chapters = []
+        mark = lambda title: chapters.append((time.time() - t_start, title))   # главы для YouTube — по реальному времени записи
 
         def title(h1, sub, kpis=None, ms=3800):
             k = "".join(f"<div><b>{a}</b>{b}</div>" for a, b in (kpis or []))
@@ -76,13 +79,16 @@ def main():
             w(ms)
 
         # 0. заставка
+        mark("Окно — что это")
         w(2500)
         title("Окно", "Свободное время в Астане — по пути и вовремя.<br>RAG-помощник: реальные места, часы работы на момент прихода, погода и пробки.")
         # 1. где я
+        mark("Само знает, где ты и какая погода")
         cap("«Окно» само определяет, <b>где ты</b> — адресом, с округлением до ~150 м — и какая <b>погода</b> сейчас", 4200)
         cap("Новичку подсказка прямо в строке поиска: можно писать <b>как другу</b>", 3800)
         uncap()
         # 2. главный сценарий
+        mark("«Я в ЭКСПО, к 19:00 надо в Хан Шатыр» — маршрут с запасом")
         cap("Задача: я в ЭКСПО, в 19:00 встреча в Хан Шатыре. <b>Что успею по пути?</b>")
         ask("Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре, хочу по пути что-нибудь посмотреть", "17:20")
         cap("Маршрут: <b>на месте в 18:43, запас 17 мин</b>. Полоса — пешком, такси, остановки, запас", 4500)
@@ -90,6 +96,7 @@ def main():
         scroll_deck(420, 2600)
         scroll_deck(0, 1200)
         # 3. как посчитано
+        mark("«Как посчитано?» — прозрачность RAG, почему не другие места")
         cap("«Как посчитано?» — честно показываем, что сделал ИИ, а что алгоритм")
         pg.click("#how")
         w(2200)
@@ -99,6 +106,7 @@ def main():
         pg.click("#closeHow")
         w(500)
         # 4. мороз
+        mark("Мороз −25° (демо): маршрут через тёплые места")
         cap("Октябрь, +2°. А если <b>−25° и ветер</b>? Нажимаем на плашку погоды (демо зимы)")
         w(1600)
         pg.click("#wnow")
@@ -110,6 +118,7 @@ def main():
         w(2500)
         uncap()
         # 5. казахский
+        mark("Запрос на казахском")
         cap("Запрос <b>на казахском</b> — интерфейс и ответ сами переключаются на казахский")
         ask("Хан Шатырдың жанындамын, бір сағат бар, кофе ішкім келеді", "16:00", delay=34)
         w(1500)
@@ -117,6 +126,7 @@ def main():
         pg.click("#langs button[data-l='ru']")
         w(800)
         # 6. афиша
+        mark("Афиша Astana Opera: событие помещается в окно")
         cap("<b>Афиша</b>: события с официального сайта Astana Opera — только если помещаются в окно")
         ask("Я у Байтерека, есть 3 часа, хочу провести время интересно", "13:30")
         scroll_deck(2000, 2400)
@@ -124,6 +134,7 @@ def main():
         scroll_deck(0, 900)
         uncap()
         # 7. карта как в 2GIS
+        mark("Карта как в 2GIS: карточка здания, закладки")
         cap("Карта как в 2GIS: нажми на здание — <b>что здесь</b>, фото, адрес, контакты")
         pg.evaluate("() => { clearRoute(); document.getElementById('deck').innerHTML=''; document.getElementById('sum').className='sum glass'; state.last=null; }")
         pg.evaluate("() => { map.flyTo({center:[71.4305,51.1283], zoom:16.4, pitch:55, bearing:-25, duration:2600}); }")
@@ -142,6 +153,7 @@ def main():
         w(3600)   # без облёта камеры: в 3D на этом зуме запись без видеокарты зависает
         uncap()
         # 8. честный отказ
+        mark("Честный отказ, если не успеть")
         cap("А если <b>не успеть</b>? «Окно» не выдумывает маршрут")
         ask("Я в ЭКСПО, через 30 минут надо быть на вокзале Астана-1", "12:00")
         said = pg.inner_text(".sum")
@@ -151,6 +163,7 @@ def main():
             cap("Честно: пешком не успеть — <b>бери такси</b>. Без выдуманных маршрутов", 5200)
         uncap()
         # 8.5 спрос для города
+        mark("Спрос для города (B2G)")
         pg.goto(URL + "city")
         pg.add_style_tag(content=CAP_CSS)
         pg.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; c.style.left = '50%'; document.body.appendChild(c); }""")
@@ -160,12 +173,16 @@ def main():
         w(2600)
         uncap()
         # 9. итог
+        mark("Итоги проверок")
         title("Окно", "Проверено, а не обещано",
               [("44 / 44", "тестовых сценария"), ("0 из 30", "ответов с ошибкой<br>(у обычного ИИ — 5)"), ("1465", "мест: OSM · 2GIS · Wikidata"), ("RU · KZ · EN", "три языка")],
               ms=6500)
         w(500)
         ctx.close()
         b.close()
+    txt = "\n".join(f"{int(t // 60):02d}:{int(t % 60):02d} {title}" for t, title in [(0, chapters[0][1])] + chapters[1:])
+    (OUT / "chapters.txt").write_text(txt + "\n", encoding="utf-8")
+    print(txt)
     raw = next(tmp.glob("*.webm"))
     mp4 = OUT / "okno_demo.mp4"
     ff = shutil.which("ffmpeg") or "ffmpeg"
