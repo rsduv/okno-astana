@@ -74,5 +74,15 @@ lim = planner.plan({"origin": o, "destination": {**o, "label": "обратно"}
                     "mobility": "limited"}, at(12), geo.weather())
 check("коляска: заметка о медленном темпе", any("спокойного темпа" in n for n in lim.get("notes", [])))
 
+# --- афиша: событие предлагаем, только если оно целиком помещается в окно ---
+from app import events  # noqa: E402
+events.EVENTS[:] = [{"id": "t", "title": "Тест-концерт", "date": "2026-10-18", "time": "15:00", "minutes": 60, "hall": "Камерный зал",
+                     "kind": "Концерт", "age": "5", "url": "https://example.org", "venue": "Астана Опера", "lat": 51.13546, "lon": 71.410659}]
+bt = (51.128, 71.4305)
+check("афиша: концерт помещается в окно 13:30–16:30", len(events.fitting(bt, bt, at(13, 30), at(16, 30))) == 1)
+check("афиша: не успеть к началу — не предлагаем", events.fitting(bt, bt, at(14, 58), at(18)) == [])
+check("афиша: закончится после срока — не предлагаем", events.fitting(bt, bt, at(13, 30), at(15, 50)) == [])
+check("афиша: спросил про театр — ближайшие события", len(events.upcoming(bt, at(9))) == 1 and events.WANTS.search("хочу в театр"))
+
 print(f"\n{ok} ок, {fail} провалено")
 sys.exit(1 if fail else 0)
