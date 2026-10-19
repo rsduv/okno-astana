@@ -129,6 +129,34 @@ check("падежи ориентиров: «в Мегу» = Mega Silk Way, «М�
 check("ориентиры по порядку: «в АИТУ, потом в Мегу, потом к Байтереку»",
       _g.landmarks_in_order("поеду в АИТУ, потом в Мегу, потом к Байтереку") == ["Astana IT University (АИТУ)", "Mega Silk Way", "Байтерек"])
 check("АИТУ — свой ориентир, не центр шара EXPO", "АИТУ" in _g.find_place("АИТУ")["label"])
+# сценарии передвижения (живые фразы с ИИ — scripts/trips.py; здесь — с готовым разбором, без сети ИИ)
+def trip(text, now, via, dest=None, back=False, saved=None, origin=None, deadline=None):
+    return api.post("/api/plan", json={"text": text, "now": now, "saved": saved or {}, "parsed": {
+        "origin": origin, "destination": dest, "return_to_origin": back, "deadline": deadline, "duration_min": None,
+        "prefs": [], "language": "ru", "via": [{"place": v, "stay_min": None} for v in via]}}).json()
+
+
+r = trip("Я дома на Мангилик Ел 53. Потом в АИТУ к 9:00, после пар в Мегу пообедать, потом домой", "08:20",
+         ["АИТУ", "Мега"], dest="домой", back=True, origin="Мангилик Ел 53", deadline="09:00")
+st = {s["name"]: s for s in r.get("steps", []) if s["type"] == "stop"}
+mega = next((v for k, v in st.items() if "Mega" in k), None)
+check("поездка: «в АИТУ к 9:00» — срок к АИТУ, а не ко всему маршруту; Мега ждёт открытия 10:00",
+      not r.get("error") and mega and mega["arrive"] >= "10:00" and any("к 09:00 успеваешь" in n for n in r.get("notes", []))
+      and any("открывается в 10:00" in n for n in r.get("notes", [])))
+r = trip("Через полчаса выйду из дома, в Хан Шатыр, потом домой", "12:00", ["Хан Шатыр"], dest="домой",
+         saved={"Квартира": {"lat": 51.1605, "lon": 71.4704, "kind": "home"}}, origin="дом")
+check("поездка: «через полчаса выйду из дома» — старт из закладки «Дом» в 12:30",
+      not r.get("error") and r["origin"]["label"] == "Квартира" and r["steps"][0]["time"] == "12:30"
+      and r["destination"]["label"] == "Квартира")
+r = trip("Я у Байтерека, потом в Хан Шатыр, потом в Ак Орду, потом обратно. Такси или пешком?", "11:00",
+         ["Хан Шатыр", "Ак Орда"], back=True, origin="Байтерек")
+check("поездка: «такси или пешком?» — ответ по каждому отрезку",
+      not r.get("error") and any(n.startswith("Такси или пешком") for n in r.get("notes", [])))
+r = trip("Я на вокзале Нурлы Жол, потом в Мега Силк Вэй, потом к Байтереку, потом в аэропорт", "14:00",
+         ["Мега Силк Вэй", "Байтерек"], dest="аэропорт", origin="вокзал Нурлы Жол")
+names = [s["name"] for s in r.get("steps", []) if s["type"] == "stop"]
+check("поездка: вокзал → Мега → Байтерек → аэропорт, в порядке человека",
+      not r.get("error") and len(names) == 2 and "Mega" in names[0] and "Байтерек" in names[1] and "Аэропорт" in r["destination"]["label"])
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

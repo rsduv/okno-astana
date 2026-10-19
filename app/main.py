@@ -265,6 +265,9 @@ def _make_plan(req: PlanReq, request: Request):
     at_home = bool(re.search(r"\b(я|мы) (сейчас )?дома\b|\bиз дома\b|\bс дома\b|\bот дома\b|\bиз дому\b|\bat home\b|үйдемін|үйден",
                              (req.text or "").lower()))
 
+    # «домой» = закладка со значком «Дом» (как бы она ни называлась: «Здесь мой дом», «Квартира»…)
+    home = next((k for k, v in req.saved.items() if isinstance(v, dict) and v.get("kind") == "home"), None) or \
+        next((k for k in req.saved if HOME.match(k) or re.search(r"\bдом\b|\bhome\b|\bүй", k.lower())), None)
     t1 = time.time()
     origin = None
     # моё GPS-место — по умолчанию; но если человек сам написал «я у Байтерека», верим тексту
@@ -281,6 +284,9 @@ def _make_plan(req: PlanReq, request: Request):
         origin = None
     else:
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
+    if home and (at_home or (parsed.get("origin") and HOME.match(str(parsed["origin"]).strip()))) and \
+            not (req.point and req.point.get("mine")) and (not origin or not re.search(r"\d", parsed.get("origin") or "")):
+        origin = geo.find_place(home, planner.POIS, req.saved)   # «из дома» — это закладка «Дом», а не «Дом на Ботаническом»
     lang = parsed.get("language")
     if not origin and parsed.get("via"):
         first = parsed["via"][0]
@@ -296,9 +302,6 @@ def _make_plan(req: PlanReq, request: Request):
                "Не понял, где ты сейчас. Напиши ориентир («я у Байтерека») или ткни в карту.")
         return {"error": llm.translate([msg], lang)[0], "parsed": parsed}
     dest = None
-    # «домой» = закладка со значком «Дом» (как бы она ни называлась: «Здесь мой дом», «Квартира»…)
-    home = next((k for k, v in req.saved.items() if isinstance(v, dict) and v.get("kind") == "home"), None) or \
-        next((k for k in req.saved if HOME.match(k) or re.search(r"\bдом\b|\bhome\b|\bүй", k.lower())), None)
     for key in ("origin", "destination"):
         if home and parsed.get(key) and HOME.match(str(parsed[key]).strip()):
             parsed[key] = home
@@ -342,9 +345,18 @@ def _make_plan(req: PlanReq, request: Request):
         if geo.haversine_km((via[0]["lat"], via[0]["lon"]), (near["lat"], near["lon"])) < 0.3:
             first_poi = {**near, "_stay": via[0].get("stay")}
             via = []
+    m = re.search(r"\b(?:к|до|by|at)\s+(\d{1,2})(?:[:.](\d{2}))?", (req.text or "").lower())
+    if m and via and parsed.get("deadline"):
+        before = (req.text or "")[:m.start()].lower()
+        names = geo.landmarks_in_order(before[-40:])
+        hit = next((v for v in via if names and v["label"] == names[-1]), None)
+        if hit and via.index(hit) < len(via) - 1 + (1 if dest else 0) and not re.search(r"рейс|вылет|flight|поезд", (req.text or "").lower()):
+            hit["by"] = f"{int(m.group(1)):02d}:{m.group(2) or '00'}"
+            parsed = {**parsed, "deadline": None}   # срок — к этому пункту; в конце маршрута — когда получится
     if not dest and via and not parsed.get("return_to_origin"):
         dest = via.pop()   # конечная точка не нашлась — последний названный пункт и есть конец маршрута
-    if at_home and origin and origin.get("source") != "твоё сохранённое место" and not (req.point and req.point.get("mine")):
+    if at_home and origin and origin.get("source") not in ("твоё сохранённое место", "справочник ориентиров") and \
+            not (req.point and req.point.get("mine")):
         origin = {**origin, "label": f"Дом · {origin['label']}"}
     destination = dest or {**origin, "label": "домой" if at_home else f"обратно: {origin['label']}"}
     if not parsed.get("deadline") and not parsed.get("duration_min") and \

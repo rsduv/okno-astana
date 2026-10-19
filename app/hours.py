@@ -134,6 +134,21 @@ def _fmt(week, day: datetime) -> str:
     return ", ".join(f"{s // 60 % 24:02d}:{s % 60:02d}–{e // 60 % 24:02d}:{e % 60:02d}" for s, e in spans)
 
 
+def next_open(tags: dict, category: str, t: datetime, within_min: int = 240):
+    """Когда место откроется, если сейчас закрыто, но откроется скоро (Мега в 9:20 → 10:00). Иначе None."""
+    raw = (tags or {}).get("opening_hours", "")
+    week = parse(raw) if raw else None
+    if week is None:
+        typical = TYPICAL.get(category)
+        week = parse(typical) if typical else None
+    if not week:
+        return None
+    for s, e in _abs_intervals(week, t):
+        if t < s <= t + timedelta(minutes=within_min):
+            return s
+    return None
+
+
 def interval_status(tags: dict, category: str, arrive: datetime, leave: datetime):
     """Открыто ли место на весь визит [arrive, leave]. Результат запоминаем: при переборе маршрутов
     одни и те же «место + время» проверяются тысячи раз."""

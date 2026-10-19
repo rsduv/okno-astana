@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import dgis, geo
-from .hours import OUTDOOR, interval_status
+from .hours import OUTDOOR, interval_status, next_open
 
 ROOT = Path(__file__).resolve().parent.parent
 POIS: list[dict] = json.loads((ROOT / "data" / "poi.json").read_text(encoding="utf-8"))
@@ -954,6 +954,41 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False,
                 s["hours"]["status"] == "open" for s in refine(seq, A, B, now, now + timedelta(hours=20), ctx)["steps"] if s["type"] == "stop"):
             best = relaxed   # к сроку успеваешь, но без запаса на вход — показываем маршрут и честно предупреждаем
             best["_tight"] = True
+    dropped = []
+    if not best and not (has_deadline and relaxed["finish"] > deadline):
+        # по очереди: место ещё не открылось — подождать (подольше в предыдущем пункте); закрыто совсем — убрать
+        for _ in range(len(seq) + 2):
+            loose = refine([{**p, "tags": {"opening_hours": "24/7"}} for p in seq], A, B, now, now + timedelta(hours=20), ctx)
+            if not loose:
+                break
+            bad = None
+            for p, s in zip(seq, [s for s in loose["steps"] if s["type"] == "stop"]):
+                day = now.replace(hour=0, minute=0)
+                a = day + timedelta(hours=int(s["arrive"][:2]), minutes=int(s["arrive"][3:]))
+                a += timedelta(days=1) if a < now - timedelta(minutes=1) else timedelta(0)
+                st, conf, text = interval_status(p.get("tags"), p["category"], a, a + timedelta(minutes=s["stay"]))
+                if st in ("closed", "closes_soon"):
+                    bad = (p, a, st, text)
+                    break
+            if not bad:
+                break
+            p, a, st, text = bad
+            k = seq.index(p)
+            opens = next_open(p.get("tags"), p["category"], a) if st == "closed" else None
+            if opens and k > 0:
+                wait = int((opens - a).total_seconds() // 60) + 2
+                prev = seq[k - 1]
+                ctx.bonus[prev["id"]] += wait
+                dropped.append(f"«{p['name']}» открывается в {opens:%H:%M} — побудешь в «{prev['name']}» на {wait} мин дольше")
+            elif opens and k == 0 and (opens - now) <= timedelta(hours=2):
+                wait = int((opens - a).total_seconds() // 60) + 2
+                now = now + timedelta(minutes=wait)
+                dropped.append(f"«{p['name']}» открывается в {opens:%H:%M} — выходи на {wait} мин позже")
+            else:
+                seq.remove(p)
+                dropped.append(f"{p['name']}: {text} — убрал этот пункт из маршрута, остальное по твоему порядку")
+        if dropped:
+            best = refine(seq, A, B, now, deadline, ctx)
     if not best:
         fin = relaxed["finish"]
         why = (f"к {deadline:%H:%M} не успеть: по этим пунктам будешь в конце только в {_fmt(fin)}" if has_deadline and fin > deadline
@@ -963,9 +998,19 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False,
         if s["type"] == "stop" and s["source"] == "твой пункт маршрута":
             s["hours"] = {"status": "open", "confidence": "outdoor", "source": "—", "text": "твой пункт — часы не проверяю"}
     notes = ["Маршрут по твоим пунктам в твоём порядке — ничего не подбирал. Время в каждом месте можно указать: «в Меге час»."]
+    for d in dropped:
+        notes.insert(0, d + ".")
+    stops = [s for s in best["steps"] if s["type"] == "stop"]
+    for v in intent["via"]:
+        if v.get("by"):
+            s = next((s for s in stops if s["name"] == v["label"]), None)
+            if s and s["arrive"] > v["by"]:
+                notes.insert(0, f"К {v['by']} в «{v['label']}» не успеть: будешь там в {s['arrive']}. Выйди пораньше.")
+            elif s:
+                notes.insert(0, f"В «{v['label']}» будешь в {s['arrive']} — к {v['by']} успеваешь.")
     if best.get("_tight"):
         notes.insert(0, f"Впритык: будешь на месте в {_fmt(best['finish'])}, без запаса. Лучше сократить время в одном из пунктов.")
-    if not has_deadline:
+    if not has_deadline and not any(v.get("by") for v in intent["via"]):
         notes.append(f"Срока ты не назвал — просто посчитал: в конце будешь в {_fmt(best['finish'])}.")
     return {"steps": best["steps"], "notes": notes,
             "summary": {"arrive": _fmt(best["finish"]), "buffer_min": best["slack"] if has_deadline else 0,
