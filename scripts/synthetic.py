@@ -243,7 +243,8 @@ def check(q, r):
     if e.get("deadline") and (arrive - mins(e["deadline"])) % 1440 not in range(0, 3) and (mins(e["deadline"]) - arrive) % 1440 > 720:
         if not re.search(r"Впритык|не успе|опозда", " ".join(r.get("notes") or [])):
             bad.append(f"срок {e['deadline']}, на месте в {r['summary']['arrive']} без предупреждения")
-    if e.get("want") and stops and not any(s["category"] in WANT[e["want"]] for s in stops):
+    honest = re.search(r"не помещается|не нашёл|doesn't fit|does not fit|not found|сыймайды|таппадым", " ".join(r.get("notes") or []), re.I)
+    if e.get("want") and stops and not honest and not any(s["category"] in WANT[e["want"]] for s in stops):
         bad.append(f"нет места типа «{e['want']}»: {[s['category'] for s in stops]}")
     if e.get("cold") and r["summary"].get("max_outdoor_leg", 0) > 20:
         bad.append(f"мороз, а пеший кусок {r['summary']['max_outdoor_leg']} мин")
