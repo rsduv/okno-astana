@@ -12,7 +12,7 @@ import httpx
 ROOT = Path(__file__).resolve().parent.parent
 UA = {"User-Agent": "OknoAstana/0.1 (https://github.com/rsduv/okno-astana)"}
 ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
-BBOX = "51.03,71.20,51.28,71.65"
+BBOX = "51.00,71.20,51.28,71.65"   # юг до 51.00: станция «Әуежай» у аэропорта (51.028)
 DISTRICTS = {"Есіл ауданы": "Есиль", "Алматы ауданы": "Алматы", "Сарыарқа ауданы": "Сарыарка",
              "Байқоңыр ауданы": "Байконур", "Нұра ауданы": "Нура", "Сарайшық ауданы": "Сарайшык"}
 
@@ -56,6 +56,8 @@ def lrt():
         order = [m["ref"] for m in r["members"] if m["type"] == "node" and m["ref"] in stations and m.get("role", "").startswith("stop")]
         order = order or [m["ref"] for m in r["members"] if m["type"] == "node" and m["ref"] in stations]
     order += [i for i in stations if i not in order]
+    # у станций есть номер (ref 101 «Әуежай» … 118) — это и есть порядок по линии
+    order.sort(key=lambda i: int(stations[i]["tags"].get("ref", "999")) if stations[i]["tags"].get("ref", "").isdigit() else 999)
     seen, res = set(), []
     for i in order:
         t = stations[i]["tags"]
@@ -63,7 +65,7 @@ def lrt():
         if not name or name in seen:
             continue
         seen.add(name)
-        res.append({"order": len(res) + 1, "name": name, "name_kk": t.get("name:kk") or t.get("name"), "name_en": t.get("name:en"),
+        res.append({"order": len(res) + 1, "ref": t.get("ref"), "name": name, "name_kk": t.get("name:kk") or t.get("name"), "name_en": t.get("name:en"),
                     "lat": stations[i]["lat"], "lon": stations[i]["lon"], "osm": f"node/{i}"})
     return {"line": routes[0]["tags"].get("name") if routes else None, "stations": res}
 

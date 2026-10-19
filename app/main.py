@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import citystats, geo, llm, planner, events
+from . import citystats, geo, llm, lrt, planner, events
 
 ROOT = Path(__file__).resolve().parent.parent
 KZ = timezone(timedelta(hours=5))  # Казахстан живёт по UTC+5
@@ -51,7 +51,7 @@ def wanted_cats(text: str, parsed: dict) -> list[str]:
     return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
 
 
-KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
+KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня|Вместо такси")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -454,6 +454,10 @@ def _make_plan(req: PlanReq, request: Request):
         result.setdefault("notes", []).insert(0, travel_note)
     if not result.get("error") and re.search(r"такси|taxi|пешк|walk|жаяу", (req.text or "").lower()):
         result.setdefault("notes", []).append(mode_advice(result["steps"], now, destination["label"]))
+    if not result.get("error"):
+        tip = lrt.advice(result["steps"], destination["label"], (result.get("summary") or {}).get("buffer_min") or 0)   # длинный отрезок на такси, а вдоль него LRT
+        if tip:
+            result.setdefault("notes", []).append(tip)
     citystats.record(parsed, result, req.weather == "cold", len(evs), now.hour)   # обезличенные счётчики для города
     if result.get("error"):
         tr = llm.translate([result["error"], *(result.get("notes") or [])], lang)

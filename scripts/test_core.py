@@ -157,6 +157,14 @@ r = trip("Я на вокзале Нурлы Жол, потом в Мега Си�
 names = [s["name"] for s in r.get("steps", []) if s["type"] == "stop"]
 check("поездка: вокзал → Мега → Байтерек → аэропорт, в порядке человека",
       not r.get("error") and len(names) == 2 and "Mega" in names[0] and "Байтерек" in names[1] and "Аэропорт" in r["destination"]["label"])
+# LRT: станции из OSM, подсказка для длинного отрезка на такси
+from app import lrt  # noqa: E402
+A, B = geo.find_place("Байтерек"), geo.find_place("аэропорт")
+t = lrt.trip((A["lat"], A["lon"]), (B["lat"], B["lon"]))
+check("LRT: 18 станций, Байтерек → Аэропорт по линии, время — оценка",
+      len(lrt.STATIONS) == 18 and t and t[0] == "Байтерек" and t[1] == "Аэропорт" and 30 <= t[2] <= 90)
+A, B = geo.find_place("Хан Шатыр"), geo.find_place("Керуен")
+check("LRT: рядом с линией нет станций — подсказки нет", lrt.trip((A["lat"], A["lon"]), (B["lat"], B["lon"])) is None)
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

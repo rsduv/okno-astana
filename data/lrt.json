@@ -3,15 +3,17 @@
  "stations": [
   {
    "order": 1,
-   "name": "Мангилик Ел",
-   "name_kk": "Мәңгілік Ел",
-   "name_en": "Mangilik El",
-   "lat": 51.0558907,
-   "lon": 71.41868,
-   "osm": "node/13081694252"
+   "ref": "101",
+   "name": "Аэропорт",
+   "name_kk": "Әуежай",
+   "name_en": "Airport",
+   "lat": 51.0279968,
+   "lon": 71.4587785,
+   "osm": "node/13081694249"
   },
   {
    "order": 2,
+   "ref": "102",
    "name": "Атамекен",
    "name_kk": "Атамекен",
    "name_en": "Atameken",
@@ -21,6 +23,7 @@
   },
   {
    "order": 3,
+   "ref": "103",
    "name": "Есиль",
    "name_kk": "Есіл",
    "name_en": "Yesil",
@@ -30,51 +33,17 @@
   },
   {
    "order": 4,
-   "name": "Нура",
-   "name_kk": "Нұра",
-   "name_en": "Nura",
-   "lat": 51.0810888,
-   "lon": 71.4000384,
-   "osm": "node/13081694254"
+   "ref": "104",
+   "name": "Мангилик Ел",
+   "name_kk": "Мәңгілік Ел",
+   "name_en": "Mangilik El",
+   "lat": 51.0559087,
+   "lon": 71.4187007,
+   "osm": "node/13609020681"
   },
   {
    "order": 5,
-   "name": "Дворец Единобортсв",
-   "name_kk": "Жекпе Жек Сарайы",
-   "name_en": "Martial Arts Centre",
-   "lat": 51.1145576,
-   "lon": 71.4115955,
-   "osm": "node/13609204280"
-  },
-  {
-   "order": 6,
-   "name": "Астана Арена",
-   "name_kk": "Астана Арена",
-   "name_en": "Astana Arena",
-   "lat": 51.1061543,
-   "lon": 71.4090286,
-   "osm": "node/13609204293"
-  },
-  {
-   "order": 7,
-   "name": "Улы Дала",
-   "name_kk": "Ұлы Дала",
-   "name_en": "Uly Dala",
-   "lat": 51.0999545,
-   "lon": 71.4068165,
-   "osm": "node/13609204300"
-  },
-  {
-   "order": 8,
-   "name": "Университет",
-   "name_kk": "Университет",
-   "name_en": "University",
-   "lat": 51.0887774,
-   "lon": 71.4027945,
-   "osm": "node/13609226005"
-  },
-  {
-   "order": 9,
+   "ref": "105",
    "name": "Астана Жулдызы",
    "name_kk": "Астана Жұлдызы",
    "name_en": "Astana Zhuldyzy",
@@ -83,43 +52,88 @@
    "osm": "node/13609226040"
   },
   {
+   "order": 6,
+   "ref": "106",
+   "name": "Нура",
+   "name_kk": "Нұра",
+   "name_en": "Nura",
+   "lat": 51.0810888,
+   "lon": 71.4000384,
+   "osm": "node/13081694254"
+  },
+  {
+   "order": 7,
+   "ref": "107",
+   "name": "Университет",
+   "name_kk": "Университет",
+   "name_en": "University",
+   "lat": 51.0887774,
+   "lon": 71.4027945,
+   "osm": "node/13609226005"
+  },
+  {
+   "order": 8,
+   "ref": "108",
+   "name": "Улы Дала",
+   "name_kk": "Ұлы Дала",
+   "name_en": "Uly Dala",
+   "lat": 51.0999545,
+   "lon": 71.4068165,
+   "osm": "node/13609204300"
+  },
+  {
+   "order": 9,
+   "ref": "109",
+   "name": "Дворец Единобортсв",
+   "name_kk": "Жекпе Жек Сарайы",
+   "name_en": "Martial Arts Centre",
+   "lat": 51.1145576,
+   "lon": 71.4115955,
+   "osm": "node/13609204280"
+  },
+  {
    "order": 10,
-   "name": "Нурлы Жол",
-   "name_kk": "Нұрлы Жол",
-   "name_en": "Nurly Zhol",
-   "lat": 51.1119775,
-   "lon": 71.5288523,
-   "osm": "node/13612447905"
+   "ref": "109",
+   "name": "Астана Арена",
+   "name_kk": "Астана Арена",
+   "name_en": "Astana Arena",
+   "lat": 51.1061543,
+   "lon": 71.4090286,
+   "osm": "node/13609204293"
   },
   {
    "order": 11,
-   "name": "Жибек Жолы",
-   "name_kk": "Жібек Жолы",
-   "name_en": "Zhibek Zholy",
-   "lat": 51.1094568,
-   "lon": 71.5160697,
-   "osm": "node/13612447920"
+   "ref": "111",
+   "name": "Сыганак",
+   "name_kk": "Сығанақ",
+   "name_en": "Syganak",
+   "lat": 51.1220385,
+   "lon": 71.413127,
+   "osm": "node/13612448021"
   },
   {
    "order": 12,
-   "name": "Аллея Мынжылдык",
-   "name_kk": "Мыңжылдық Аллеясы",
-   "name_en": "Mynjyldyk Alley",
-   "lat": 51.1123362,
-   "lon": 71.4982979,
-   "osm": "node/13612447929"
+   "ref": "112",
+   "name": "Байтерек",
+   "name_kk": "Бәйтерек",
+   "name_en": "Baiterek",
+   "lat": 51.1232099,
+   "lon": 71.4287898,
+   "osm": "node/13612447987"
   },
   {
    "order": 13,
-   "name": "Театр",
-   "name_kk": "Театр",
-   "name_en": "Theatre",
-   "lat": 51.1150038,
-   "lon": 71.4812028,
-   "osm": "node/13612447946"
+   "ref": "113",
+   "name": "Дом Министерств",
+   "name_kk": "Министрліктер Үйі",
+   "name_en": "House of Ministries",
+   "lat": 51.1221296,
+   "lon": 71.4374673,
+   "osm": "node/13612447971"
   },
   {
    "order": 14,
+   "ref": "114",
    "name": "Национальный Музей",
    "name_kk": "Ұлттық Мұражай",
    "name_en": "National Museum",
@@ -129,30 +143,43 @@
   },
   {
    "order": 15,
-   "name": "Дом Министерств",
-   "name_kk": "Министрліктер Үйі",
-   "name_en": "House of Ministries",
-   "lat": 51.1221296,
-   "lon": 71.4374673,
-   "osm": "node/13612447971"
+   "ref": "115",
+   "name": "Театр",
+   "name_kk": "Театр",
+   "name_en": "Theatre",
+   "lat": 51.1150038,
+   "lon": 71.4812028,
+   "osm": "node/13612447946"
   },
   {
    "order": 16,
-   "name": "Байтерек",
-   "name_kk": "Бәйтерек",
-   "name_en": "Baiterek",
-   "lat": 51.1232099,
-   "lon": 71.4287898,
-   "osm": "node/13612447987"
+   "ref": "116",
+   "name": "Аллея Мынжылдык",
+   "name_kk": "Мыңжылдық Аллеясы",
+   "name_en": "Mynjyldyk Alley",
+   "lat": 51.1123362,
+   "lon": 71.4982979,
+   "osm": "node/13612447929"
   },
   {
    "order": 17,
-   "name": "Сыганак",
-   "name_kk": "Сығанақ",
-   "name_en": "Syganak",
-   "lat": 51.1220385,
-   "lon": 71.413127,
-   "osm": "node/13612448021"
+   "ref": "117",
+   "name": "Жибек Жолы",
+   "name_kk": "Жібек Жолы",
+   "name_en": "Zhibek Zholy",
+   "lat": 51.1094568,
+   "lon": 71.5160697,
+   "osm": "node/13612447920"
+  },
+  {
+   "order": 18,
+   "ref": "118",
+   "name": "Нурлы Жол",
+   "name_kk": "Нұрлы Жол",
+   "name_en": "Nurly Zhol",
+   "lat": 51.1119775,
+   "lon": 71.5288523,
+   "osm": "node/13612447905"
   }
  ]
 }
