@@ -51,7 +51,7 @@ def wanted_cats(text: str, parsed: dict) -> list[str]:
     return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
 
 
-KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
+KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -178,6 +178,45 @@ def _too_many(ip: str, limit=60, per=600) -> bool:
     return len(h) > limit
 
 
+def mode_advice(steps: list, now: datetime, end: str = "финиш") -> str:
+    """Человек спросил «такси или пешком?» — по каждому отрезку: сколько пешком и сколько на такси (оценка)."""
+    names = [s.get("name") for s in steps if s["type"] == "stop"] + [end]
+    parts, i = [], 0
+    pos = None
+    for s in steps:
+        if s["type"] == "leg":
+            to = names[i] if i < len(names) else "финиш"
+            if s["mode"] == "walk" and s["min"] >= 20:
+                c = s["coords"]
+                taxi = round(geo.car_min_est((c[0][1], c[0][0]), (c[-1][1], c[-1][0]), now) + geo.TAXI_WAIT_MIN)
+                parts.append(f"до «{to}» пешком {s['min']} мин, на такси ~{taxi} мин с подачей (оценка) — "
+                             + ("тут лучше такси." if s["min"] - taxi >= 10 else "можно и пешком."))
+            elif s["mode"] == "walk":
+                parts.append(f"до «{to}» {s['min']} мин пешком — такси не нужно.")
+            else:
+                parts.append(f"до «{to}» далеко — такси ~{s['min']} мин.")
+        elif s["type"] == "stop":
+            i += 1
+    return "Такси или пешком: " + " ".join(parts)
+
+
+def start_offset(text: str) -> int:
+    """«Через полчаса выйду», «выезжаю через 20 минут», «in an hour I'll leave» → сколько минут до выхода."""
+    t = text.lower()
+    if not re.search(r"выйд|выхож|выед|выезж|выдвин|пойду|поеду|leave|head out|шығам|шығамын", t):
+        return 0
+    m = re.search(r"через\s+(пол\s?часа|полчаса|час(?:ик)?|(\d+)\s*(мин|час)\w*)|in\s+(half an hour|an hour|(\d+)\s*(min|hour)\w*)|"
+                  r"(\d+)\s*(минуттан|сағаттан)", t)
+    if not m:
+        return 0
+    s = m.group(0)
+    if "пол" in s or "half" in s:
+        return 30
+    n = re.search(r"\d+", s)
+    k = int(n.group()) if n else 1
+    return min(k * 60 if re.search(r"час|hour|сағат", s) else k, 12 * 60)
+
+
 GENERIC_STOPS = [   # «зайти в библиотеку» без названия — ближайшая такого типа
     (r"(?:в |на )?(?:библиотек\w*|кітапхана\w*|library)", "библиотека"),
     (r"(?:в |на )?(?:кофейн\w*|кафе|coffee(?: shop)?|cafe|кофеханa?\w*)", "кафе"),
@@ -210,6 +249,21 @@ def _make_plan(req: PlanReq, request: Request):
     has_point = bool(req.point and req.point.get("lat") is not None)
     parsed = req.parsed or llm.understand(req.text, now, has_point, list(req.saved))
     timings["understand"] = round((time.time() - t0) * 1000)
+    if not parsed.get("via") and re.search(r"\bпотом\b|\bзатем\b|после этого|\bthen\b|\bкейін\b|\bсосын\b", (req.text or "").lower()):
+        # ИИ не разобрал список пунктов — достаём ориентиры из текста по порядку (кроме места старта)
+        names = geo.landmarks_in_order(req.text)
+        start = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved) if parsed.get("origin") else None
+        names = [n for n in names if not (start and n == start["label"])]
+        end = parsed.get("destination")
+        if end and names and geo.find_place(end, planner.POIS, req.saved) and geo.find_place(end, planner.POIS, req.saved)["label"] == names[-1]:
+            names = names[:-1]
+        if names and (len(names) >= 2 or end):
+            parsed = {**parsed, "via": [{"place": n, "stay_min": None} for n in names]}
+    later = start_offset(req.text or "")
+    if later:
+        now = now + timedelta(minutes=later)   # выходишь не сейчас — часы работы и пробки считаем на время выхода
+    at_home = bool(re.search(r"\b(я|мы) (сейчас )?дома\b|\bиз дома\b|\bс дома\b|\bот дома\b|\bиз дому\b|\bat home\b|үйдемін|үйден",
+                             (req.text or "").lower()))
 
     t1 = time.time()
     origin = None
@@ -250,7 +304,7 @@ def _make_plan(req: PlanReq, request: Request):
             parsed[key] = home
     if parsed.get("destination") and not parsed.get("return_to_origin"):
         if HOME.match(parsed["destination"].strip()) and not home:
-            no_home = True   # дом не сохранён: не отказываем — помогаем с остальным и подсказываем, как сохранить дом
+            no_home = not at_home   # «я дома … потом обратно домой» — дом и есть точка старта, подсказка не нужна   # дом не сохранён: не отказываем — помогаем с остальным и подсказываем, как сохранить дом
             parsed = {**parsed, "destination": None, "return_to_origin": True}
         dest = None if not parsed.get("destination") else None if OTHER_CITIES.match(parsed["destination"].strip()) else \
             geo.find_place(parsed["destination"], planner.POIS, req.saved)
@@ -290,7 +344,9 @@ def _make_plan(req: PlanReq, request: Request):
             via = []
     if not dest and via and not parsed.get("return_to_origin"):
         dest = via.pop()   # конечная точка не нашлась — последний названный пункт и есть конец маршрута
-    destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
+    if at_home and origin and origin.get("source") != "твоё сохранённое место" and not (req.point and req.point.get("mine")):
+        origin = {**origin, "label": f"Дом · {origin['label']}"}
+    destination = dest or {**origin, "label": "домой" if at_home else f"обратно: {origin['label']}"}
     if not parsed.get("deadline") and not parsed.get("duration_min") and \
             set(explicit_cats(req.text)) & {"боулинг", "кино", "театр", "каток", "музей"}:
         parsed = {**parsed, "duration_min": 150}  # долгое занятие без названного времени — окно шире, чем 90 мин
@@ -321,6 +377,8 @@ def _make_plan(req: PlanReq, request: Request):
             f"Ты не назвал время — взял окно {mins} минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
     if parsed.get("deadline") and parsed.get("duration_min") and not travel_note:
         deadline = min(deadline, now + timedelta(minutes=parsed["duration_min"]))
+    if later:
+        travel_note = f"Выходишь в {now:%H:%M} — всё посчитано от этого времени. " + (travel_note or "")
     if locals().get("no_home"):
         travel_note = (travel_note + " " if travel_note else "") + \
             "Где твой дом, я не знаю — маршрут заканчивается здесь. Нажми на свой дом на карте → «В закладки» → значок «Дом», и «домой» заработает."
@@ -371,6 +429,8 @@ def _make_plan(req: PlanReq, request: Request):
             "weather": {k: v for k, v in w.items() if k != "_hourly"}}
     if travel_note:
         result.setdefault("notes", []).insert(0, travel_note)
+    if not result.get("error") and re.search(r"такси|taxi|пешк|walk|жаяу", (req.text or "").lower()):
+        result.setdefault("notes", []).append(mode_advice(result["steps"], now, destination["label"]))
     citystats.record(parsed, result, req.weather == "cold", len(evs), now.hour)   # обезличенные счётчики для города
     if result.get("error"):
         tr = llm.translate([result["error"], *(result.get("notes") or [])], lang)

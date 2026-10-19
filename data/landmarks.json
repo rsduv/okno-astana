@@ -8,10 +8,7 @@
    "expo",
    "нур алем",
    "nur alem",
-   "шар экспо",
-   "aitu",
-   "аиту",
-   "мангилик ел 55"
+   "шар экспо"
   ],
   "osm": "координаты вручную",
   "name_en": "EXPO (Nur Alem)",
@@ -437,5 +434,22 @@
   "osm": "координаты: OSM / Wikidata Q1813417",
   "name_en": "Abu Nasr al-Farabi Mosque (Nur-Astana)",
   "name_kk": "Әбу Насыр әл-Фараби мешіті (Нұр-Астана)"
+ },
+ {
+  "name": "Astana IT University (АИТУ)",
+  "lat": 51.09086,
+  "lon": 71.41841,
+  "aliases": [
+   "aitu",
+   "аиту",
+   "айту",
+   "astana it university",
+   "астана ит университет",
+   "мангилик ел 55/11",
+   "мангилик ел 55"
+  ],
+  "osm": "OSM: Astana IT University, блок C1, Мангилик Ел 55/11",
+  "name_en": "Astana IT University (AITU)",
+  "name_kk": "Astana IT University (AITU)"
  }
 ]

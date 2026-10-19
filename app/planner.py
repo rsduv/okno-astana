@@ -932,6 +932,9 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False,
                and geo.haversine_km(pt_v, (p["lat"], p["lon"])) < 0.25]
         near = min(big or POIS, key=lambda p: geo.haversine_km(pt_v, (p["lat"], p["lon"])))   # ТРЦ важнее кафе внутри него
         same = geo.haversine_km(pt_v, (near["lat"], near["lon"])) < (0.25 if big else 0.15)
+        stems = {w[:5] for w in re.findall(r"\w{4,}", v["label"].lower())}
+        if same and near["category"] != "торговый центр" and not stems & {w[:5] for w in re.findall(r"\w{4,}", near["name"].lower())}:
+            same = False   # рядом другое здание — его часы к твоему пункту не относятся
         pid = f"via/{i}"
         cat = near["category"] if same else "пункт"
         stay = v.get("stay") or VIA_STAY.get(cat, 30)

@@ -120,6 +120,15 @@ r = api.post("/api/plan", json={"text": "Мне нужно в Назарбаев
                                            "via": [{"place": "Назарбаев Университет"}, {"place": "Mega Silk Way"}]}}).json()
 st = [s["name"] for s in r.get("steps", []) if s["type"] == "stop"]
 check("цепочка «НУ → Мега → домой» в порядке человека", r.get("chain") and len(st) == 2 and "Назарбаев" in st[0] and "Mega" in st[1])
+from app.main import start_offset
+from app import geo as _g
+check("«через полчаса выйду» = старт через 30 мин", start_offset("Через полчаса выйду из дома") == 30
+      and start_offset("выезжаю через 20 минут") == 20 and start_offset("через час в кино") == 0)
+check("падежи ориентиров: «в Мегу» = Mega Silk Way, «Мега Астану» = MEGA Astana",
+      _g.find_place("Мегу")["label"] == "Mega Silk Way" and _g.find_place("Мега Астану")["label"] == "MEGA Astana")
+check("ориентиры по порядку: «в АИТУ, потом в Мегу, потом к Байтереку»",
+      _g.landmarks_in_order("поеду в АИТУ, потом в Мегу, потом к Байтереку") == ["Astana IT University (АИТУ)", "Mega Silk Way", "Байтерек"])
+check("АИТУ — свой ориентир, не центр шара EXPO", "АИТУ" in _g.find_place("АИТУ")["label"])
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

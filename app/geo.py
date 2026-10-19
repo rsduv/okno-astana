@@ -225,6 +225,35 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-zа-яёәіңғүұқөһ0-9 ]", " ", s.lower()).strip()
 
 
+def landmarks_in_order(text: str) -> list[str]:
+    """Ориентиры в тексте по порядку упоминания («в АИТУ, потом в Мегу» → [АИТУ, Mega Silk Way]) — страховка, если ИИ не разобрал список."""
+    qs = " " + " ".join(_stem_words(_norm(text)).split()) + " "
+    hits = []
+    for lm in LANDMARKS:
+        for al in lm["aliases"]:
+            if re.search(r"\d", al):
+                continue
+            st = " ".join(_stem_words(_norm(al)).split())
+            if len(st) < 3:
+                continue
+            for m in re.finditer(rf" {re.escape(st)} ", qs):
+                hits.append((m.start(), -len(st), lm["name"]))
+    hits.sort()
+    out, taken = [], -1
+    for pos, neg, name in hits:
+        if pos <= taken:
+            continue   # то же место текста уже занято более длинным названием («мега астана», а не «мега»)
+        taken = pos - neg
+        if name not in out:
+            out.append(name)
+    return out
+
+
+def _stem_words(t: str) -> str:
+    """Срезает русские падежные окончания у слов от 4 букв: «мегу» → «мег», «шатыру» → «шатыр»."""
+    return " ".join(re.sub(r"(ами|ями|ом|ем|ой|ей|ую|юю|ы|и|а|я|у|ю|е|о)$", "", w) if len(w) >= 4 else w for w in t.split())
+
+
 def _fuzzy_landmark(q: str):
     """Опечатки: «байтерика» ≈ «байтерек», «хаан шатыр» ≈ «хан шатыр». Только для слов от 5 букв и похожести ≥ 0,8."""
     from difflib import SequenceMatcher
@@ -296,7 +325,16 @@ def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = N
             if re.search(rf"(^| ){re.escape(_norm(al))}( |$)", q) or q == _norm(al):
                 if not best or len(al) > best[0]:
                     best = (len(al), lm)
-    if not best:
+    if True:   # падежи (длинное совпадение побеждает: «Мега Астану» — не «Мега»): «в Мегу», «у Байтереке», «к Хан Шатыру» → те же ориентиры
+        qs = _stem_words(q)
+        for lm in LANDMARKS:
+            for al in lm["aliases"]:
+                if re.search(r"\d", al):
+                    continue
+                st = _stem_words(_norm(al))
+                if len(st) >= 3 and re.search(rf"(^| ){re.escape(st)}( |$)", qs) and (not best or len(al) > best[0]):
+                    best = (len(al), lm)
+    if not best and not re.search(r"\d", q):   # «Мангилик Ел 53» — адрес: опечатками не угадываем, ищем геокодером
         best = _fuzzy_landmark(q)
     if best:
         lm = best[1]
