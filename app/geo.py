@@ -138,11 +138,47 @@ def weather(override: dict | None = None) -> dict:
                                     "wind": h["wind_speed_10m"][i], "precip": h["precipitation"][i], "code": h["weather_code"][i]}
                            for i, t in enumerate(h.get("time") or [])}
         data["aqi"] = air()
-    except Exception:
-        data = {"temp": None, "apparent": None, "wind": None, "precip": 0, "is_day": True, "sunset": None,
-                "simulated": False, "source": "погода недоступна"}
-    _weather_cache.update({"_ts": time.time(), "data": data})
+    except Exception as ex:
+        # Open-Meteo бесплатно ограничивает запросы с одного IP — на общем облачном хостинге упирается в лимит.
+        # Запасной источник — MET Norway (тоже бесплатный, без ключа)
+        data = _met_no() or {"temp": None, "apparent": None, "wind": None, "precip": 0, "is_day": True, "sunset": None,
+                             "simulated": False, "source": "погода недоступна", "_err": type(ex).__name__}
+    # неудачу помним минуту, а не 10 — чтобы погода вернулась сама
+    _weather_cache.update({"_ts": time.time() - (540 if data.get("temp") is None else 0), "data": data})
     return data
+
+
+def _feels(t: float, wind_kmh: float) -> float:
+    """Ощущаемая температура: ветро-холодовой индекс (холод с ветром), иначе — как есть."""
+    if t <= 10 and wind_kmh > 4.8:
+        v = wind_kmh ** 0.16
+        return round(13.12 + 0.6215 * t - 11.37 * v + 0.3965 * t * v, 1)
+    return t
+
+
+def _met_no() -> dict | None:
+    try:
+        r = _client.get("https://api.met.no/weatherapi/locationforecast/2.0/compact", timeout=6,
+                        params={"lat": 51.13, "lon": 71.43},
+                        headers={"User-Agent": "OknoAstana/0.1 (https://github.com/rsduv/okno-astana)"})
+        ts = r.json()["properties"]["timeseries"]
+        kz = timezone(timedelta(hours=5))
+        hourly = {}
+        for x in ts[:48]:
+            d = x["data"]["instant"]["details"]
+            t = datetime.fromisoformat(x["time"].replace("Z", "+00:00")).astimezone(kz)
+            w = d.get("wind_speed", 0) * 3.6
+            pr = ((x["data"].get("next_1_hours") or {}).get("details") or {}).get("precipitation_amount", 0)
+            hourly[t.strftime("%Y-%m-%dT%H")] = {"temp": d["air_temperature"], "apparent": _feels(d["air_temperature"], w),
+                                                 "wind": round(w, 1), "precip": pr, "code": None}
+        now = ts[0]["data"]["instant"]["details"]
+        w = now.get("wind_speed", 0) * 3.6
+        h = datetime.now(kz).hour
+        return {"temp": now["air_temperature"], "apparent": _feels(now["air_temperature"], w), "wind": round(w, 1),
+                "precip": next(iter(hourly.values()))["precip"], "is_day": 7 <= h < 19, "sunset": None,
+                "simulated": False, "source": "MET Norway, сейчас", "sky": None, "code": None, "_hourly": hourly, "aqi": None}
+    except Exception:
+        return None
 
 
 def weather_window(start, end) -> dict:
