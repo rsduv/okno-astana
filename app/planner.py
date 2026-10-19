@@ -226,6 +226,8 @@ class Ctx:
         self.w = w
         self.cold = geo.cold_level(w)
         self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
+        if intent.get("mobility") == "limited":
+            self.max_leg = min(self.max_leg, 15)   # пожилым и на коляске — длинные куски лучше на такси
         self.rejected: dict[str, int] = {}
         self.rejected_ex: dict[str, list] = {}
         self.rejected_seen: set = set()
@@ -276,7 +278,7 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
     tags = p.get("tags", {})
     if cat not in ctx.wanted:
         return None
-    if "kids" not in ctx.prefs and "детск" in p["name"].lower() and cat != "детская площадка":
+    if "kids" not in ctx.prefs and re.search(r"детск|балалар|children", p["name"].lower()) and cat != "детская площадка":
         return None  # «Детская библиотека» взрослому, который хочет почитать, — мимо
     if p["name"].strip().lower() in GENERIC:
         return None  # «Сквер» без названия: человек не найдёт и не поймёт, куда идти
@@ -295,12 +297,17 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         return None  # просили тихо — не ведём в шумные места
     if "unusual" in ctx.prefs and cat in ("квест", "океанариум", "арт-центр", "развлечения"):
         s += 1.0
+    if ctx.i.get("dinner") and cat == "фастфуд":
+        s -= 1.5
     if ctx.i.get("kazakh_food") and cat in ("ресторан", "кафе", "фастфуд"):
         attrs = " ".join((p.get("dgis") or {}).get("attrs") or []).lower()
         if "kazakh" in tags.get("cuisine", "") or "казах" in attrs or "национальн" in attrs:
             s += 2.5  # просили национальную кухню — место, где она точно есть
-        elif re.search(r"дастархан|казан|бешбармак|qazaq|nomad|кочевник|юрт|тайказан|кымыз|баурсак|ұлттық", p["name"].lower()):
-            s += 1.0  # по названию похоже на национальную кухню (слабый сигнал, ИИ не утверждает)
+        elif re.search(r"дастархан|казан|бешбармак|qazaq|kazakh|nomad|кочевник|юрт|тайказан|кымыз|баурсак|ұлттық|тандыр|алаша|"
+                       r"асхана|tary|тары|шанырак|шаңырақ|салтанат|sandyq|жеті|regional|local", p["name"].lower() + " " + tags.get("cuisine", "")):
+            s += 1.5  # по названию похоже на национальную кухню (сигнал слабее 2GIS, ИИ не утверждает)
+        else:
+            s -= 1.2  # просили национальную — суши, пицца и бургеры ниже
     if (ctx.i.get("group_size") or 0) >= 5 and cat in ("ресторан", "кафе", "бар"):
         attrs = " ".join((p.get("dgis") or {}).get("attrs") or []).lower()
         seats = [int(x) for x in re.findall(r"до (\d+)", attrs)]
@@ -855,6 +862,28 @@ def _grab_and_go(A, start, ctx) -> str | None:
             "Туда, заказ навынос и обратно как раз помещается в окно.")
 
 
+def _cafe_at(B, arrive, spare, ctx) -> str | None:
+    """До цели остаётся немного свободного времени, а цель — ТРЦ или рядом с кафе: «иди сразу туда, посиди в X»."""
+    if spare < 12:
+        return None
+    best = None
+    for p in POIS:
+        if p["category"] not in ("кафе", "фастфуд") or p.get("unnamed"):
+            continue
+        d = geo.haversine_km(B, (p["lat"], p["lon"]))
+        if d > 0.15:
+            continue
+        st, conf, _ = interval_status(p.get("tags"), p["category"], arrive, arrive + timedelta(minutes=10))
+        if st == "open" and (best is None or d < best[0]):
+            best = (d, p)
+    if not best:
+        return None
+    p = best[1]
+    ctx.tip = {"name": p["name"], "lat": p["lat"], "lon": p["lon"], "walk_min": 0, "category": p["category"]}
+    return (f"Отдельную остановку по пути не успеть, но можно сразу идти к цели: рядом с ней {p['name']} — "
+            f"посиди там ~{int(spare - 5)} мин до начала.")
+
+
 def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
     """Честный и полезный отказ: почему не вышло и что делать вместо этого."""
     if geo.haversine_km(A, B) < 0.3:
@@ -870,6 +899,9 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
                 + (" с учётом твоих пожеланий" if ctx.prefs else "") + ". Попробуй убрать пожелания или увеличить окно.")
     walk = round(direct_walk["min"]) if direct_walk else round(geo.walk_min_est(A, B))
     taxi = round(geo.car_min_est(A, B, start) + geo.TAXI_WAIT_MIN)
+    inside = _cafe_at(B, start + timedelta(minutes=min(walk, taxi)), window - min(walk, taxi), ctx)
+    if inside:
+        return inside
     if walk <= window:
         return f"На остановки времени нет: пешком до цели {walk} мин из {round(window)}. Просто иди — успеешь с запасом {round(window) - walk} мин."
     if taxi <= window:
@@ -880,7 +912,7 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
 VIA_STAY = {"торговый центр": 60, "университет": 45, "музей": 60, "кафе": 30, "ресторан": 60, "парк": 30}
 
 
-def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False) -> dict:
+def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False, hard_deadline=None) -> dict:
     """Человек сам перечислил, куда зайти по порядку («в НУ, потом в Мегу, в конце домой»): ничего не подбираем,
     а считаем этот маршрут честно — время пешком/на такси с пробками, сколько побыть в каждом пункте, во сколько будешь дома."""
     ctx = Ctx(intent, now, w)
@@ -910,6 +942,12 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False)
         if not relaxed:
             return {"error": "Не получилось посчитать этот маршрут — проверь названия пунктов."}
         fin = relaxed["finish"]
+        if has_deadline and hard_deadline and fin <= hard_deadline and all(
+                s["hours"]["status"] == "open" for s in refine(seq, A, B, now, now + timedelta(hours=20), ctx)["steps"] if s["type"] == "stop"):
+            best = relaxed   # к сроку успеваешь, но без запаса на вход — показываем маршрут и честно предупреждаем
+            best["_tight"] = True
+    if not best:
+        fin = relaxed["finish"]
         why = (f"к {deadline:%H:%M} не успеть: по этим пунктам будешь в конце только в {_fmt(fin)}" if has_deadline and fin > deadline
                else "кто-то из пунктов будет закрыт к твоему приходу")
         return {"error": f"Так по порядку не выйдет — {why}. Сократи время в пунктах или поменяй порядок.", "notes": []}
@@ -917,6 +955,8 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False)
         if s["type"] == "stop" and s["source"] == "твой пункт маршрута":
             s["hours"] = {"status": "open", "confidence": "outdoor", "source": "—", "text": "твой пункт — часы не проверяю"}
     notes = ["Маршрут по твоим пунктам в твоём порядке — ничего не подбирал. Время в каждом месте можно указать: «в Меге час»."]
+    if best.get("_tight"):
+        notes.insert(0, f"Впритык: будешь на месте в {_fmt(best['finish'])}, без запаса. Лучше сократить время в одном из пунктов.")
     if not has_deadline:
         notes.append(f"Срока ты не назвал — просто посчитал: в конце будешь в {_fmt(best['finish'])}.")
     return {"steps": best["steps"], "notes": notes,
@@ -944,16 +984,31 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             not (ctx.prefs & {"active", "cinema", "kids", "night", "culture", "food"}):
         ctx.walk_only = True  # прогулка по кругу — такси туда-обратно бессмысленно
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
+    focused = ctx.prefs & {"food", "coffee", "work", "night", "kids", "shopping"} and \
+        not ctx.prefs & {"sights", "walk", "view", "unusual", "culture", "nature", "romantic"} and not ctx.explicit
+    if focused:
+        both = {"food", "coffee"} <= ctx.prefs or "kids" in ctx.prefs
+        max_stops = min(max_stops, 2 if both and window >= 120 else 1)   # «поесть перед концертом» — одно место, без памятника
+    if intent.get("mobility") == "limited":
+        max_stops = min(max_stops, 2)   # «не спеша», «нет сил» — меньше беготни
     if ctx.work:
         max_stops = 1
         # поработать: сидеть как можно дольше — пробуем 80% окна, если рядом нет такого места — меньше
-        for k in (0.8, 0.65, 0.5):
+        WORK = {"кафе", "коворкинг", "библиотека"}
+        for k in (0.8, 0.65, 0.5, 0.35):
             ctx.work_stay = int(max(30, min(240, window * k)) // 10 * 10)
             results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+            results = [r for r in results if any(p["category"] in WORK for p in r[1])]   # парк для ноутбука — не ответ
             if results:
                 break
     else:
         results, n_cands = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+        if focused:   # просили конкретное (бар вечером, поесть) — план без такого места не годится, если есть план с ним
+            want = set().union(*(PREF_CATS.get(x, set()) for x in ctx.prefs & {"food", "coffee", "night", "kids", "shopping"}))
+            want -= {"достопримечательность", "смотровая", "фонтан", "парк"}
+            hit = [r for r in results if any(p["category"] in want for p in r[1])]
+            if hit:
+                results = hit
     if ctx.explicit & SHORT_OK and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
         ctx.short_explicit = True  # названное место не помещается — пробуем короткий заход (10 мин), а не подмену
         r2, n2 = search(A, B, start, deadline, ctx, exclude, required, max_stops)

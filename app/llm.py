@@ -129,6 +129,9 @@ UNDERSTAND = """Ты разбираешь запрос жителя или го�
 «посидеть, отдохнуть, передохнуть» -> coffee (а не walk); «ночью, тусоваться, бар» -> night; «поработать, розетка, ноутбук» -> work; «с ребёнком/детьми» -> kids.
 «необычное, удивить, что-то новое» -> unusual; «романтично, свидание, с девушкой/парнем» -> romantic;
 «вид, панорама, посмотреть на город сверху» -> view; «тихо, спокойно, без шума» -> quiet.
+«деловая встреча, переговоры, обсудить, business meeting» -> work и coffee (тихое кафе, не галерея);
+«не далеко, не спеша, устал(а), нет сил, пожилой/пожилая, с палочкой» -> mobility "limited";
+«весело, музыка, оторваться, расслабиться вечером/ночью» -> night; «малыш, покормить ребёнка» -> kids и food;
 «в помещение, внутри, под крышей, на улице холодно/дождь» -> indoor; «с собакой, выгулять пса» -> dog и walk; «поужинать, ужин» -> food.
 «Прилетел, рейс дальше в 14:00, хочу в город» = origin «аэропорт», destination «аэропорт», deadline "14:00" (рейс), event null.
 «На час» = 60, «полтора часа» = 90, «весь день / целый день» = 360, «до вечера» = deadline "18:00". «Через 30 минут надо быть в X» = destination X и duration_min 30 (deadline null).
@@ -376,6 +379,9 @@ def resolve_times(parsed: dict, now: datetime) -> tuple[datetime, str]:
         t = now.replace(hour=h % 24, minute=m, second=0, microsecond=0)
         if t <= now:
             t += timedelta(days=1)
+            # «рейс в 6 утра» в 06:15 — человек ошибся со временем: если назвал, сколько у него есть, верим этому
+            if parsed.get("duration_min") and t - now > timedelta(hours=12):
+                return now + timedelta(minutes=parsed["duration_min"]), f"{parsed['duration_min']} мин"
         return t, f"к {dl}"
     mins = parsed.get("duration_min") or 90
     return now + timedelta(minutes=mins), f"{mins} мин"

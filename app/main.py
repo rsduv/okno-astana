@@ -219,6 +219,12 @@ def _make_plan(req: PlanReq, request: Request):
     else:
         origin = geo.find_place(parsed.get("origin") or "", planner.POIS, req.saved)
     lang = parsed.get("language")
+    if not origin and parsed.get("via"):
+        first = parsed["via"][0]
+        first = first.get("place") if isinstance(first, dict) else str(first)
+        origin = geo.find_place(first or "", planner.POIS, req.saved)
+        if origin:
+            parsed = {**parsed, "via": parsed["via"][1:]}
     if not origin:
         other = OTHER_CITIES.match((parsed.get("origin") or "").strip())
         msg = ("Похоже, ты не в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
@@ -236,31 +242,39 @@ def _make_plan(req: PlanReq, request: Request):
             parsed[key] = home
     if parsed.get("destination") and not parsed.get("return_to_origin"):
         if HOME.match(parsed["destination"].strip()) and not home:
-            return {"error": llm.translate(["Не знаю, где твой дом. Отметь его на карте и нажми «сохранить точку» → «Дом» — "
-                                            "тогда «домой к 23:00» будет работать. Точка хранится только в твоём браузере."], lang)[0],
-                    "parsed": parsed}
-        dest = None if OTHER_CITIES.match(parsed["destination"].strip()) else \
+            no_home = True   # дом не сохранён: не отказываем — помогаем с остальным и подсказываем, как сохранить дом
+            parsed = {**parsed, "destination": None, "return_to_origin": True}
+        dest = None if not parsed.get("destination") else None if OTHER_CITIES.match(parsed["destination"].strip()) else \
             geo.find_place(parsed["destination"], planner.POIS, req.saved)
-        if not dest:
+        if not dest and parsed.get("destination") and not parsed.get("via"):
             return {"error": llm.translate([f"Не нашёл «{parsed['destination']}» в Астане. Попробуй назвать иначе."], lang)[0],
                     "parsed": parsed}
     # «сначала X, потом Y, в конце Z» — человек сам задал пункты: строим цепочку в его порядке
-    via = []
+    via, skipped = [], []
     for v in parsed.get("via") or []:
         name = (v.get("place") if isinstance(v, dict) else str(v)) or ""
         if home and HOME.match(name.strip()):
             name = home
         pt = geo.find_place(name, planner.POIS, req.saved) if name.strip() else None
         if not pt:
-            return {"error": llm.translate([f"Не нашёл «{name}» в Астане. Попробуй назвать иначе."], lang)[0], "parsed": parsed}
+            skipped.append(name)   # «на пары», «в магазин» — не место на карте: пропускаем, а не отказываем
+            continue
         stay = v.get("stay_min") if isinstance(v, dict) else None
         via.append({**pt, "stay": int(stay) if isinstance(stay, (int, float)) and 0 < stay <= 600 else None})
+    if not dest and via and not parsed.get("return_to_origin"):
+        dest = via.pop()   # конечная точка не нашлась — последний названный пункт и есть конец маршрута
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
     if not parsed.get("deadline") and not parsed.get("duration_min") and \
             set(explicit_cats(req.text)) & {"боулинг", "кино", "театр", "каток", "музей"}:
         parsed = {**parsed, "duration_min": 150}  # долгое занятие без названного времени — окно шире, чем 90 мин
         parsed["_default_window"] = True
+    if dest and "Аэропорт" in dest["label"] and not parsed.get("deadline") and parsed.get("duration_min") and \
+            re.search(r"вылет|рейс|flight|ұшақ|самолет|самолёт", (req.text or "").lower()):
+        parsed = {**parsed, "deadline": (now + timedelta(minutes=parsed["duration_min"])).strftime("%H:%M")}
     deadline, window_label = llm.resolve_times(parsed, now)
+    if dest and not parsed.get("deadline") and parsed.get("duration_min") and parsed.get("event") == "meeting" and "work" in (parsed.get("prefs") or []):
+        trip = geo.car_min_est((origin["lat"], origin["lon"]), (dest["lat"], dest["lon"]), now) + geo.TAXI_WAIT_MIN
+        deadline = now + timedelta(minutes=parsed["duration_min"] * 1.25 + trip + 15)
     travel_note = None
     end = dest or origin  # «прилетел, рейс дальше в 14:00» — петля из аэропорта, но правило «за 1,5 часа» то же
     if end and parsed.get("deadline"):
@@ -280,6 +294,11 @@ def _make_plan(req: PlanReq, request: Request):
             f"Ты не назвал время — взял окно {mins} минут. Напиши «к 19:00» или «есть 40 минут», чтобы точнее."
     if parsed.get("deadline") and parsed.get("duration_min") and not travel_note:
         deadline = min(deadline, now + timedelta(minutes=parsed["duration_min"]))
+    if locals().get("no_home"):
+        travel_note = (travel_note + " " if travel_note else "") + \
+            "Где твой дом, я не знаю — маршрут заканчивается здесь. Нажми на свой дом на карте → «В закладки» → значок «Дом», и «домой» заработает."
+    if skipped:
+        travel_note = (travel_note + " " if travel_note else "") + f"«{', '.join(skipped)}» не нашёл на карте — пропустил этот пункт."
     timings["geocode"] = round((time.time() - t1) * 1000)
 
     said = parsed.get("temp_c")
@@ -301,11 +320,14 @@ def _make_plan(req: PlanReq, request: Request):
               "prefs": parsed.get("prefs"), "with_kids": parsed.get("with_kids"),
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
               "language": parsed.get("language"), "explicit": wanted_cats(req.text, parsed),
-              "kazakh_food": bool(re.search(r"национальн|казахск|qazaq|kazakh|ұлттық|қазақ", req.text.lower()))}
+              "dinner": bool(re.search(r"ужин|поужина|dinner|кешкі ас", (req.text or "").lower())),
+              "kazakh_food": bool(re.search(r"национальн|казахск|местн\w* (?:еду|кухн|блюд)|традицион|qazaq|kazakh|national food|local food|"
+                                            r"traditional|ұлттық|қазақ|бешбармак|beshbarmak|кымыз|қымыз|kumis|kymyz", req.text.lower()))}
     t2 = time.time()
     if via:
         intent["via"] = via
-        result = planner.plan_chain(intent, now, w, has_deadline=bool(parsed.get("deadline")))
+        raw = llm.resolve_times(parsed, now)[0] if parsed.get("deadline") else None   # срок без запаса на вход/регистрацию
+        result = planner.plan_chain(intent, now, w, has_deadline=bool(parsed.get("deadline")), hard_deadline=raw)
         if result.get("summary") and not parsed.get("deadline"):
             deadline = now + timedelta(minutes=result["summary"]["window_min"])   # срока нет — шкала до конца маршрута
     else:

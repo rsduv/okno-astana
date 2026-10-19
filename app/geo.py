@@ -308,15 +308,20 @@ def find_place(text: str, pois: list[dict] | None = None, saved: dict | None = N
             if len(n) >= 4 and (n == q or (len(q) >= 5 and q in n) or (len(n) >= 6 and n in q)):
                 return {"lat": p["lat"], "lon": p["lon"], "label": p["name"], "source": "база мест OSM"}
     from . import dgis
+    words = [w[:max(3, len(w) - 2)] for w in re.findall(r"\w{3,}", q)]
+
+    def plausible(label):   # хотя бы одна основа слова запроса есть в найденном названии (или запрос похож на адрес)
+        lab = _norm(label or "")
+        return bool(re.search(r"\d", q)) or any(w in lab for w in words)
     g = dgis.geocode(text)
-    if g:
+    if g and plausible(g["label"]):
         return g
     try:
         r = _client.get("https://nominatim.openstreetmap.org/search", timeout=6, params={
             "q": text + ", Астана", "format": "jsonv2", "limit": 1,
             "viewbox": "71.2,51.28,71.65,51.0", "bounded": 1})
         d = r.json()
-        if d:
+        if d and plausible(d[0].get("display_name") or d[0].get("name")):
             return {"lat": float(d[0]["lat"]), "lon": float(d[0]["lon"]),
                     "label": d[0]["name"] or text, "source": "геокодер OpenStreetMap"}
     except Exception:
