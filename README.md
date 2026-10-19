@@ -18,6 +18,7 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
 </p>
 
 ## Материалы для жюри
+- **Сайт (работает онлайн):** https://okno-astana.onrender.com — бесплатный хостинг «засыпает» без посетителей, первое открытие ~30–50 с
 - **Презентация:** [docs/Okno_presentation.pdf](docs/Okno_presentation.pdf) (текст выступления — [docs/pitch.md](docs/pitch.md))
 - **Тестовые сценарии, ограничения, этика:** [docs/Okno_scenarios.pdf](docs/Okno_scenarios.pdf) · [docs/scenarios.md](docs/scenarios.md) — 44/44 автопроверок
 - **Датасет мест (собран автоматически):** [docs/dataset.md](docs/dataset.md) — 1304 места Астаны, все поля из ТЗ
