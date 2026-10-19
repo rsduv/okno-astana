@@ -25,10 +25,14 @@ jobs:
         run: |
           pip install httpx
           python scripts/collect_wiki.py
+      - name: Районы и станции LRT, открытый датасет мест
+        run: |
+          python scripts/collect_city.py
+          python scripts/build_dataset.py
       - name: Сохранить, если база изменилась
         run: |
           git config user.name "poi-bot"
           git config user.email "poi-bot@users.noreply.github.com"
-          git add data/poi.json data/wiki.json data/images.json
+          git add data/poi.json data/wiki.json data/images.json data/districts.json data/lrt.json data/dataset docs/dataset.md
           git diff --cached --quiet || git commit -m "data: обновление мест из OSM $(date -u +%F)"
           git push

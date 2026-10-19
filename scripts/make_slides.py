@@ -23,7 +23,7 @@ def shots():
         ctx = b.new_context(viewport={"width": 1600, "height": 900}, geolocation={"latitude": 51.0905, "longitude": 71.418},
                             permissions=["geolocation"])
         pg = ctx.new_page()
-        pg.add_init_script("try{localStorage.clear()}catch(e){}")
+        pg.add_init_script("try{localStorage.clear();localStorage.setItem('okno_intro','1')}catch(e){}")
 
         def go(url, name, after=None, wait=6000):
             pg.goto(url)

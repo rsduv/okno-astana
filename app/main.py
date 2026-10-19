@@ -293,6 +293,11 @@ def _make_plan(req: PlanReq, request: Request):
         first = first.get("place") if isinstance(first, dict) else str(first)
         origin = geo.find_place(first or "", planner.POIS, req.saved)   # первый пункт остаётся в списке — там и побудешь
         from_first = bool(origin)
+    if not origin and parsed.get("destination") and not parsed.get("deadline") and             re.search(r"рядом|около|возле|поблизости|недалеко|nearby|near|around|жаны|маңы", (req.text or "").lower()):
+        # «еду с ребёнком к ЭКСПО — что там рядом?» — считаем от того места, куда человек едет
+        origin = geo.find_place(parsed["destination"], planner.POIS, req.saved)
+        if origin:
+            parsed = {**parsed, "origin": parsed["destination"], "destination": None, "return_to_origin": True}
     if not origin:
         other = OTHER_CITIES.match((parsed.get("origin") or "").strip())
         msg = ("Похоже, ты не в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
@@ -374,8 +379,14 @@ def _make_plan(req: PlanReq, request: Request):
     end = dest or origin  # «прилетел, рейс дальше в 14:00» — петля из аэропорта, но правило «за 1,5 часа» то же
     if end and parsed.get("deadline"):
         if "Аэропорт" in end["label"]:
-            deadline -= timedelta(minutes=90)
-            travel_note = f"Вылет в {parsed['deadline']}: в аэропорту нужно быть за 1,5 часа — к {deadline:%H:%M}."
+            trip = geo.car_min_est((origin["lat"], origin["lon"]), (end["lat"], end["lon"]), now) + geo.TAXI_WAIT_MIN
+            if now + timedelta(minutes=trip + 5) > deadline - timedelta(minutes=90) and end is not origin:
+                deadline -= timedelta(minutes=60)   # за 1,5 часа уже не успеть — честно считаем «впритык», а не отказываем
+                travel_note = (f"Вылет в {parsed['deadline']}: за 1,5 часа до вылета в аэропорт уже не успеть (такси ~{round(trip)} мин) — "
+                               f"считаю впритык, к {deadline:%H:%M}. Для внутреннего рейса это нормально, для международного — рискованно.")
+            else:
+                deadline -= timedelta(minutes=90)
+                travel_note = f"Вылет в {parsed['deadline']}: в аэропорту нужно быть за 1,5 часа — к {deadline:%H:%M}."
         elif "Вокзал" in end["label"]:
             deadline -= timedelta(minutes=20)
             travel_note = f"Поезд в {parsed['deadline']}: на вокзале лучше быть за 20 минут — к {deadline:%H:%M}."

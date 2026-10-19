@@ -142,6 +142,26 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .ex button:hover{border-color:var(--line2)}
 .ex button small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px}
 
+/* первый визит: что это и как пользоваться */
+.intro{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:16px;background:rgba(4,7,11,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.intro.show{display:grid}
+.intro .box{width:min(440px,100%);border-radius:22px;padding:20px 20px 16px;animation:pop .35s ease both;max-height:calc(100dvh - 32px);overflow:auto}
+.intro .hd{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.intro h3{margin:0;font-size:19px;line-height:1.2}
+.intro .lead{margin:0 0 14px;color:var(--muted);font-size:13.5px;line-height:1.45}
+.intro ol{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:9px}
+.intro li{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;line-height:1.4}
+.intro li .n{flex:none;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(76,201,240,.12);color:var(--accent)}
+.intro li b{display:block;font-size:14px;margin-bottom:1px}
+.intro li span{color:var(--muted)}
+.intro .priv{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--dim);line-height:1.4;padding:10px 11px;border-radius:12px;background:var(--card);border:1px solid var(--line);margin-bottom:14px}
+.intro .priv svg{flex:none;color:var(--ok);margin-top:1px}
+.intro .act{display:flex;gap:8px}
+.intro .act button{flex:1;height:42px;border-radius:13px;font-weight:800;font-size:14px;cursor:pointer}
+.intro .try{border:0;background:var(--accent);color:#08111a}
+.intro .ok{background:var(--card);border:1px solid var(--line2)}
+.langs #helpBtn{color:var(--muted);min-width:24px}
+
 /* «как посчитано» */
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
 .sheet.show{display:flex}
@@ -301,7 +321,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 <button id="locbtn" class="glass" title="Где я? Навести карту на меня" aria-label="Где я? Навести карту на меня"><i data-lucide="locate-fixed"></i></button>
 <button id="tilt" class="glass" title="3D-вид: наклонить и повернуть карту" aria-label="3D-вид карты">3D</button>
 <div id="toast" role="status" aria-live="polite"></div>
-<div class="glass langs" id="langs"><button data-l="ru">RU</button><button data-l="kk">KZ</button><button data-l="en">EN</button></div>
+<div class="glass langs" id="langs"><button data-l="ru">RU</button><button data-l="kk">KZ</button><button data-l="en">EN</button><button id="helpBtn" title="Что это и как пользоваться" aria-label="Что это и как пользоваться">?</button></div>
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT"><div class="box glass" id="introBox" tabindex="-1" style="outline:none"></div></div>
 
 <div class="top">
   <div class="search glass">
@@ -822,8 +843,46 @@ function phCycle(){
   type();
 }
 if(!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(phCycle, 2500);
-// первый визит — мягко подсветить «примеры» (сам блок не открываем: он мешал)
-try { if(!localStorage.getItem("okno_seen")){ localStorage.setItem("okno_seen", "1"); setTimeout(() => $("#exBtn").classList.add("hint"), 1800); } } catch(e) {}
+// первый визит — короткая карточка «что это и как пользоваться» (потом — по кнопке «?»)
+const INTRO = {
+ ru:{t:"Окно — куда сходить в Астане", lead:"Есть свободное время между делами? «Окно» найдёт 1–3 места рядом или по пути — открытых, когда ты дойдёшь, и так, чтобы ты точно успел.",
+  steps:[["message-square-text","Напиши или скажи","Где ты, куда нужно и к скольки. Например: «Я у Байтерека, к 19:00 в Хан Шатыр» или «есть час, хочу кофе»."],
+   ["map-pin","Или ткни в карту","Отметь, где ты, — или нажми «я здесь». Дом и работу можно сохранить в закладки."],
+   ["sparkles","Получишь план","Места с «почему», временем на месте и «что там делать». Часы работы — с источником и уверенностью."],
+   ["info","«Как посчитано?»","Внизу плана: какие данные использованы и что ИИ, а что — факты из базы мест."]],
+  priv:"Твою точную геопозицию не храним: точка округляется до ~150 м, закладки живут только в твоём браузере.", try:"Попробовать пример", ok:"Понятно",
+  ex:"Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"},
+ en:{t:"Okno — where to go in Astana", lead:"Free time between things? Okno finds 1–3 places nearby or on your way — open when you arrive, timed so you won't be late.",
+  steps:[["message-square-text","Type or say it","Where you are, where you need to be and by when. E.g. “I'm at Baiterek, need to be at Khan Shatyr by 19:00” or “I have an hour, want coffee”."],
+   ["map-pin","Or tap the map","Mark where you are, or press “I'm here”. Save home and work as bookmarks."],
+   ["sparkles","Get a plan","Places with a “why”, time to spend and what to do there. Opening hours come with a source and confidence."],
+   ["info","“How was this computed?”","At the bottom of the plan: which data was used, what is AI text and what are facts from the places database."]],
+  priv:"We don't store your exact location: the point is rounded to ~150 m, bookmarks live only in your browser.", try:"Try an example", ok:"Got it",
+  ex:"I'm at Mega Silk Way, want a 45 minute walk and come back"},
+ kk:{t:"Окно — Астанада қайда бару керек", lead:"Істер арасында бос уақыт бар ма? «Окно» жақын маңнан немесе жолыңнан 1–3 орын табады — сен барғанда ашық болатын және кешікпейтіндей.",
+  steps:[["message-square-text","Жаз немесе айт","Қайдасың, қайда және сағат нешеге. Мысалы: «Бәйтеректің жанындамын, 19:00-ге Хан Шатырға» немесе «бір сағат бар, кофе ішкім келеді»."],
+   ["map-pin","Немесе картаны түрт","Қайда екеніңді белгіле немесе «мен осындамын» бас. Үй мен жұмысты бетбелгіге сақтауға болады."],
+   ["sparkles","Жоспар аласың","Орындар: «неге», қанша уақыт және не істеу керек. Жұмыс уақыты — дереккөзімен және сенімділігімен."],
+   ["info","«Қалай есептелді?»","Жоспардың төменгі жағында: қандай деректер қолданылды, не ЖИ мәтіні, не орындар базасындағы факт."]],
+  priv:"Нақты орналасқан жеріңді сақтамаймыз: нүкте ~150 м-ге дейін дөңгелектенеді, бетбелгілер тек сенің браузеріңде.", try:"Мысалды көру", ok:"Түсінікті",
+  ex:"Mega Silk Way-демін, 45 минут серуендеп, қайта оралғым келеді"},
+};
+function showIntro(){
+  const t = INTRO[LANG] || INTRO.ru;
+  $("#introBox").innerHTML = `<div class="hd"><div class="logo">О</div><h3 id="introT">${esc(t.t)}</h3></div><p class="lead">${esc(t.lead)}</p>
+    <ol>${t.steps.map(x => `<li><span class="n">${svg(x[0].replace(/(^|-)(\w)/g, (m, a, c) => c.toUpperCase()), 17)}</span><div><b>${esc(x[1])}</b><span>${esc(x[2])}</span></div></li>`).join("")}</ol>
+    <div class="priv">${svg("ShieldCheck", 15)}<div>${esc(t.priv)}</div></div>
+    <div class="act"><button class="ok" id="introOk">${esc(t.ok)}</button><button class="try" id="introTry">${esc(t.try)}</button></div>`;
+  $("#intro").classList.add("show");
+  const close = () => { $("#intro").classList.remove("show"); try { localStorage.setItem("okno_intro", "1"); } catch(e) {} };
+  $("#introOk").onclick = close;
+  $("#introTry").onclick = () => { close(); $("#q").value = t.ex; setTime(null); clearPoint(); run(); };
+  $("#introBox").focus({preventScroll:true});
+}
+$("#intro").onclick = e => { if(e.target.id === "intro") $("#introOk").click(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#intro").classList.contains("show")) $("#introOk").click(); });
+$("#helpBtn").onclick = showIntro;
+try { if(!localStorage.getItem("okno_intro") && !new URLSearchParams(location.search).get("q")) setTimeout(showIntro, 600); } catch(e) {}
 $("#exBtn").onclick = () => { const on = $("#ex").classList.toggle("show"); $("#exBtn").classList.toggle("on", on); };
 
 // ---------- отрисовка ----------
@@ -1095,7 +1154,7 @@ async function drawRoute(r){
   map.getSource("route-taxi").setData({type:"FeatureCollection",features:taxi});
 }
 
-document.querySelectorAll("#langs button").forEach(b => b.onclick = e => { e.stopPropagation(); setLang(b.dataset.l); });
+document.querySelectorAll("#langs button[data-l]").forEach(b => b.onclick = e => { e.stopPropagation(); setLang(b.dataset.l); });
 applyLang();
 
 // ---------- ссылка на сценарий: ?q=...&t=17:20&w=cold ----------

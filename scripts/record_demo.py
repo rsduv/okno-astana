@@ -39,7 +39,7 @@ def main():
         ctx = b.new_context(viewport={"width": W, "height": H}, record_video_dir=str(tmp), record_video_size={"width": W, "height": H},
                             geolocation={"latitude": 51.0905, "longitude": 71.4180}, permissions=["geolocation"], locale="ru-RU")
         pg = ctx.new_page()
-        pg.add_init_script("try{localStorage.clear()}catch(e){}")
+        pg.add_init_script("try{localStorage.clear();localStorage.setItem('okno_intro','1')}catch(e){}")
         pg.goto(URL)
         pg.add_style_tag(content=CAP_CSS)
         pg.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; document.body.appendChild(c); }""")

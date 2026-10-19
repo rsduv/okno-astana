@@ -536,6 +536,9 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
     loop = geo.haversine_km(A, B) < 0.3
     o_label = (ctx.i.get("origin") or {}).get("label", "")
     d_label = (ctx.i.get("destination") or {}).get("label", "")
+    # «где поесть / кофе / с ребёнком» у ЭКСПО — кафе в двух минутах и есть лучший ответ; «рядом с началом не предлагаем»
+    # нужно только для прогулки, чтобы она не кончалась у порога
+    errand = bool(ctx.prefs & {"food", "coffee", "work", "kids", "night", "shopping"})
     out = []
     for p in POIS:
         if p["id"] in exclude:
@@ -543,7 +546,7 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
         pt0 = (p["lat"], p["lon"])
         if p["id"] not in required and (_same_place(p, o_label) or (not loop and _same_place(p, d_label))):
             continue
-        if loop and p["id"] not in required:
+        if loop and p["id"] not in required and not (errand and geo.haversine_km(pt0, A) >= 0.03):
             # прогулка «и обратно»: кафе внутри своего же ТРЦ — отличный вариант на короткое окно
             if geo.haversine_km(pt0, A) < 0.06 and not p.get("inside"):
                 continue
@@ -839,22 +842,25 @@ def _glance(A, ctx) -> str | None:
             f"туда-обратно около {round(2 * walk + 3)} мин из {round(window)}.")
 
 
-def _grab_and_go(A, start, ctx) -> str | None:
+def _grab_and_go(A, start, ctx, cats=None, max_km=0.6) -> str | None:
     """Совсем короткое окно, но человек хочет поесть/кофе: ближайшее открытое место — «возьми с собой»."""
-    cats = set()
+    cats = set(cats or ())
     for pr in ("food", "coffee"):
         if pr in ctx.prefs:
             cats |= PREF_CATS[pr]
     if not cats:
         return _glance(A, ctx)
+    window = getattr(ctx, "window", 0) or 0
     best = None
     for p in POIS:
         if p["category"] not in cats:
             continue
         d = geo.haversine_km(A, (p["lat"], p["lon"]))
-        if d > 0.6:
+        if d > max_km:
             continue
         walk = geo.walk_min_est(A, (p["lat"], p["lon"])) * ctx.pace
+        if window and 2 * walk + 6 > window:
+            continue
         st, conf, _ = interval_status(p.get("tags"), p["category"], start + timedelta(minutes=walk), start + timedelta(minutes=walk + 5))
         if st == "open" and (best is None or walk < best[0]):
             best = (walk, p, conf)
@@ -900,6 +906,10 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
         near = _nearest_explicit(A, start, ctx)
         if near:
             return near
+        # посидеть не выходит — но посмотреть одно место снаружи или взять кофе с собой обычно успеваешь
+        quick = _glance(A, ctx) or (_grab_and_go(A, start, ctx, {"кафе"}, 1.0) if "indoor" not in ctx.prefs else None)
+        if quick:
+            return quick
         return ("Рядом нет подходящих мест, до которых можно дойти и вернуться за это время"
                 + (" с учётом твоих пожеланий" if ctx.prefs else "") + ". Попробуй убрать пожелания или увеличить окно.")
     walk = round(direct_walk["min"]) if direct_walk else round(geo.walk_min_est(A, B))
@@ -1060,7 +1070,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             "На остановку не хватит — можно просто выйти подышать." if geo.haversine_km(A, B) < 0.3 else "Лучше просто идти к цели.")}
     if geo.haversine_km(A, B) < 0.3 and window < 120 and not ctx.explicit and \
             not (ctx.prefs & {"active", "cinema", "kids", "night", "culture", "food"}):
-        ctx.walk_only = intent.get("mobility") != "limited"  # прогулка по кругу — такси туда-обратно бессмысленно (кроме маломобильных)
+        ctx.walk_only = intent.get("mobility") != "limited" and not intent.get("_taxi_ok")  # прогулка по кругу — такси туда-обратно бессмысленно (кроме маломобильных)
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
     focused = ctx.prefs & {"food", "coffee", "work", "night", "kids", "shopping"} and \
         not ctx.prefs & {"sights", "walk", "view", "unusual", "culture", "nature", "romantic"} and not ctx.explicit
@@ -1130,6 +1140,21 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             notes.append(f"Пешком напрямую {dw} мин, а окно {round(window)} мин: без такси не успеть.")
         elif dw > window * 0.6:
             notes.append(f"Пешком напрямую {dw} мин из {round(window)}: на остановки времени мало, часть пути — на такси.")
+    if not best and not intent.get("_relaxed"):
+        # сами делаем то, что раньше советовали человеку («убери пожелания»): сначала разрешаем такси на прогулке,
+        # потом «кофе и розетка» → просто посидеть с кофе. И честно пишем, что ослабили
+        soft = None
+        if ctx.walk_only:
+            soft = ({**intent, "_relaxed": True, "transport": "any", "_taxi_ok": True},
+                    "Пешком туда и обратно за это окно ничего интересного рядом нет — подобрал место, куда быстрее доехать на такси.")
+        elif ctx.prefs & {"work", "quiet"}:
+            soft = ({**intent, "_relaxed": True, "prefs": sorted((set(intent.get("prefs") or []) - {"work", "quiet"}) | {"coffee"})},
+                    "Тихого места с розеткой рядом в данных нет — вот ближайшее, где можно посидеть с кофе; розетку уточни на месте.")
+        if soft:
+            r2 = plan(soft[0], now, w, exclude, required)
+            if not r2.get("error"):
+                r2["notes"].insert(0, soft[1])
+                return r2
     if not best:
         return {"error": _no_plan_advice(A, B, start, window, direct_walk, ctx), "notes": notes, "tip": getattr(ctx, "tip", None)}
     if ctx.pace > 1.2:
