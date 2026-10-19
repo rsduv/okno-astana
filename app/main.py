@@ -178,6 +178,15 @@ def _too_many(ip: str, limit=60, per=600) -> bool:
     return len(h) > limit
 
 
+GENERIC_STOPS = [   # «зайти в библиотеку» без названия — ближайшая такого типа
+    (r"(?:в |на )?(?:библиотек\w*|кітапхана\w*|library)", "библиотека"),
+    (r"(?:в |на )?(?:кофейн\w*|кафе|coffee(?: shop)?|cafe|кофеханa?\w*)", "кафе"),
+    (r"(?:в |на )?(?:коворкинг\w*|coworking)", "коворкинг"),
+    (r"(?:в |на )?(?:книжн\w*(?: магазин\w*)?|bookstore|кітап дүкен\w*)", "книжный"),
+    (r"(?:в |на )?(?:тц|трц|торгов\w* центр\w*|mall|сауда орталығ\w*)", "торговый центр"),
+]
+
+
 @app.post("/api/plan")
 def make_plan(req: PlanReq, request: Request):
     try:
@@ -254,7 +263,19 @@ def _make_plan(req: PlanReq, request: Request):
         name = (v.get("place") if isinstance(v, dict) else str(v)) or ""
         if home and HOME.match(name.strip()):
             name = home
-        pt = geo.find_place(name, planner.POIS, req.saved) if name.strip() else None
+        gen = next((c for rx, c in GENERIC_STOPS if re.fullmatch(rx, name.strip().lower())), None)
+        if gen:
+            prev = via[-1] if via else origin
+            kids = bool(re.search(r"дет|ребен|ребён|бала|kid|child", (req.text or "").lower()))
+            cands = [p for p in planner.POIS if p["category"] == gen and
+                     (kids or not re.search(r"детск|балалар|children", p["name"].lower()))]
+            if prev and cands:
+                p = min(cands, key=lambda p: geo.haversine_km((prev["lat"], prev["lon"]), (p["lat"], p["lon"])))
+                pt = {"lat": p["lat"], "lon": p["lon"], "label": p["name"], "source": "ближайшее место этого типа"}
+            else:
+                pt = None
+        else:
+            pt = geo.find_place(name, planner.POIS, req.saved) if name.strip() else None
         if not pt:
             skipped.append(name)   # «на пары», «в магазин» — не место на карте: пропускаем, а не отказываем
             continue

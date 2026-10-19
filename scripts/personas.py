@@ -106,7 +106,8 @@ def objective(p, r):
         got = [s for s in stops]
         pts = [lm_point(v) for v in via]
         order = [next((i for i, s in enumerate(got) if q and near(s, q, 0.8)), None) for q in pts]
-        if None in order:
+        closed_note = any(re.search(r"закрыт|выходной|closed", n, re.I) for n in r.get("notes") or [])
+        if None in order and not closed_note:   # честное «сегодня выходной — подобрал другое» не считается провалом
             issues.append(f"не все пункты из списка в маршруте: {via}")
         elif order != sorted(order):
             issues.append("пункты не в том порядке")

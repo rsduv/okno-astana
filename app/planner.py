@@ -293,6 +293,8 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         s += 2.5  # смотровая площадка — именно «вид на город»
     if "dog" in ctx.prefs and cat not in OUTDOOR:
         return None  # с собакой в кафе и ТРЦ обычно нельзя — гуляем на улице
+    if "dog" in ctx.prefs and cat in ("парк", "сад"):
+        s += 2.0   # собаке нужна трава и простор, а не площадь у памятника
     if "indoor" in ctx.prefs and cat in OUTDOOR:
         return None  # просили под крышу
     if "quiet" in ctx.prefs and cat in ("торговый центр", "бар", "ночной клуб", "фастфуд"):
@@ -978,7 +980,13 @@ def plan_after_first(intent: dict, now: datetime, w: dict, first: dict) -> dict:
     A = (first["lat"], first["lon"])
     head = refine([first], A, A, now, now + timedelta(minutes=stay + 30), ctx)
     if not head:
-        return plan(intent, now, w)   # место закрыто сейчас — просто подбираем маршрут, честно (заметка о закрытых местах будет)
+        # место закрыто (музей в понедельник) — честно говорим и подбираем другое
+        st, conf, text = interval_status(first.get("tags"), first["category"], now, now + timedelta(minutes=stay))
+        rest = plan(intent, now, w)
+        if not rest.get("error"):
+            why = text if st == "closed" else "к твоему приходу не успеть до закрытия"
+            rest["notes"] = [f"{first['name']}: {why} — поэтому подобрал другие места на сегодня."] + (rest.get("notes") or [])
+        return rest
     stop = next(s for s in head["steps"] if s["type"] == "stop")
     rest = plan(intent, now + timedelta(minutes=stay), w)
     if rest.get("error"):
