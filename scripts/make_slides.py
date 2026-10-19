@@ -144,6 +144,7 @@ def html(b):
 <div class="card"><h3>4. Прозрачность</h3><span>«Как посчитано»: источник у каждого места, надёжность часов, сколько отсеяно и почему</span></div></div>
 <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start"><img class="shot" src="img/how.png">
 <ul style="font-size:26px"><li>Сбор данных <b>автоматизирован</b>: GitHub Actions — места (OSM, Wikidata) каждую неделю, афиша — каждый день</li>
+<li>Открытый датасет: <b>1304 места</b> со всеми полями из ТЗ + район и станция LRT (CSV)</li>
 <li>2GIS Places + Routing: свежие часы, рейтинг, «можно с ноутбуком», пробки</li>
 <li>Open-Meteo: погода, прогноз по часам, воздух · OSRM: пешие маршруты</li>
 <li>Афиша: официальный сайт Astana Opera</li><li>Без ИИ и сети — работает на правилах и шаблонах</li></ul></div>{n(4)}</section>""")
@@ -160,8 +161,8 @@ def html(b):
 <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:38px">
 <div class="card"><b>44 / 44</b><span>автопроверок в 13 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
-<div class="card"><b>43</b><span>автотеста в GitHub Actions при каждом изменении (ядро + API)</span></div>
-<div class="card"><b>~2–6 с</b><span>ответ; без ИИ — запасной режим, демо не зависает</span></div></div>
+<div class="card"><b class="ok">120 / 120</b><span>синтетических запросов «как пишут люди»: 15 типов, 3 языка, опечатки, невыполнимые</span></div>
+<div class="card"><b>53</b><span>автотеста в GitHub Actions при каждом изменении; ответ ~5–9 с</span></div></div>
 <p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — трём системам</b>, проверка одним скриптом. Средняя колонка — <b style="color:#e8eef5">та же модель Gemini, что внутри «Окна», но без наших данных</b>:</p>
 <table><tr><th></th><th>Claude (чат)</th><th>Gemini без данных</th><th>Окно = Gemini + RAG</th></tr>
 <tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">{bad[0]}</td><td class="warn">{bad[1]}</td><td class="y">{bad[2]}</td></tr>
