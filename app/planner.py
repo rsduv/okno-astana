@@ -246,6 +246,8 @@ class Ctx:
         at_hub = re.search(r"Аэропорт|Вокзал", (intent.get("origin") or {}).get("label", "")) is not None
         # из аэропорта/вокзала в город пешком не гуляют — там нужно такси, даже если человек хочет «погулять»
         self.walk_only = intent.get("transport") == "walk" or ("walk" in self.prefs and not far and not at_hub)
+        if intent.get("mobility") == "limited":
+            self.walk_only = False   # «прогуляться, но не далеко» пожилому — дальние куски на такси, а не час пешком
         self.work = "work" in self.prefs
         self.work_stay = 60
         self.real_now = datetime.now(timezone(timedelta(hours=5))).replace(tzinfo=None)
@@ -560,7 +562,8 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
             continue
         sc = stop_score(p, ctx) or 0
         detour = geo.haversine_km(A, pt) + geo.haversine_km(pt, B) - geo.haversine_km(A, B)
-        out.append((sc - detour * 0.35, p))
+        far_w = 1.2 if ctx.i.get("mobility") == "limited" else 0.35   # «не далеко»: ближнее место важнее красивого дальнего
+        out.append((sc - detour * far_w, p))
     out.sort(key=lambda x: -x[0])
     picked, per_cat = [], {}
     for sc, p in out:  # разнообразие: не больше 7 мест одной категории в переборе
@@ -967,6 +970,25 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False,
             "considered": {"candidates": len(seq), "plans": 1, "pois_total": len(POIS), "rejected": {}, "rejected_ex": {}}}
 
 
+def plan_after_first(intent: dict, now: datetime, w: dict, first: dict) -> dict:
+    """«Сначала в музей, потом что-то ещё»: человек начинает с названного места (побыть там), остальное подбираем после него."""
+    ctx = Ctx(intent, now, w)
+    stay = int(first.get("_stay") or STAY.get(first["category"], 45))
+    ctx.bonus = {first["id"]: stay}
+    A = (first["lat"], first["lon"])
+    head = refine([first], A, A, now, now + timedelta(minutes=stay + 30), ctx)
+    if not head:
+        return plan(intent, now, w)   # место закрыто сейчас — просто подбираем маршрут, честно (заметка о закрытых местах будет)
+    stop = next(s for s in head["steps"] if s["type"] == "stop")
+    rest = plan(intent, now + timedelta(minutes=stay), w)
+    if rest.get("error"):
+        return rest
+    rest["steps"] = [rest["steps"][0], {**stop, "facts": {**stop.get("facts", {}), "твой_пункт": "человек сам попросил начать отсюда"}}] + rest["steps"][1:]
+    rest["notes"] = [f"Начинаем с места, которое ты назвал: {first['name']}, ~{stay} мин; дальше — подобрал сам."] + (rest.get("notes") or [])
+    rest["summary"]["window_min"] = rest["summary"].get("window_min", 0) + stay
+    return rest
+
+
 def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
     ctx = Ctx(intent, now, w)
     ctx.window = (datetime.fromisoformat(intent["deadline"]) - now).total_seconds() / 60
@@ -982,7 +1004,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             "На остановку не хватит — можно просто выйти подышать." if geo.haversine_km(A, B) < 0.3 else "Лучше просто идти к цели.")}
     if geo.haversine_km(A, B) < 0.3 and window < 120 and not ctx.explicit and \
             not (ctx.prefs & {"active", "cinema", "kids", "night", "culture", "food"}):
-        ctx.walk_only = True  # прогулка по кругу — такси туда-обратно бессмысленно
+        ctx.walk_only = intent.get("mobility") != "limited"  # прогулка по кругу — такси туда-обратно бессмысленно (кроме маломобильных)
     max_stops = intent.get("max_stops") or (3 if window >= 100 else 2 if window >= 50 else 1)
     focused = ctx.prefs & {"food", "coffee", "work", "night", "kids", "shopping"} and \
         not ctx.prefs & {"sights", "walk", "view", "unusual", "culture", "nature", "romantic"} and not ctx.explicit
@@ -990,7 +1012,7 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
         both = {"food", "coffee"} <= ctx.prefs or "kids" in ctx.prefs
         max_stops = min(max_stops, 2 if both and window >= 120 else 1)   # «поесть перед концертом» — одно место, без памятника
     if intent.get("mobility") == "limited":
-        max_stops = min(max_stops, 2)   # «не спеша», «нет сил» — меньше беготни
+        max_stops = 1   # «не спеша», «нет сил», коляска — одно хорошее место и подольше, без беготни между точками
     if ctx.work:
         max_stops = 1
         # поработать: сидеть как можно дольше — пробуем 80% окна, если рядом нет такого места — меньше

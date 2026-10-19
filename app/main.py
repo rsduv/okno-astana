@@ -222,9 +222,8 @@ def _make_plan(req: PlanReq, request: Request):
     if not origin and parsed.get("via"):
         first = parsed["via"][0]
         first = first.get("place") if isinstance(first, dict) else str(first)
-        origin = geo.find_place(first or "", planner.POIS, req.saved)
-        if origin:
-            parsed = {**parsed, "via": parsed["via"][1:]}
+        origin = geo.find_place(first or "", planner.POIS, req.saved)   # первый пункт остаётся в списке — там и побудешь
+        from_first = bool(origin)
     if not origin:
         other = OTHER_CITIES.match((parsed.get("origin") or "").strip())
         msg = ("Похоже, ты не в Астане. «Окно» пока работает только по Астане — напиши ориентир в городе "
@@ -261,6 +260,13 @@ def _make_plan(req: PlanReq, request: Request):
             continue
         stay = v.get("stay_min") if isinstance(v, dict) else None
         via.append({**pt, "stay": int(stay) if isinstance(stay, (int, float)) and 0 < stay <= 600 else None})
+    keep = list(req.keep)
+    if locals().get("from_first") and len(via) == 1 and not dest:
+        # «сначала в музей, потом что-то ещё»: музей — обязательная остановка, остальное подберём сами
+        near = min(planner.POIS, key=lambda p: geo.haversine_km((via[0]["lat"], via[0]["lon"]), (p["lat"], p["lon"])))
+        if geo.haversine_km((via[0]["lat"], via[0]["lon"]), (near["lat"], near["lon"])) < 0.3:
+            first_poi = {**near, "_stay": via[0].get("stay")}
+            via = []
     if not dest and via and not parsed.get("return_to_origin"):
         dest = via.pop()   # конечная точка не нашлась — последний названный пункт и есть конец маршрута
     destination = dest or {**origin, "label": f"обратно: {origin['label']}"}
@@ -321,8 +327,8 @@ def _make_plan(req: PlanReq, request: Request):
               "mobility": parsed.get("mobility"), "transport": parsed.get("transport"), "group_size": parsed.get("group_size"),
               "language": parsed.get("language"), "explicit": wanted_cats(req.text, parsed),
               "dinner": bool(re.search(r"ужин|поужина|dinner|кешкі ас", (req.text or "").lower())),
-              "kazakh_food": bool(re.search(r"национальн|казахск|местн\w* (?:еду|кухн|блюд)|традицион|qazaq|kazakh|national food|local food|"
-                                            r"traditional|ұлттық|қазақ|бешбармак|beshbarmak|кымыз|қымыз|kumis|kymyz", req.text.lower()))}
+              "kazakh_food": bool(re.search(r"национальн\w* (?:кухн|ед|блюд|тағам)|казахск\w* (?:кухн|ед|блюд)|местн\w* (?:еду|кухн|блюд)|традицион|qazaq|kazakh|national food|local food|"
+                                            r"traditional|ұлттық тағам|қазақ тағам|қазақша тағам|бешбармак|beshbarmak|кымыз|қымыз|kumis|kymyz", req.text.lower()))}
     t2 = time.time()
     if via:
         intent["via"] = via
@@ -331,7 +337,10 @@ def _make_plan(req: PlanReq, request: Request):
         if result.get("summary") and not parsed.get("deadline"):
             deadline = now + timedelta(minutes=result["summary"]["window_min"])   # срока нет — шкала до конца маршрута
     else:
-        result = planner.plan(intent, now, w, exclude=req.exclude, required=req.keep)
+        if locals().get("first_poi"):
+            result = planner.plan_after_first(intent, now, w, first_poi)
+        else:
+            result = planner.plan(intent, now, w, exclude=req.exclude, required=keep)
     timings["plan"] = round((time.time() - t2) * 1000)
     # афиша: событие сегодня, которое целиком помещается в окно; спросил про театр/концерт — ближайшие события
     A, Bp = (origin["lat"], origin["lon"]), (destination["lat"], destination["lon"])
