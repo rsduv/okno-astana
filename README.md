@@ -6,7 +6,7 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
 > реальное время пешком по улицам, часы работы **на момент прихода**, погода и ветер, пробки для такси.
 > Только реальные места — ничего не выдумано; где данных нет, так и пишем.
 
-**Проверено цифрами:** 44/44 автопроверок в 13 тестовых сценариях · 100 случайных запросов — 0 опозданий и 0 закрытых мест · на 30 одинаковых запросах у Claude без данных 5 ответов с ошибками, у **того же Gemini без наших данных** — 4, у «Окна» (Gemini + RAG) — 0 · 43 автотеста в GitHub Actions.
+**Проверено цифрами:** 120/120 синтетических запросов «как пишут люди» (15 типов, 3 языка) · 44/44 автопроверок в 13 тестовых сценариях · 100 случайных запросов — 0 опозданий и 0 закрытых мест · на 30 одинаковых запросах у Claude без данных 5 ответов с ошибками, у **того же Gemini без наших данных** — 4, у «Окна» (Gemini + RAG) — 0 · 43 автотеста в GitHub Actions.
 
 <p align="center">
   <img src="docs/slides/img/main.png" alt="Окно: маршрут ЭКСПО → Хан Шатыр" width="68%">
@@ -20,6 +20,12 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
 ## Материалы для жюри
 - **Презентация:** [docs/Okno_presentation.pdf](docs/Okno_presentation.pdf) (текст выступления — [docs/pitch.md](docs/pitch.md))
 - **Тестовые сценарии, ограничения, этика:** [docs/Okno_scenarios.pdf](docs/Okno_scenarios.pdf) · [docs/scenarios.md](docs/scenarios.md) — 44/44 автопроверок
+- **Датасет мест (собран автоматически):** [docs/dataset.md](docs/dataset.md) — 1304 места Астаны, все поля из ТЗ
+  (описание, категория/теги, часы с источником, контакты, популярность) + «что делать», район, станция LRT ·
+  таблица [data/dataset/astana_poi.csv](data/dataset/astana_poi.csv) (открывается в Excel)
+- **120 синтетических проверочных запросов:** [docs/synthetic_tests.md](docs/synthetic_tests.md) — 15 типов (5 сценариев из ТЗ,
+  группы, коляска, мороз, ночь, 3 языка, невыполнимые) с ожидаемым ответом и автопроверкой · вход —
+  [data/dataset/synthetic_queries.jsonl](data/dataset/synthetic_queries.jsonl), повторить — `scripts/synthetic.py`
 - **Сравнение с обычным ИИ-чатботом:** [docs/benchmark.md](docs/benchmark.md) — 30 одинаковых запросов, одна проверка
 - **Демо-видео:** YouTube (ссылка в форме сдачи); запись делается скриптом `scripts/record_demo.py`
 

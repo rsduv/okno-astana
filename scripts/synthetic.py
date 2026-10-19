@@ -214,7 +214,7 @@ def check(q, r):
         return [f"ошибка запроса: {str(r['detail'])[:120]}"]
     if r.get("error"):
         # отказ с конкретным советом («успеешь одно: фонтан, 14 мин», «лучше ехать сразу») — это полезный ответ, а не сбой
-        if r.get("tip") or re.search(r"Успеешь одно|с собой|лучше ехать сразу|Просто иди|не успеть|go straight|takeaway", r["error"]):
+        if r.get("tip") or re.search(r"Успеешь одно|с собой|лучше ехать сразу|Просто иди|не успеть|go straight|takeaway", r["error"], re.I):
             return bad
         if not e.get("edge") and not (e.get("dest") and re.search(r"не успе", r["error"])):
             bad.append(f"отказ: {r['error'][:110]}")

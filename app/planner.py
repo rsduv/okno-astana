@@ -368,6 +368,8 @@ def stay_of(p: dict, ctx: "Ctx") -> int:
         return ctx.work_stay
     if getattr(ctx, "short_explicit", False) and p["category"] in ctx.explicit:
         return 10
+    if getattr(ctx, "quick_food", False) and p["category"] in ("кафе", "ресторан", "фастфуд"):
+        return 12   # окно впритык: быстро перекусить, а не обед на 50 минут
     if p["category"] in ("парк", "сад") and p["category"] in getattr(ctx, "explicit", ()):
         w = getattr(ctx, "window", 60) or 60
         return max(15, min(45, int(w * 0.3) // 5 * 5))  # «погулять в парке» — парк и есть цель прогулки
@@ -1095,6 +1097,14 @@ def plan(intent: dict, now: datetime, w: dict, exclude=(), required=()):
             want = set().union(*(PREF_CATS.get(x, set()) for x in ctx.prefs & {"food", "coffee", "night", "kids", "shopping"}))
             want -= {"достопримечательность", "смотровая", "фонтан", "парк"}
             hit = [r for r in results if any(p["category"] in want for p in r[1])]
+            if not hit and ctx.prefs & {"food", "coffee"}:
+                ctx.quick_food = True   # «поесть за 40 минут»: посидеть не успеть, но быстро перекусить — успеешь
+                r2, n2 = search(A, B, start, deadline, ctx, exclude, required, max_stops)
+                hit = [r for r in r2 if any(p["category"] in want for p in r[1])]
+                if hit:
+                    notes.append("Времени впритык — успеешь быстро перекусить (~12 мин) или взять с собой.")
+                else:
+                    ctx.quick_food = False
             if hit:
                 results = hit
     if ctx.explicit & SHORT_OK and not any(any(p["category"] in ctx.explicit for p in r[1]) for r in results[:5]):
