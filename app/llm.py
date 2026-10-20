@@ -269,6 +269,22 @@ def _tidy(t: str) -> str:
     return re.sub(r"\s{2,}", " ", t).strip()
 
 
+NEAR = re.compile(r"\b(совсем |прямо )?рядом( с тобой)?\b|в двух шагах|в паре шагов|\b(right )?next door\b|\bsteps away\b|\bjust around the corner\b", re.I)
+
+
+def _near_fix(text: str, reach: str | None, lang: str | None) -> str:
+    """ИИ иногда пишет «рядом» про место в 20 минутах пешком. Проверяем кодом: «рядом» — только если пешком ≤ 10 мин."""
+    if not text or not reach:
+        return text
+    m = re.match(r"пешком (\d+)", reach)
+    if m and int(m.group(1)) <= 10:
+        return text
+    how = (f"в {m.group(1)} мин пешком" if m else "на такси") if lang not in ("en", "kk") else \
+        ((f"{m.group(1)} min walk away" if m else "a short taxi ride away") if lang == "en" else
+         (f"{m.group(1)} минут жаяу" if m else "таксимен"))
+    return NEAR.sub(how, text, count=1)
+
+
 def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     stops = [s for s in result["steps"] if s["type"] == "stop"]
     reach, prev = {}, None
@@ -304,8 +320,8 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     by_id = {x.get("id"): x for x in ((d or {}).get("stops") or []) if isinstance(x, dict)}
     for s in stops:
         x = by_id.get(s["id"]) or {}
-        s["why"] = _tidy(x.get("why")) or _why_fallback(s, intent.get("language"))
-        s["todo"] = _tidy(x.get("todo")) or _todo_fallback(s, intent.get("language"))
+        s["why"] = _near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")) or _why_fallback(s, intent.get("language"))
+        s["todo"] = _near_fix(_tidy(x.get("todo")), reach.get(s["id"]), intent.get("language")) or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
         key = {"en": "name_en", "kk": "name_kk"}.get(intent.get("language"))
         if key and not s.get(key) and isinstance(x.get("name"), str) and 2 <= len(x["name"]) <= 80:

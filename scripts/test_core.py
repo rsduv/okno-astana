@@ -165,6 +165,20 @@ check("LRT: 18 станций, Байтерек → Аэропорт по лин
       len(lrt.STATIONS) == 18 and t and t[0] == "Байтерек" and t[1] == "Аэропорт" and 30 <= t[2] <= 90)
 A, B = geo.find_place("Хан Шатыр"), geo.find_place("Керуен")
 check("LRT: рядом с линией нет станций — подсказки нет", lrt.trip((A["lat"], A["lon"]), (B["lat"], B["lon"])) is None)
+# найдено оценкой качества (scripts/evaluate.py) и исправлено
+check("«рядом» про место в 18 мин пешком заменяется на честное время",
+      llm._near_fix("Уютное кафе рядом — отдохнуть", "пешком 18 мин", "ru") == "Уютное кафе в 18 мин пешком — отдохнуть"
+      and llm._near_fix("Кафе рядом", "пешком 6 мин", "ru") == "Кафе рядом")
+r = api.post("/api/plan", json={"text": "Бабушке 75 лет, тяжело ходить, мы у ЭКСПО. Куда сходить ненадолго?", "now": "13:00",
+                                "saved": {}, "parsed": {"origin": "ЭКСПО", "destination": None, "return_to_origin": True,
+                                                        "deadline": None, "duration_min": 90, "prefs": [], "language": "ru",
+                                                        "via": [], "mobility": "limited"}}).json()
+check("маломобильным — пешком не больше 10 мин подряд",
+      all(s["min"] <= 12 for s in r.get("steps", []) if s["type"] == "leg" and s["mode"] == "walk"))
+r = api.post("/api/plan", json={"text": "Мы компанией у Хан Шатыра, куда сходить вечером?", "now": "13:00", "saved": {}, "parsed": {
+    "origin": "Хан Шатыр", "destination": None, "return_to_origin": True, "deadline": None, "duration_min": 120, "prefs": [],
+    "language": "ru", "via": [], "group_size": 4}}).json()
+check("«куда вечером?» днём — план с 18:00", not r.get("error") and r["steps"][0]["time"] == "18:00")
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

@@ -268,6 +268,9 @@ def _make_plan(req: PlanReq, request: Request):
         if names and (len(names) >= 2 or end):
             parsed = {**parsed, "via": [{"place": n, "stay_min": None} for n in names]}
     later = start_offset(req.text or "")
+    if not later and now.hour < 16 and \
+            re.search(r"\bвечер(ом|ком)?\b|сегодня вечером|\btonight\b|this evening|\bкешке\b|\bкешқұрым", (req.text or "").lower()):
+        later = int((now.replace(hour=18, minute=0) - now).total_seconds() // 60)   # спросили днём «куда вечером» — план на вечер
     if later:
         now = now + timedelta(minutes=later)   # выходишь не сейчас — часы работы и пробки считаем на время выхода
     at_home = bool(re.search(r"\b(я|мы) (сейчас )?дома\b|\bиз дома\b|\bс дома\b|\bот дома\b|\bиз дому\b|\bat home\b|үйдемін|үйден",

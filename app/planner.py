@@ -227,14 +227,14 @@ class Ctx:
         self.cold = geo.cold_level(w)
         self.max_leg = geo.MAX_OUTDOOR_LEG[self.cold]
         if intent.get("mobility") == "limited":
-            self.max_leg = min(self.max_leg, 15)   # пожилым и на коляске — длинные куски лучше на такси
+            self.max_leg = min(self.max_leg, 10)   # пожилым и на коляске — длинные куски лучше на такси
         self.rejected: dict[str, int] = {}
         self.rejected_ex: dict[str, list] = {}
         self.rejected_seen: set = set()
         # темп: коляска / трудно ходить — медленнее и короче отрезки; с ребёнком — тоже медленнее
         self.pace = 1.0
         if intent.get("mobility") == "limited":
-            self.pace, self.max_leg = 1.35, min(self.max_leg, 15)
+            self.pace, self.max_leg = 1.35, min(self.max_leg, 10)
         elif intent.get("with_kids"):
             self.pace = 1.15
         self.prefs = set(intent.get("prefs") or [])
@@ -269,6 +269,14 @@ class Ctx:
 
 
 # короткий заход (10 мин) имеет смысл для парка или памятника, но не для боулинга или кино
+# музеи под открытым небом (в OSM — tourism=museum, но гуляешь по улице): «Атамекен» — карта Казахстана в миниатюре
+OPEN_AIR = re.compile(r"атамекен|карта казахстана|под открытым небом|open[- ]air", re.I)
+
+
+def is_outdoor(p: dict) -> bool:
+    return p["category"] in OUTDOOR or bool(OPEN_AIR.search(p["name"]))
+
+
 SHORT_OK = {"парк", "сад", "памятник", "достопримечательность", "смотровая", "мечеть", "собор", "галерея", "музей", "фонтан"}
 VIEW_POINTS = {"Байтерек"}  # смотровая площадка на высоте 97 м (Википедия); в OSM размечен как памятник
 GENERIC = {"сквер", "парк", "фонтан", "памятник", "скульптура", "монумент", "кафе", "столовая", "бар", "ресторан",
@@ -341,7 +349,7 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         if wc == "no":
             return None
         s += 0.8 if wc == "yes" else (0.3 if wc == "limited" else -0.4)
-    outdoor = cat in OUTDOOR
+    outdoor = is_outdoor(p)
     if outdoor and ctx.cold == "severe":
         return None
     if outdoor and ctx.cold == "cold":
@@ -647,7 +655,8 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
             r = geo.route(pos, pt, "foot", fallback=True)
             if r:
                 r = {**r, "min": r["min"] * ctx.pace}
-            if r and r["min"] > ctx.max_leg and not ctx.walk_only and r["min"] > geo.walk_min_est(pos, pt) * ctx.pace * 1.25:
+            if r and r["min"] > ctx.max_leg and not ctx.walk_only and (r["min"] > geo.walk_min_est(pos, pt) * ctx.pace * 1.25
+                                                                      or ctx.i.get("mobility") == "limited"):
                 lg = {"mode": "taxi"}  # реальный путь оказался сильно длиннее (река, развязки) — подвезём
             elif r:
                 leg = {"type": "leg", "mode": "walk", "min": round(r["min"]), "km": round(r["km"], 2),
@@ -697,7 +706,7 @@ def refine(seq, A, B, start, deadline, ctx: Ctx):
                           **contacts(p.get("tags") or {}),
                           "facts": _facts(p) | ({"по_пути": f"крюк всего {d} мин" if d >= 2 else "прямо по пути, без крюка"} if (d := _detour_min(A, B, p)) <= 8
                                                 and geo.haversine_km(A, B) >= 0.3 else {}) | {"остановка": f"{i + 1} из {len(seq)}",
-                                                "в_помещении": p["category"] not in OUTDOOR},
+                                                "в_помещении": not is_outdoor(p)},
                           "source": p["source"]})
             t = leave
         pos = pt
@@ -827,6 +836,8 @@ def _glance(A, ctx) -> str | None:
     for p in POIS:
         if p["category"] not in ("памятник", "достопримечательность", "фонтан", "смотровая") or p.get("unnamed"):
             continue
+        if p["category"] == "фонтан" and not 5 <= ctx.now.month <= 9:
+            continue   # фонтаны работают с мая по сентябрь
         d = geo.haversine_km(A, (p["lat"], p["lon"]))
         if d > 0.8 or d < 0.12:   # ближе 120 м — ты уже там, это не совет
             continue
@@ -909,7 +920,8 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
         if near:
             return near
         # посидеть не выходит — но посмотреть одно место снаружи или взять кофе с собой обычно успеваешь
-        quick = _glance(A, ctx) or (_grab_and_go(A, start, ctx, {"кафе"}, 1.0) if "indoor" not in ctx.prefs else None)
+        warm = "indoor" in ctx.prefs or ctx.cold != "ok" or ctx.i.get("mobility") == "limited"
+        quick = (None if warm else _glance(A, ctx)) or _grab_and_go(A, start, ctx, {"кафе"}, 0.6 if warm else 1.0)
         if quick:
             return quick
         return ("Рядом нет подходящих мест, до которых можно дойти и вернуться за это время"
