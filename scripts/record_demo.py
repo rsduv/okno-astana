@@ -51,12 +51,13 @@ def main():
         ctx = b.new_context(viewport={"width": W, "height": H}, record_video_dir=str(tmp), record_video_size={"width": W, "height": H},
                             geolocation={"latitude": 51.0905, "longitude": 71.4180}, permissions=["geolocation"], locale="ru-RU")
         pg = ctx.new_page()
+        t_video = time.time()   # запись видео идёт с этого момента — главы считаем от него
         pg.add_init_script("try{localStorage.clear();localStorage.setItem('okno_intro','1')}catch(e){}")
         pg.goto(URL)
         pg.add_style_tag(content=CAP_CSS)
         pg.evaluate("""() => { const c = document.createElement('div'); c.id = 'cap'; document.body.appendChild(c); }""")
         w = pg.wait_for_timeout
-        t_start = time.time()
+        t_start = t_video
         chapters = []
         def mark(title):
             """Новая глава: подпись прошлой сцены сначала гаснет — на стыке глав в короткой версии ничего не мелькает."""
@@ -218,10 +219,16 @@ def main():
         mark("«Где я?» по фото — Gemini Vision")
         pg.evaluate("() => { clearRoute(); document.getElementById('deck').innerHTML=''; document.getElementById('sum').className='sum glass'; state.last=null; }")
         cap("Турист не знает, как называется место? <b>Сфотографируй</b> — кнопка с камерой", 3500)
-        pg.set_input_files("#camIn", str(ROOT / "tests" / "photo_bayterek.jpg"))
-        pg.wait_for_function("() => !document.getElementById('cam').classList.contains('busy')", timeout=60000)
-        w(1200)
-        cap("<b>Gemini Vision</b> узнал Байтерек — старт маршрута там. Фото не сохраняется", 3600)
+        for _ in range(3):
+            pg.set_input_files("#camIn", str(ROOT / "tests" / "photo_bayterek.jpg"))
+            pg.wait_for_function("() => !document.getElementById('cam').classList.contains('busy')", timeout=90000)
+            if pg.evaluate("() => !!(state.point && state.point.label)"):
+                break
+            w(1500)
+        w(800)
+        got = pg.evaluate("() => state.point && state.point.label")
+        cap(f"<b>Gemini Vision</b> узнал «{got}» — старт маршрута там. Фото не сохраняется" if got else
+            "Не узнал — честно просит сфотографировать ориентир или ткнуть в карту", 4200)
         ask("Есть час, хочу кофе и вернуться", "15:00")
         cap("Маршрут — от места на фото", 3000)
         uncap()

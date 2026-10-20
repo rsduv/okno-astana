@@ -347,6 +347,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 <div id="toast" role="status" aria-live="polite"></div>
 <div class="glass langs" id="langs"><button data-l="ru">RU</button><button data-l="kk">KZ</button><button data-l="en">EN</button><button id="helpBtn" title="Что это и как пользоваться" aria-label="Что это и как пользоваться">?</button></div>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT"><div class="box glass" id="introBox" tabindex="-1" style="outline:none"></div></div>
+<div class="glass" id="photoPrev" aria-live="polite"><img alt=""><div></div></div>
 <div class="intro" id="qr" role="dialog" aria-modal="true"><div class="box glass" id="qrBox" style="width:min(340px,100%);text-align:center"></div></div>
 
 <div class="top">
@@ -355,7 +356,6 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
     <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?" aria-label="Запрос: где ты, куда нужно и к скольки">
     <button class="mic" id="cam" title="Где я? — по фото" aria-label="Где я? — по фото"><i data-lucide="camera"></i></button>
     <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
-    <div class="glass" id="photoPrev" aria-live="polite"><img alt=""><div></div></div>
     <button class="mic" id="mic" title="Сказать голосом" aria-label="Сказать голосом"><i data-lucide="mic"></i></button>
     <button class="go" id="go">Найти</button>
   </div>

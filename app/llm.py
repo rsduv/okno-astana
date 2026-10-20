@@ -84,8 +84,15 @@ def _chat_raw(system: str, user: str, max_tokens, temperature, fast, budget) -> 
     return None
 
 
+_gemini_dead = {"until": 0.0}   # ключ AI Studio без кредитов (402) — час идём сразу в OpenRouter
+
+
+def _gemini_ok() -> bool:
+    return bool(GEMINI_KEY) and time.time() > _gemini_dead["until"]
+
+
 def _chat_once(model, system, user, max_tokens, temperature) -> dict | None:
-    if GEMINI_KEY:  # напрямую в Google (OpenAI-совместимый адрес Gemini API)
+    if _gemini_ok():  # напрямую в Google (OpenAI-совместимый адрес Gemini API)
         gm = GEMINI_FAST if model == FAST else GEMINI_MAIN
         d = _post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", GEMINI_KEY,
                   gm, system, user, max_tokens, temperature)
@@ -102,6 +109,9 @@ def _post(url, key, model, system, user, max_tokens, temperature) -> dict | None
         if "googleapis" in url:
             body["reasoning_effort"] = EFFORT.get(model, "none")
         r = httpx.post(url, timeout=14, headers={"Authorization": f"Bearer {key}", "X-Title": "Okno Astana"}, json=body)
+        if r.status_code in (401, 402, 403) and "googleapis" in url:
+            _gemini_dead["until"] = time.time() + 3600
+            return None
         txt = r.json()["choices"][0]["message"]["content"]
         txt = re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip()
         return json.loads(txt)
@@ -118,22 +128,30 @@ SEE = """Ты смотришь на фото, которое человек то
 
 
 def see(image_data_url: str, names: list[str], lang: str = "ru") -> dict | None:
-    """Gemini Vision: где сделано фото (Байтерек, вход в Хан Шатыр, вывеска кафе). Фото никуда не сохраняется."""
-    if not GEMINI_KEY:
-        return None
-    body = {"model": GEMINI_MAIN, "temperature": 0.1, "max_tokens": 400, "response_format": {"type": "json_object"},
-            "reasoning_effort": EFFORT.get(GEMINI_MAIN, "none"),
-            "messages": [{"role": "system", "content": SEE % ("; ".join(names), {"en": "английском", "kk": "казахском"}.get(lang, "русском"))},
-                         {"role": "user", "content": [{"type": "text", "text": "Где я?"},
-                                                      {"type": "image_url", "image_url": {"url": image_data_url}}]}]}
-    try:
-        r = httpx.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", timeout=30,
-                       headers={"Authorization": f"Bearer {GEMINI_KEY}"}, json=body)
-        txt = r.json()["choices"][0]["message"]["content"]
-        d = json.loads(re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip())
-        return d if isinstance(d, dict) else None
-    except Exception:
-        return None
+    """Gemini Vision: где сделано фото (Байтерек, вход в Хан Шатыр, вывеска кафе). Фото никуда не сохраняется.
+    Сначала напрямую в Google AI Studio; нет кредитов или ошибка — та же Gemini через OpenRouter."""
+    msgs = [{"role": "system", "content": SEE % ("; ".join(names), {"en": "английском", "kk": "казахском"}.get(lang, "русском"))},
+            {"role": "user", "content": [{"type": "text", "text": "Где я?"}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+    routes = []
+    if _gemini_ok():
+        routes.append(("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", GEMINI_KEY,
+                       {"model": GEMINI_MAIN, "reasoning_effort": EFFORT.get(GEMINI_MAIN, "none")}))
+    if KEY:
+        routes.append(("https://openrouter.ai/api/v1/chat/completions", KEY, {"model": MODEL}))
+    for url, key, extra in routes:
+        try:
+            r = httpx.post(url, timeout=30, headers={"Authorization": f"Bearer {key}", "X-Title": "Okno Astana"},
+                           json={**extra, "temperature": 0.1, "max_tokens": 400, "response_format": {"type": "json_object"}, "messages": msgs})
+            if r.status_code in (401, 402, 403) and "googleapis" in url:
+                _gemini_dead["until"] = time.time() + 3600
+                continue
+            txt = r.json()["choices"][0]["message"]["content"]
+            d = json.loads(re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip())
+            if isinstance(d, dict):
+                return d
+        except Exception:
+            continue
+    return None
 
 
 UNDERSTAND = """Ты разбираешь запрос жителя или гостя Астаны о свободном времени. Верни ТОЛЬКО JSON:
