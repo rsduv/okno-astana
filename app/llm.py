@@ -372,7 +372,8 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
                    "приход": s["arrive"], "часы": s["hours"]["text"], "надёжность_часов": s["hours"]["confidence"],
                    "как_добраться": reach.get(s["id"]), "доп_факты": s["facts"]} for s in stops],
     }
-    d = _chat(EXPLAIN % (lang, tr), json.dumps(facts, ensure_ascii=False), max_tokens=1200, temperature=0.4)
+    d = _chat(EXPLAIN % (lang, tr), json.dumps(facts, ensure_ascii=False), max_tokens=1200, temperature=0.4,
+              budget=15)   # Gemini бывает медленным — лучше подождать пару секунд, чем показать шаблон
     if isinstance(d, list):  # модель иногда отдаёт сразу список мест
         d = {"stops": d}
     if not isinstance(d, dict):
@@ -385,7 +386,7 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
         x = by_id.get(s["id"]) or {}
         s["why"] = _claims_fix(_rating_fix(_near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")), s.get("facts")),
                                s["hours"]["text"]) \
-            or _why_fallback(s, intent.get("language"))
+            or _why_fallback(s, intent.get("language"), reach.get(s["id"]))
         s["todo"] = _rating_fix(_near_fix(_tidy(x.get("todo")), reach.get(s["id"]), intent.get("language")), s.get("facts")) \
             or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
@@ -421,23 +422,57 @@ DEFAULT_TODO = ("Осмотрись и сделай фото", "Look around and 
 LANG_IX = {"en": 1, "kk": 2}
 
 
-def _why_fallback(s, language=None):
+# зачем идти в место такого типа — для запасного текста, когда ИИ не успел ответить (ru, en, kk)
+WHY_CAT = {
+    "кафе": ("Кофейня, где можно передохнуть", "A café to take a break", "Демалып алуға болатын кофехана"),
+    "ресторан": ("Можно спокойно поесть", "A place for a proper meal", "Асықпай тамақтануға болады"),
+    "фастфуд": ("Быстро перекусить", "A quick bite", "Жылдам тамақтану"),
+    "бар": ("Бар, чтобы посидеть вечером", "A bar for the evening", "Кешке отыруға бар"),
+    "ночной клуб": ("Ночная жизнь города", "Nightlife", "Түнгі өмір"),
+    "торговый центр": ("Тёплый ТРЦ: кафе, магазины, можно отдохнуть", "A warm mall: cafés, shops, a rest", "Жылы СОО: кафе, дүкендер, демалыс"),
+    "музей": ("Музей — история и экспозиции", "A museum with exhibitions", "Мұражай — тарих пен экспозиция"),
+    "галерея": ("Галерея с выставкой", "A gallery with an exhibition", "Көрмесі бар галерея"),
+    "арт-центр": ("Арт-пространство", "An art space", "Өнер кеңістігі"),
+    "театр": ("Театр — спектакль по афише", "A theatre — see what's on", "Театр — афиша бойынша қойылым"),
+    "кино": ("Кинотеатр — выбрать сеанс", "A cinema", "Кинотеатр"),
+    "библиотека": ("Тихое место почитать или поработать", "A quiet place to read or work", "Оқуға не жұмыс істеуге тыныш орын"),
+    "книжный": ("Книжный — полистать и выбрать", "A bookshop to browse", "Кітап дүкені"),
+    "коворкинг": ("Место поработать с ноутбуком", "A place to work on a laptop", "Ноутбукпен жұмыс істейтін орын"),
+    "памятник": ("Знаковое место города для фото", "A city landmark for photos", "Суретке түсетін қаланың белгілі орны"),
+    "достопримечательность": ("Одна из достопримечательностей города", "One of the city's sights", "Қаланың көрікті жерлерінің бірі"),
+    "смотровая": ("Вид на город сверху", "A view over the city", "Қалаға жоғарыдан көрініс"),
+    "парк": ("Парк для спокойной прогулки", "A park for an easy walk", "Серуендеуге саябақ"),
+    "сад": ("Сад для спокойной прогулки", "A garden for a quiet walk", "Серуендеуге бақ"),
+    "детская площадка": ("Площадка, где ребёнок побегает", "A playground for the kids", "Бала ойнайтын алаң"),
+    "детский центр": ("Игровой центр для ребёнка", "An indoor play centre for kids", "Балаларға арналған ойын орталығы"),
+    "развлечения": ("Развлечения под крышей", "Indoor fun", "Жабық жердегі ойын-сауық"),
+    "мечеть": ("Мечеть с красивым интерьером", "A mosque with a beautiful interior", "Ішкі безендіруі әдемі мешіт"),
+    "собор": ("Собор — красивая архитектура", "A cathedral with fine architecture", "Әдемі сәулетті собор"),
+    "океанариум": ("Океанариум — интересно и взрослым, и детям", "An aquarium for all ages", "Мұхиттану — үлкенге де, балаға да қызық"),
+}
+
+
+def _why_fallback(s, language=None, reach=None):
+    """Запасное «почему» без ИИ: зачем идти (по типу места или первая фраза из Википедии), как добраться, рейтинг — в конце."""
     i = LANG_IX.get(language or "", 0)
     f = s.get("facts") or {}
-    parts = []
-    if f.get("википедия") and i == 0:
-        parts.append(f["википедия"].split(". ")[0].rstrip(".") + " (Википедия)")
-    if f.get("рейтинг_2гис"):
-        r = f["рейтинг_2гис"].split(" ")[0]
-        parts.append({0: f"рейтинг {r} в 2GIS", 1: f"rated {r} on 2GIS", 2: f"2GIS-те рейтингі {r}"}[i])
+    head = f["википедия"].split(". ")[0].rstrip(".") + " (Википедия)" if f.get("википедия") and i == 0 else \
+        WHY_CAT.get(s["category"], (s["category"].capitalize(), "Worth a stop", "Тоқтауға тұрарлық"))[i]
+    parts = [head]
     if f.get("по_пути"):
         parts.append({0: f["по_пути"], 1: "right on your way", 2: "жолыңызда"}[i])
+    elif reach:
+        m = re.match(r"пешком (\d+)", reach)
+        parts.append({0: f"в {m.group(1)} мин пешком" if m else "недалеко на такси",
+                      1: f"{m.group(1)} min on foot" if m else "a short taxi ride",
+                      2: f"жаяу {m.group(1)} мин" if m else "таксимен жақын"}[i])
     if f.get("внутри"):
         parts.append({0: f["внутри"], 1: "inside the mall", 2: "СОО ішінде"}[i])
-    if not parts:
-        parts.append({0: f"{s['category'].capitalize()} по пути", 1: "On your way", 2: "Жолыңызда"}[i])
-    txt = "; ".join(parts)
-    return (txt[:1].upper() + txt[1:])[:160] + ("." if not txt.endswith(".") else "")
+    if f.get("рейтинг_2гис"):
+        r = f["рейтинг_2гис"].split(" ")[0].replace(".", ",")
+        parts.append({0: f"{r} в 2GIS", 1: f"{r} on 2GIS", 2: f"2GIS-те {r}"}[i])
+    txt = ", ".join(parts)
+    return (txt[:1].upper() + txt[1:])[:170] + ("." if not txt.endswith(".") else "")
 
 
 def _todo_fallback(s, language=None):
