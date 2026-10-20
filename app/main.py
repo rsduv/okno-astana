@@ -479,7 +479,9 @@ def _make_plan(req: PlanReq, request: Request):
     timings["plan"] = round((time.time() - t2) * 1000)
     # афиша: событие сегодня, которое целиком помещается в окно; спросил про театр/концерт — ближайшие события
     A, Bp = (origin["lat"], origin["lon"]), (destination["lat"], destination["lon"])
-    evs = events.fitting(A, Bp, now, deadline) or (events.upcoming(A, now) if events.WANTS.search(req.text or "") else [])
+    ev_args = {"text": req.text or "", "prefs": set(parsed.get("prefs") or []), "kids": bool(parsed.get("with_kids"))}
+    evs = events.fitting(A, Bp, now, deadline, **ev_args) or \
+        (events.upcoming(A, now, **ev_args) if events.WANTS.search(req.text or "") else [])
     base = {"parsed": parsed, "origin": origin, "destination": destination, "now": now.strftime("%H:%M"), "events": evs,
             "deadline": deadline.strftime("%H:%M"), "window_label": window_label,
             "weather": {k: v for k, v in w.items() if k != "_hourly"}}
@@ -512,7 +514,8 @@ def _make_plan(req: PlanReq, request: Request):
                 "только для мест-кандидатов; помечено «2GIS».",
                 f"Погода: {w['source']}.",
                 "Тексты «почему» и «что делать»: Gemini 3.5 Flash (Google), только по фактам выше. Места выбирает алгоритм, не ИИ.",
-                (f"Афиша: официальный сайт Astana Opera (обновлено {events.UPDATED}) — "
+                (f"Афиша: официальный сайт Astana Opera (обновлено {events.UPDATED}) и городская афиша sxodim.com "
+                 f"(выставки, концерты, вечеринки, квизы; обновлено {events.UPDATED_CITY}) — "
                  + ("в это окно ничего не помещается, показаны ближайшие события по твоему запросу." if evs and evs[0].get("later")
                     else "событие показано, потому что целиком помещается в окно." if evs
                     else "событий, которые помещаются в это окно, нет.")),

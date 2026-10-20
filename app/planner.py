@@ -290,6 +290,8 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         return None
     if "kids" not in ctx.prefs and re.search(r"детск|балалар|children", p["name"].lower()) and cat != "детская площадка":
         return None  # «Детская библиотека» взрослому, который хочет почитать, — мимо
+    if cat == "фонтан" and not 5 <= ctx.now.month <= 9:
+        return None  # фонтаны в Астане работают с мая по сентябрь
     if p["name"].strip().lower() in GENERIC:
         return None  # «Сквер» без названия: человек не найдёт и не поймёт, куда идти
     s = 1.0

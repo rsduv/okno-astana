@@ -87,7 +87,7 @@ check("коляска: заметка о медленном темпе", any("с
 # --- афиша: событие предлагаем, только если оно целиком помещается в окно ---
 from app import events  # noqa: E402
 events.EVENTS[:] = [{"id": "t", "title": "Тест-концерт", "date": "2026-10-18", "time": "15:00", "minutes": 60, "hall": "Камерный зал",
-                     "kind": "Концерт", "age": "5", "url": "https://example.org", "venue": "Астана Опера", "lat": 51.13546, "lon": 71.410659}]
+                     "kind": "Концерт", "age": "5", "url": "https://example.org", "venue": "Астана Опера", "lat": 51.13546, "lon": 71.410659, "source": "astanaopera.kz"}]
 bt = (51.128, 71.4305)
 check("афиша: концерт помещается в окно 13:30–16:30", len(events.fitting(bt, bt, at(13, 30), at(16, 30))) == 1)
 check("афиша: не успеть к началу — не предлагаем", events.fitting(bt, bt, at(14, 58), at(18)) == [])
@@ -181,6 +181,27 @@ r = api.post("/api/plan", json={"text": "Мы компанией у Хан Ша�
 check("«куда вечером?» днём — план с 18:00", not r.get("error") and r["steps"][0]["time"] == "18:00")
 r = api.post("/api/photo", json={"image": "not an image"}).json()
 check("фото: не картинка — понятная ошибка, без падения", bool(r.get("error")))
+# городская афиша: событие по теме запроса, детское — только с ребёнком, выставка — если успеваешь до закрытия
+from app import events  # noqa: E402
+from datetime import datetime as _dt  # noqa: E402
+_keep = events.EVENTS
+_A = (51.1283, 71.4305)
+events.EVENTS = [
+    {"title": "Квиз, плиз! #1", "kind": "Игры (квизы, мафия и другое)", "date": "2026-10-20", "time": "20:00", "minutes": 120,
+     "venue": "Бар", "url": "u1", "lat": 51.1290, "lon": 71.4310, "source": "sxodim.com"},
+    {"title": "Новогодний утренник", "kind": "Для детей", "date": "2026-10-20", "time": "19:00", "minutes": 60,
+     "venue": "ДК", "url": "u2", "lat": 51.1285, "lon": 71.4300, "source": "sxodim.com"},
+    {"title": "Выставка «Айвазовский»", "kind": "Выставки и ярмарки", "date": "2026-10-20", "until": "2026-10-25", "time": None,
+     "range": True, "minutes": 60, "venue": "Музей", "url": "u3", "lat": 51.1288, "lon": 71.4302, "source": "sxodim.com"}]
+r1 = events.fitting(_A, _A, _dt(2026, 10, 20, 19, 30), _dt(2026, 10, 20, 23, 0), text="хочу на квиз вечером")
+r2 = events.fitting(_A, _A, _dt(2026, 10, 20, 18, 30), _dt(2026, 10, 20, 21, 0), text="куда сходить, что-нибудь интересное")
+r3 = events.fitting(_A, _A, _dt(2026, 10, 20, 14, 0), _dt(2026, 10, 20, 16, 0), text="хочу на выставку")
+r4 = events.fitting(_A, _A, _dt(2026, 10, 20, 19, 30), _dt(2026, 10, 20, 22, 0), text="хочу на выставку")
+events.EVENTS = _keep
+check("афиша: «квиз» → квиз", [e["title"] for e in r1][:1] == ["Квиз, плиз! #1"])
+check("афиша: детский утренник взрослому не предлагаем", all("утренник" not in e["title"] for e in r2))
+check("афиша: выставка днём — да, в 19:30 (закрыта) — нет",
+      any("Айвазовский" in e["title"] for e in r3) and not any("Айвазовский" in e["title"] for e in r4))
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

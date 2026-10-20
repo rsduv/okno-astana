@@ -1,4 +1,5 @@
-# Афиша Астаны: каждый день заново собирает события (scripts/collect_events.py → data/events.json).
+# Афиша Астаны: каждый день заново собирает события — Astana Opera (scripts/collect_events.py → data/events.json)
+# и городская афиша sxodim.com: выставки, концерты, вечеринки, квизы (scripts/collect_sxodim.py → data/events_city.json).
 name: Обновление афиши
 
 on:
@@ -21,10 +22,17 @@ jobs:
         run: |
           pip install httpx
           python scripts/collect_events.py
+      - name: Городская афиша (sxodim.com)
+        continue-on-error: true
+        env:
+          DGIS_OFF: "1"
+        run: |
+          pip install -r requirements.txt
+          python scripts/collect_sxodim.py
       - name: Сохранить, если афиша изменилась
         run: |
           git config user.name "poi-bot"
           git config user.email "poi-bot@users.noreply.github.com"
-          git add data/events.json
+          git add data/events.json data/events_city.json
           git diff --cached --quiet || git commit -m "data: афиша $(date -u +%F)"
           git push
