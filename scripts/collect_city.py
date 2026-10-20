@@ -5,6 +5,7 @@
 Результат: data/districts.json, data/lrt.json. Только httpx.
 """
 import json
+import time
 from pathlib import Path
 
 import httpx
@@ -18,13 +19,15 @@ DISTRICTS = {"Есіл ауданы": "Есиль", "Алматы ауданы":
 
 
 def overpass(q: str) -> list:
-    for u in ENDPOINTS:
-        try:
-            r = httpx.post(u, data={"data": q}, timeout=120, headers=UA)
-            if r.status_code == 200:
-                return r.json()["elements"]
-        except httpx.HTTPError:
-            pass
+    for attempt in range(3):   # Overpass бесплатный и часто перегружен — пробуем пару раз с паузой
+        for u in ENDPOINTS:
+            try:
+                r = httpx.post(u, data={"data": q}, timeout=120, headers=UA)
+                if r.status_code == 200:
+                    return r.json()["elements"]
+            except (httpx.HTTPError, ValueError):
+                pass
+        time.sleep(15)
     raise SystemExit("Overpass не ответил")
 
 
@@ -67,7 +70,10 @@ def lrt():
         seen.add(name)
         res.append({"order": len(res) + 1, "ref": t.get("ref"), "name": name, "name_kk": t.get("name:kk") or t.get("name"), "name_en": t.get("name:en"),
                     "lat": stations[i]["lat"], "lon": stations[i]["lon"], "osm": f"node/{i}"})
-    return {"line": routes[0]["tags"].get("name") if routes else None, "stations": res}
+    # сама линия (пути railway=light_rail) — чтобы нарисовать её на карте
+    ways = overpass(f'[out:json][timeout:90];way[railway=light_rail]({BBOX});out geom;')
+    lines = [[[round(g["lon"], 5), round(g["lat"], 5)] for g in w["geometry"]] for w in ways if w.get("geometry")]
+    return {"line": routes[0]["tags"].get("name") if routes else None, "stations": res, "geometry": lines}
 
 
 def inside(lat, lon, segs):
@@ -83,6 +89,8 @@ def main():
     (ROOT / "data" / "districts.json").write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     print("районов:", len(d), [x["name"] for x in d])
     lr = lrt()
+    if not lr["stations"]:
+        raise SystemExit("станции LRT не найдены — data/lrt.json не трогаю")
     (ROOT / "data" / "lrt.json").write_text(json.dumps(lr, ensure_ascii=False, indent=1), encoding="utf-8")
     print("LRT:", lr["line"], len(lr["stations"]), "станций:", ", ".join(s["name"] for s in lr["stations"]))
 

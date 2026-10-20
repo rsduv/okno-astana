@@ -1,6 +1,7 @@
 """Сервер «Окна». Запуск: python -m uvicorn app.main:app --port 8000  →  http://localhost:8000"""
 from __future__ import annotations
 
+import json
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -158,6 +159,13 @@ def translate(req: TrReq, request: Request):
     if req.lang not in ("en", "kk") or not texts or (ip not in ("127.0.0.1", "::1") and _too_many(ip)):
         return {"texts": texts}
     return {"texts": llm.translate(texts, req.lang, max_tokens=1600)}
+
+
+@app.get("/api/lrt")
+def lrt_map():
+    """Линия LRT и станции для карты (OSM, scripts/collect_city.py)."""
+    f = Path(__file__).resolve().parent.parent / "data" / "lrt.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"stations": [], "geometry": []}
 
 
 @app.get("/api/pois")

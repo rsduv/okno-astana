@@ -440,6 +440,8 @@ const TC = c => c;   // категории пока по-русски на вс�
 // телефон и сайт места (из OpenStreetMap) — нажал и звонишь / открываешь
 const contactsHtml = x => (x && (x.phone || x.website)) ? `<div class="ct">${x.phone ? `<a href="tel:${esc(x.phone.replace(/[^+\d]/g,""))}" onclick="event.stopPropagation()">${svg("Phone",13)}${esc(x.phone)}</a>` : ""}${x.website ? `<a href="${esc(/^https?:/.test(x.website) ? x.website : "https://" + x.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${svg(/instagram/.test(x.website) ? "AtSign" : "Globe",13)}${/instagram/.test(x.website) ? "Instagram" : T("site")}</a>` : ""}</div>` : "";
 function applyLang(){
+  try { if(map.getLayer("lrt-name")) map.setLayoutProperty("lrt-name", "text-field",
+    ["concat","LRT · ",["get", LANG === "en" ? "en" : LANG === "kk" ? "kk" : "ru"]]); } catch(e) {}
   document.documentElement.lang = LANG;
   $("#go").textContent = T("find"); $("#q").placeholder = T("ph");
   if(typeof renderMe === "function") renderMe();
@@ -660,6 +662,23 @@ mapReady.then(async () => {
       features: pts.map(p => ({type:"Feature", geometry:{type:"Point", coordinates:[p[0],p[1]]}, properties:{c:p[2]}}))}});
     map.addLayer({id:"pois", type:"circle", source:"pois", paint:{"circle-radius":["interpolate",["linear"],["zoom"],10,1.3,15,3.6],
       "circle-color":"#6b7a8e", "circle-opacity":.5}});
+  } catch(e) {}
+  // линия LRT Астаны (открыта 16.05.2026) и 18 станций — из OpenStreetMap
+  try {
+    const L = await (await fetch("/api/lrt")).json();
+    if(L.stations && L.stations.length){
+      map.addSource("lrt-line", {type:"geojson", data:{type:"Feature", geometry:{type:"MultiLineString", coordinates:L.geometry}}});
+      map.addLayer({id:"lrt-line", type:"line", source:"lrt-line", layout:{"line-cap":"round","line-join":"round"},
+        paint:{"line-color":"#f6a03c", "line-width":["interpolate",["linear"],["zoom"],10,1.4,15,3.2], "line-opacity":.55}});
+      map.addSource("lrt-st", {type:"geojson", data:{type:"FeatureCollection", features:L.stations.map(s => ({type:"Feature",
+        geometry:{type:"Point", coordinates:[s.lon, s.lat]}, properties:{ru:s.name, en:s.name_en || s.name, kk:s.name_kk || s.name}}))}});
+      map.addLayer({id:"lrt-st", type:"circle", source:"lrt-st", paint:{"circle-radius":["interpolate",["linear"],["zoom"],10,2.2,15,5.5],
+        "circle-color":"#0d1117", "circle-stroke-color":"#f6a03c", "circle-stroke-width":["interpolate",["linear"],["zoom"],10,1.2,15,2.2], "circle-opacity":.95}});
+      map.addLayer({id:"lrt-name", type:"symbol", source:"lrt-st", minzoom:12.3,
+        layout:{"text-field":["concat","LRT · ",["get", LANG === "en" ? "en" : LANG === "kk" ? "kk" : "ru"]], "text-font":["Noto Sans Regular"],
+          "text-size":11, "text-offset":[0,1.1], "text-anchor":"top", "text-optional":true},
+        paint:{"text-color":"#f6c27a", "text-halo-color":"#0b0f14", "text-halo-width":1.4, "text-opacity":.9}});
+    }
   } catch(e) {}
   map.addLayer({id:"walk-glow", type:"line", source:"route-walk", layout:{"line-cap":"round","line-join":"round"},
     paint:{"line-color":["get","color"], "line-width":14, "line-opacity":.16, "line-blur":5}});
