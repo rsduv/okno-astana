@@ -161,6 +161,28 @@ def translate(req: TrReq, request: Request):
     return {"texts": llm.translate(texts, req.lang, max_tokens=1600)}
 
 
+class PhotoReq(BaseModel):
+    image: str                       # data:image/jpeg;base64,… — уменьшенное в браузере фото (до ~1024 px)
+    lang: str = "ru"
+
+
+@app.post("/api/photo")
+def photo(req: PhotoReq, request: Request):
+    """«Где я?» по фото: Gemini Vision узнаёт ориентир или вывеску → точка старта. Фото не сохраняем и не пишем в логи."""
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "?").split(",")[0]
+    if ip not in ("127.0.0.1", "::1") and _too_many(ip, limit=20):
+        return {"error": "Слишком много фото подряд — попробуй через пару минут."}
+    if not re.match(r"data:image/(jpeg|png|webp);base64,", req.image[:40]) or len(req.image) > 3_000_000:
+        return {"error": "Не получилось прочитать фото — попробуй ещё раз (JPEG или PNG)."}
+    names = [lm["name"] for lm in geo.LANDMARKS] + sorted({p["name"] for p in planner.POIS if p.get("wiki")})
+    d = llm.see(req.image, names, req.lang) or {}
+    place = geo.find_place(d["place"], planner.POIS, {}) if d.get("place") and d.get("confidence") != "low" else None
+    if not place:
+        return {"error": None, "found": False, "what": d.get("what")}
+    return {"found": True, "label": place["label"], "lat": round(place["lat"], 4), "lon": round(place["lon"], 4),
+            "confidence": d.get("confidence"), "what": d.get("what")}
+
+
 @app.get("/api/lrt")
 def lrt_map():
     """Линия LRT и станции для карты (OSM, scripts/collect_city.py)."""

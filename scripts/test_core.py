@@ -179,6 +179,8 @@ r = api.post("/api/plan", json={"text": "Мы компанией у Хан Ша�
     "origin": "Хан Шатыр", "destination": None, "return_to_origin": True, "deadline": None, "duration_min": 120, "prefs": [],
     "language": "ru", "via": [], "group_size": 4}}).json()
 check("«куда вечером?» днём — план с 18:00", not r.get("error") and r["steps"][0]["time"] == "18:00")
+r = api.post("/api/photo", json={"image": "not an image"}).json()
+check("фото: не картинка — понятная ошибка, без падения", bool(r.get("error")))
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

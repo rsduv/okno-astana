@@ -109,6 +109,33 @@ def _post(url, key, model, system, user, max_tokens, temperature) -> dict | None
         return None
 
 
+SEE = """Ты смотришь на фото, которое человек только что сделал в Астане, чтобы показать, где он стоит.
+Определи место. Если на фото узнаётся одно из мест списка — верни его название ТОЧНО как в списке.
+Если видна вывеска или название (кафе, ТРЦ, улица) — верни его как написано. Не угадывай: если не уверен — place = null.
+Список известных мест: %s
+Верни ТОЛЬКО JSON: {"place": "название или null", "confidence": "high" | "medium" | "low",
+ "what": "что видно на фото, одна короткая фраза на языке %s (без людей и их внешности)"}"""
+
+
+def see(image_data_url: str, names: list[str], lang: str = "ru") -> dict | None:
+    """Gemini Vision: где сделано фото (Байтерек, вход в Хан Шатыр, вывеска кафе). Фото никуда не сохраняется."""
+    if not GEMINI_KEY:
+        return None
+    body = {"model": GEMINI_MAIN, "temperature": 0.1, "max_tokens": 400, "response_format": {"type": "json_object"},
+            "reasoning_effort": EFFORT.get(GEMINI_MAIN, "none"),
+            "messages": [{"role": "system", "content": SEE % ("; ".join(names), {"en": "английском", "kk": "казахском"}.get(lang, "русском"))},
+                         {"role": "user", "content": [{"type": "text", "text": "Где я?"},
+                                                      {"type": "image_url", "image_url": {"url": image_data_url}}]}]}
+    try:
+        r = httpx.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", timeout=30,
+                       headers={"Authorization": f"Bearer {GEMINI_KEY}"}, json=body)
+        txt = r.json()["choices"][0]["message"]["content"]
+        d = json.loads(re.sub(r"^```(?:json)?|```$", "", txt.strip(), flags=re.M).strip())
+        return d if isinstance(d, dict) else None
+    except Exception:
+        return None
+
+
 UNDERSTAND = """Ты разбираешь запрос жителя или гостя Астаны о свободном времени. Верни ТОЛЬКО JSON:
 {"origin": "название места, где человек сейчас, как он написал, или null",
  "destination": "куда нужно прийти в конце, или null если не сказано",

@@ -35,6 +35,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .mic{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:#252c36;color:#aeb6c1;display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s}
 .mic:hover{color:#fff;background:#2e3743}
 .mic svg{width:19px;height:19px}
+#cam.busy svg{animation:spin 1s linear infinite}
+@media (max-width:640px){.search .mic{width:36px;height:36px}}
 .mic.on{background:#e5484d;border-color:#e5484d;color:#fff;animation:micp 1.3s ease-in-out infinite}
 @keyframes micp{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.55)}50%{box-shadow:0 0 0 9px rgba(229,72,77,0)}}
 .row{display:flex;flex-wrap:wrap;gap:6px;padding:1px}
@@ -328,6 +330,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   <div class="search glass">
     <div class="logo">О</div>
     <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?" aria-label="Запрос: где ты, куда нужно и к скольки">
+    <button class="mic" id="cam" title="Где я? — по фото" aria-label="Где я? — по фото"><i data-lucide="camera"></i></button>
+    <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
     <button class="mic" id="mic" title="Сказать голосом" aria-label="Сказать голосом"><i data-lucide="mic"></i></button>
     <button class="go" id="go">Найти</button>
   </div>
@@ -440,6 +444,7 @@ const TC = c => c;   // категории пока по-русски на вс�
 // телефон и сайт места (из OpenStreetMap) — нажал и звонишь / открываешь
 const contactsHtml = x => (x && (x.phone || x.website)) ? `<div class="ct">${x.phone ? `<a href="tel:${esc(x.phone.replace(/[^+\d]/g,""))}" onclick="event.stopPropagation()">${svg("Phone",13)}${esc(x.phone)}</a>` : ""}${x.website ? `<a href="${esc(/^https?:/.test(x.website) ? x.website : "https://" + x.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${svg(/instagram/.test(x.website) ? "AtSign" : "Globe",13)}${/instagram/.test(x.website) ? "Instagram" : T("site")}</a>` : ""}</div>` : "";
 function applyLang(){
+  try { const c = (CAM[LANG] || CAM.ru).t; $("#cam").title = c; $("#cam").setAttribute("aria-label", c); } catch(e) {}
   try { if(map.getLayer("lrt-name")) map.setLayoutProperty("lrt-name", "text-field",
     ["concat","LRT · ",["get", LANG === "en" ? "en" : LANG === "kk" ? "kk" : "ru"]]); } catch(e) {}
   document.documentElement.lang = LANG;
@@ -849,6 +854,41 @@ $("#mic").onclick = () => {
   $("#mic").classList.add("on"); toast(T("micOn"));
   try { rec.start(); } catch(e) { $("#mic").classList.remove("on"); rec = null; toast(T("micErr")); }
 };
+// «Где я?» по фото: Gemini Vision узнаёт ориентир или вывеску — это и есть точка старта. Фото уменьшаем в браузере
+// и отправляем один раз; сервер его не сохраняет
+const CAM = {
+  ru:{t:"Где я? — по фото", look:"Смотрю на фото…", ok:(n,w)=>`Похоже, ты у «${n}»${w ? " — " + w : ""}. Теперь напиши, сколько есть времени или куда нужно.`,
+      no:w=>`Не узнал место${w ? " (" + w + ")" : ""}. Сфотографируй ориентир или вывеску — или ткни в карту.`, err:"Не получилось — попробуй ещё раз."},
+  en:{t:"Where am I? — by photo", look:"Looking at the photo…", ok:(n,w)=>`Looks like you're at “${n}”${w ? " — " + w : ""}. Now type how much time you have or where to.`,
+      no:w=>`Couldn't recognise the place${w ? " (" + w + ")" : ""}. Snap a landmark or a sign — or tap the map.`, err:"Didn't work — try again."},
+  kk:{t:"Мен қайдамын? — фото бойынша", look:"Фотоны қарап жатырмын…", ok:(n,w)=>`«${n}» жанындасың-ау${w ? " — " + w : ""}. Енді қанша уақыт бар екенін немесе қайда бару керегін жаз.`,
+      no:w=>`Орынды танымадым${w ? " (" + w + ")" : ""}. Бағдарды немесе маңдайшаны түсір — не картаны түрт.`, err:"Шықпады — қайталап көр."},
+};
+const C = k => (CAM[LANG] || CAM.ru)[k];
+$("#cam").onclick = () => $("#camIn").click();
+$("#camIn").onchange = async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if(!f) return;
+  $("#cam").classList.add("busy"); toast(C("look"));
+  try {
+    const img = await createImageBitmap(f);
+    const k = Math.min(1, 1024 / Math.max(img.width, img.height));
+    const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    const r = await (await fetch("/api/photo", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({image: cv.toDataURL("image/jpeg", 0.82), lang: LANG})})).json();
+    if(r.error){ toast(r.error); return; }
+    if(!r.found){ toast(C("no")(r.what)); return; }
+    state.point = {lat:r.lat, lon:r.lon, mine:false, label:r.label};
+    if(startMarker) startMarker.remove();
+    const el = document.createElement("div"); el.className = "mk pick"; el.innerHTML = svg("Flag", 28);
+    startMarker = new maplibregl.Marker({element:el, anchor:"bottom-left"}).setLngLat([r.lon, r.lat]).addTo(map);
+    map.flyTo({center:[r.lon, r.lat], zoom:15, duration:1600, padding: mobile() ? {top:140, bottom:200, left:20, right:20} : PAD()});
+    toast(C("ok")(r.label, r.what)); renderSaved(); $("#q").focus();
+  } catch(err) { toast(C("err")); }
+  finally { $("#cam").classList.remove("busy"); }
+};
+
 // пустая строка поиска сама «печатает» примеры — новичку сразу понятно, что писать (останавливается, как только человек начал)
 let phI = 0, phTimer = null;
 function phCycle(){
