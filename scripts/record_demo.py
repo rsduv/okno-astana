@@ -58,7 +58,13 @@ def main():
         w = pg.wait_for_timeout
         t_start = time.time()
         chapters = []
-        mark = lambda title: chapters.append((time.time() - t_start, title))   # главы для YouTube — по реальному времени записи
+        def mark(title):
+            """Новая глава: подпись прошлой сцены сначала гаснет — на стыке глав в короткой версии ничего не мелькает."""
+            if shown["t"]:
+                uncap()
+            pg.evaluate("() => { const c = document.getElementById('cap'); if(c) c.classList.remove('on'); }")
+            w(500)
+            chapters.append((time.time() - t_start, title))   # главы для YouTube — по реальному времени записи
 
         def title(h1, sub, kpis=None, ms=3800):
             k = "".join(f"<div><b>{a}</b>{b}</div>" for a, b in (kpis or []))
@@ -76,12 +82,24 @@ def main():
             pg.evaluate("() => { const t = document.getElementById('title'); t.style.opacity = 0; setTimeout(() => t.remove(), 700); }")
             w(700)
 
+        shown = {"t": 0.0}
+        MIN_CAP = 3.5   # секунд: подпись должна успеть прочитаться, даже если дальше сразу действие
+
+        def hold():
+            left = MIN_CAP - (time.time() - shown["t"])
+            if shown["t"] and left > 0:
+                w(int(left * 1000))
+
         def cap(text, ms=0):
+            hold()
             pg.evaluate("t => { const c = document.getElementById('cap'); c.innerHTML = t; c.classList.add('on'); }", text)
+            shown["t"] = time.time()
             if ms:
                 w(ms)
 
         def uncap():
+            hold()
+            shown["t"] = 0.0
             pg.evaluate("() => document.getElementById('cap').classList.remove('on')")
 
         def ask(text, t=None, delay=38):
@@ -199,8 +217,7 @@ def main():
         # 5.5 «Где я?» по фото
         mark("«Где я?» по фото — Gemini Vision")
         pg.evaluate("() => { clearRoute(); document.getElementById('deck').innerHTML=''; document.getElementById('sum').className='sum glass'; state.last=null; }")
-        cap("Турист не знает, как называется место? <b>Сфотографируй</b> — кнопка с камерой")
-        w(1800)
+        cap("Турист не знает, как называется место? <b>Сфотографируй</b> — кнопка с камерой", 3500)
         pg.set_input_files("#camIn", str(ROOT / "tests" / "photo_bayterek.jpg"))
         pg.wait_for_function("() => !document.getElementById('cam').classList.contains('busy')", timeout=60000)
         w(1200)
@@ -248,7 +265,7 @@ def main():
         pg.mouse.click(xy[0] + 4, xy[1] + 4)
         pg.wait_for_selector(".pc [data-a=save]", timeout=20000)
         w(4500)
-        cap("«В закладки» — выбираешь значок, <b>здание подсвечивается</b> цветом закладки", 1500)
+        cap("«В закладки» — выбираешь значок, <b>здание подсвечивается</b> цветом закладки", 3500)
         pg.click(".pc [data-a=save]")
         w(900)
         pg.click(".savepop .kinds button[data-k='work']")

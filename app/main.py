@@ -178,7 +178,7 @@ def photo(req: PhotoReq, request: Request):
     if not re.match(r"data:image/(jpeg|png|webp);base64,", req.image[:40]) or len(req.image) > 3_000_000:
         return {"error": "Не получилось прочитать фото — попробуй ещё раз (JPEG или PNG)."}
     names = [lm["name"] for lm in geo.LANDMARKS] + sorted({p["name"] for p in planner.POIS if p.get("wiki")})
-    d = llm.see(req.image, names, req.lang) or {}
+    d = llm.see(req.image, names, req.lang) or llm.see(req.image, names, req.lang) or {}   # Gemini бывает медленным — вторая попытка
     place = geo.find_place(d["place"], planner.POIS, {}) if d.get("place") and d.get("confidence") != "low" else None
     if not place:
         return {"error": None, "found": False, "what": d.get("what")}

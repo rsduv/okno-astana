@@ -44,6 +44,12 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .mic svg{width:19px;height:19px}
 #cam.busy svg{animation:spin 1s linear infinite}
 @media (max-width:640px){.search .mic{width:36px;height:36px}}
+#photoPrev{position:fixed;right:64px;top:62px;z-index:25;display:none;align-items:center;gap:10px;padding:8px 12px 8px 8px;border-radius:16px;max-width:320px;animation:pop .3s ease both}
+#photoPrev.show{display:flex}
+#photoPrev img{width:72px;height:72px;object-fit:cover;border-radius:11px;flex:none}
+#photoPrev div{font-size:13px;line-height:1.35;color:var(--muted)}
+#photoPrev b{display:block;color:var(--text);font-size:14px}
+@media (max-width:640px){#photoPrev{right:8px;left:8px;top:auto;bottom:16px;max-width:none}}
 .mic.on{background:#e5484d;border-color:#e5484d;color:#fff;animation:micp 1.3s ease-in-out infinite}
 @keyframes micp{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.55)}50%{box-shadow:0 0 0 9px rgba(229,72,77,0)}}
 .row{display:flex;flex-wrap:wrap;gap:6px;padding:1px}
@@ -349,6 +355,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
     <input id="q" autocomplete="off" placeholder="Где ты, куда нужно и к скольки?" aria-label="Запрос: где ты, куда нужно и к скольки">
     <button class="mic" id="cam" title="Где я? — по фото" aria-label="Где я? — по фото"><i data-lucide="camera"></i></button>
     <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+    <div class="glass" id="photoPrev" aria-live="polite"><img alt=""><div></div></div>
     <button class="mic" id="mic" title="Сказать голосом" aria-label="Сказать голосом"><i data-lucide="mic"></i></button>
     <button class="go" id="go">Найти</button>
   </div>
@@ -913,6 +920,9 @@ $("#camIn").onchange = async e => {
   const f = e.target.files && e.target.files[0]; e.target.value = "";
   if(!f) return;
   $("#cam").classList.add("busy"); toast(C("look"));
+  const prev = $("#photoPrev"), url = URL.createObjectURL(f);
+  prev.querySelector("img").src = url; prev.querySelector("div").innerHTML = `<b>📷</b>${esc(C("look"))}`; prev.classList.add("show");
+  clearTimeout(prev._t);
   try {
     const img = await createImageBitmap(f);
     const k = Math.min(1, 1024 / Math.max(img.width, img.height));
@@ -920,8 +930,10 @@ $("#camIn").onchange = async e => {
     cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
     const r = await (await fetch("/api/photo", {method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({image: cv.toDataURL("image/jpeg", 0.82), lang: LANG})})).json();
-    if(r.error){ toast(r.error); return; }
-    if(!r.found){ toast(C("no")(r.what)); return; }
+    if(r.error){ toast(r.error); prev.classList.remove("show"); return; }
+    if(!r.found){ toast(C("no")(r.what)); prev.querySelector("div").innerHTML = `<b>?</b>${esc(r.what || "")}`; prev._t = setTimeout(() => prev.classList.remove("show"), 6000); return; }
+    prev.querySelector("div").innerHTML = `<b>${esc(r.label)}</b>${esc(r.what || "")}`;
+    prev._t = setTimeout(() => prev.classList.remove("show"), 9000);
     state.point = {lat:r.lat, lon:r.lon, mine:false, label:r.label};
     if(startMarker) startMarker.remove();
     const el = document.createElement("div"); el.className = "mk pick"; el.innerHTML = svg("Flag", 28);
