@@ -213,6 +213,9 @@ mt = r.get("meet") or {}
 check("встреча посередине: путь друга есть, разница во времени дороги небольшая, место открыто",
       not r.get("error") and r.get("friend") and abs(mt.get("you_min", 0) - mt.get("friend_min", 99)) <= 10
       and all(s["hours"]["status"] == "open" for s in r["steps"] if s["type"] == "stop"))
+r = trip("Мы с другом у Абу Даби Плазы. Сначала в Мега Силк Вэй поесть, потом в АИТУ на встречу к 16:00", "13:30",
+         ["Мега Силк Вэй"], dest="АИТУ", origin="Абу Даби Плаза", deadline="16:00")
+check("«идём с другом… на встречу к 16:00» — обычный маршрут, не «встретиться посередине»", not r.get("meet") and not r.get("error"))
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

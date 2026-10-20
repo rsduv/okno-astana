@@ -64,17 +64,22 @@ td.y{color:#3ddc97;font-weight:800}td.no{color:#5d6b7c}
 <div><img class="shot sm" src="img/cold.png"><div class="cap">−25° (демо): маршрут перестраивается — тёплые места, на улице ≤ 12 мин подряд</div></div>
 <div><img class="shot sm" src="img/kk.png"><div class="cap">Запрос на казахском — интерфейс и ответ на казахском</div></div>
 <div><img class="shot sm" src="img/event.png" style="object-position:left bottom"><div class="cap">Афиша: концерт в Опере помещается в окно — предложит вместо прогулки</div></div>
-<div><img class="shot sm" src="img/pin.png"><div class="cap">Нажал на здание — что здесь, фото, адрес, контакты; закладки подсвечивают дом</div></div></div><div class="n">5</div></section><section class="s"><span class="tag">Качество — цифрами</span><h2>Проверено, а не обещано</h2>
+<div><img class="shot sm" src="img/pin.png"><div class="cap">Нажал на здание — что здесь, фото, адрес, контакты; закладки подсвечивают дом</div></div></div><div class="n">5</div></section><section class="s"><span class="tag">Ещё фишки</span><h2>Встреча посередине, фото вместо адреса, афиша, LRT</h2>
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px 26px;margin-top:-12px">
+<div><img class="shot sm" src="img/meet.png"><div class="cap"><b>Встретиться посередине</b>: «я у Хан Шатыра, друг в ЭКСПО» → кафе, куда обоим ~15 мин; путь друга на карте</div></div>
+<div><img class="shot sm" src="img/photo.png"><div class="cap"><b>«Где я?» по фото</b> — Gemini Vision узнаёт Байтерек или вывеску; старт — там. Фото не сохраняется</div></div>
+<div><img class="shot sm" src="img/quiz.png" style="object-position:left bottom"><div class="cap"><b>Афиша города</b>: ~80 событий — выставки, квизы, концерты; только по теме и если помещаются в окно</div></div>
+<div><img class="shot sm" src="img/lrt.png"><div class="cap"><b>LRT</b>: линия и 18 станций (OSM); на длинных отрезках — «можно на LRT» с честной оценкой</div></div></div><div class="n">6</div></section><section class="s"><span class="tag">Качество — цифрами</span><h2>Проверено, а не обещано</h2>
 <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:38px">
-<div class="card"><b>44 / 44</b><span>автопроверок в 13 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
+<div class="card"><b>55 / 55</b><span>автопроверок в 16 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
 <div class="card"><b class="ok">120 / 120</b><span>синтетических запросов «как пишут люди»: 15 типов, 3 языка, опечатки, невыполнимые</span></div>
-<div class="card"><b class="ok">113 / 120</b><span>ответов без единой выдумки: судья сверяет каждое «почему» с данными (было 106)</span></div></div>
+<div class="card"><b class="ok">115 / 120</b><span>ответов без единой выдумки: судья сверяет каждое «почему» с данными (было 106)</span></div></div>
 <p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — трём системам</b>, проверка одним скриптом. Средняя колонка — <b style="color:#e8eef5">та же модель Gemini, что внутри «Окна», но без наших данных</b>:</p>
 <table><tr><th></th><th>Claude (чат)</th><th>Gemini без данных</th><th>Окно = Gemini + RAG</th></tr>
 <tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">5 из 30</td><td class="warn">4 из 30</td><td class="y">0 из 30</td></tr>
 <tr><td>Закрыто · не успеть · опоздание</td><td class="warn">3 · 2 · 1</td><td class="warn">2 · 3 · 1</td><td class="y">0 · 0 · 0</td></tr>
-<tr><td>Советов, которые невозможно проверить</td><td class="warn">74%</td><td class="warn">82%</td><td class="y">11%</td></tr></table><div class="n">6</div></section><section class="s"><span class="tag">Чем мы отличаемся</span><h2>Мы не конкурируем с картами — мы решаем «что успеть»</h2>
+<tr><td>Советов, которые невозможно проверить</td><td class="warn">74%</td><td class="warn">82%</td><td class="y">11%</td></tr></table><div class="n">7</div></section><section class="s"><span class="tag">Чем мы отличаемся</span><h2>Мы не конкурируем с картами — мы решаем «что успеть»</h2>
 <table><tr><th></th><th>Google Maps (Ask Maps)</th><th>2GIS ИИ</th><th>ChatGPT / ИИ-гиды</th><th>Окно</th></tr>
 <tr><td>План под окно времени А → Б</td><td class="no">—</td><td class="no">—</td><td>частично</td><td class="y">да</td></tr>
 <tr><td>Часы работы на момент прихода</td><td class="no">—</td><td class="no">—</td><td class="warn">ошибается</td><td class="y">да</td></tr>
@@ -83,7 +88,7 @@ td.y{color:#3ddc97;font-weight:800}td.no{color:#5d6b7c}
 <tr><td>Казахский · русский · английский</td><td>только EN</td><td>RU</td><td class="y">да</td><td class="y">да</td></tr>
 <tr><td>Афиша, помещается ли событие в окно</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="y">да</td></tr>
 <tr><td>Честно: «данных нет», источник у каждого места</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="y">да</td></tr></table>
-<p style="margin-top:26px;font-size:24px;color:#8d9aab">Ask Maps — 150+ стран с 08.2026, только на английском; ИИ-помощник 2GIS отвечает про одно место, а не строит план.</p><div class="n">7</div></section><section class="s"><span class="tag">Этика и приватность</span><h2>Минимум данных, максимум честности</h2>
+<p style="margin-top:26px;font-size:24px;color:#8d9aab">Ask Maps — 150+ стран с 08.2026, только на английском; ИИ-помощник 2GIS отвечает про одно место, а не строит план.</p><div class="n">8</div></section><section class="s"><span class="tag">Этика и приватность</span><h2>Минимум данных, максимум честности</h2>
 <div class="grid" style="grid-template-columns:1fr 1fr">
 <ul><li>Геопозиция округляется до <b class="acc">~150 м</b>, не хранится и не пишется в логи</li>
 <li>Нет аккаунтов и истории; закладки — <b class="acc">только в браузере</b></li>
@@ -93,25 +98,25 @@ td.y{color:#3ddc97;font-weight:800}td.no{color:#5d6b7c}
 <li>Место выбирает алгоритм — ИИ не может придумать кафе</li>
 <li>Мороз — ограничение времени на улице; ночью — без парков</li>
 <li>Не успеть — <b class="acc">честный отказ</b> и совет, а не выдуманный маршрут</li></ul></div>
-<div class="quote">Пример: «хочу в музей» в 7 утра → «Музей Первого Президента: сегодня выходной» — и то, что открыто сейчас.</div><div class="n">8</div></section><section class="s"><span class="tag">Бизнес и польза городу</span><h2>Для кого и как внедряется</h2>
+<div class="quote">Пример: «хочу в музей» в 7 утра → «Музей Первого Президента: сегодня выходной» — и то, что открыто сейчас.</div><div class="n">9</div></section><section class="s"><span class="tag">Бизнес и польза городу</span><h2>Для кого и как внедряется</h2>
 <div class="grid" style="grid-template-columns:repeat(3,1fr)">
 <div class="card"><b style="font-size:40px">B2G</b><span>Акимат, Visit Astana, Smart Astana: модуль «свободное время» в городских сервисах; обезличенная статистика спроса — где не хватает тёплых мест и кафе</span></div>
 <div class="card"><b style="font-size:40px">B2B</b><span>Аэропорт NQZ, отели, EXPO, арены, Astana Opera: виджет «у вас 2 часа до вылета / до матча / до спектакля»</span></div>
 <div class="card"><b style="font-size:40px">Партнёры</b><span>Места и афиши — с пометкой «партнёр», без влияния на правило «успеешь и открыто»</span></div></div>
 <p style="margin-top:36px">Польза городу: гости распределяются по <b class="acc">малому бизнесу по пути</b>, а не только по трём главным ТРЦ; данные о спросе — для городского планирования.</p>
 <p>Уже в прототипе: страница <b class="acc">«Спрос для города»</b> — обезличенно, что ищут люди и <b class="warn">чего им не хватило</b> (каток закрыт в нужное время, нет часов работы в данных, смотровые далеко).</p>
-<p>Себестоимость: ~0,1 цента за запрос (Gemini Flash), данные бесплатные или по ключу 2GIS.</p><div class="n">9</div></section><section class="s"><span class="tag">Ограничения, риски, план</span><h2>Честно о слабых местах — и что дальше</h2>
+<p>Себестоимость: ~0,1 цента за запрос (Gemini Flash), данные бесплатные или по ключу 2GIS.</p><div class="n">10</div></section><section class="s"><span class="tag">Ограничения, риски, план</span><h2>Честно о слабых местах — и что дальше</h2>
 <div class="grid" style="grid-template-columns:1fr 1fr">
 <div><p style="color:#e8eef5;font-weight:700">Ограничения и риски</p><ul style="font-size:30px">
 <li>OSM неполный (часы — у 36%) → 2GIS и пометка «оценка»</li>
 <li>Демо-ключ 2GIS: 50 маршрутов/сутки → кэш, своя оценка; для запуска — платный ключ</li>
-<li>Нет открытого GTFS автобусов/LRT → не обещаем</li>
+<li>Нет расписаний автобусов/LRT в открытых данных → автобусы не обещаем, LRT — подсказка «оценка»</li>
 <li>Афиша — пока один источник (Astana Opera)</li></ul></div>
 <div><p style="color:#e8eef5;font-weight:700">Что дальше</p><ul style="font-size:30px">
 <li>Пилот с аэропортом NQZ или EXPO</li><li>Общественный транспорт и LRT при открытом GTFS</li>
 <li>Афиша: Ticketon, Sxodim, арены — через партнёрство</li><li>Доступность: пандусы и лифты с городскими сообществами</li>
-<li>Telegram-мини-приложение</li></ul></div></div><div class="n">10</div></section><section class="s" style="display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center">
+<li>Telegram-мини-приложение</li></ul></div></div><div class="n">11</div></section><section class="s" style="display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center">
 <div><div class="logo">О</div><h1 style="font-size:100px">Окно</h1><p style="font-size:40px;color:#e8eef5">Свободное время — по пути и вовремя.</p>
 <p style="margin-top:40px">GitHub: <span class="acc">github.com/rsduv/okno-astana</span><br>Документ со сценариями: docs/Okno_scenarios.pdf<br>Демо-видео: YouTube (ссылка в форме сдачи)</p>
 <div class="quote">У каждого гостя Астаны есть окно. Мы делаем так, чтобы оно не пропадало.</div></div>
-<div style="display:flex;justify-content:center"><img class="shot" src="img/phone.png" style="width:auto;height:880px"></div><div class="n">11</div></section></body></html>
+<div style="display:flex;justify-content:center"><img class="shot" src="img/phone.png" style="width:auto;height:880px"></div><div class="n">12</div></section></body></html>

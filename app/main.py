@@ -52,7 +52,9 @@ def wanted_cats(text: str, parsed: dict) -> list[str]:
     return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
 
 
-MEET = re.compile(r"встрет|встреч|пересеч|увидеться|\bmeet\b|meet up|кездес")   # «где встретиться с другом?»
+# «где встретиться с другом?» — именно вопрос о месте встречи, а не «иду на встречу к 16:00»
+MEET = re.compile(r"где (нам |бы )?(встрет|пересеч|увидет)|встретиться|встретимся|пересечься|увидеться|"
+                  r"where (should |can |do )?we meet|meet (up|halfway|in the middle)|қай жерде кездес|кездесеміз|кездесейік")
 KEY_NOTE = re.compile(r"Встреча в|Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня|Вместо такси")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
@@ -469,8 +471,8 @@ def _make_plan(req: PlanReq, request: Request):
     # «встретиться посередине»: я у Хан Шатыра, друг в ЭКСПО — где встретиться?
     friend = None
     tl = (req.text or "").lower()
-    if MEET.search(tl):
-        m = re.search(r"(?:друг|подруг|коллег|мам|пап|брат|сестр|жена|муж|парень|девушк|сын|доч|friend|colleague|досы|құрб|әріптес)\w*"
+    if MEET.search(tl) and not parsed.get("via") and not re.search(r"\bпотом\b|\bзатем\b|\bthen\b|\bсосын\b|\bкейін\b", tl):
+        m = re.search(r"(?<!\bс )(?<!\bwith )(?:друг|подруг|коллег|мам|пап|брат|сестр|жена|муж|парень|девушк|сын|доч|friend|colleague|досы|құрб|әріптес)\w*"
                       r"\s+(?:сейчас\s+|будет\s+|now\s+)?(?:у|в|на|около|возле|из|от|at|in|near|from)\s+([^,.;!?]+)", tl)
         cand = [m.group(1)] if m else []
         cand += [n for n in geo.landmarks_in_order(req.text or "") if n != origin.get("label")]

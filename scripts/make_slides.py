@@ -179,7 +179,7 @@ def html(b):
     bad, closed, rush, late, unv = b["bad"], b["closed"], b["rush"], b["late"], b["unver"]
     add(f"""<section class="s"><span class="tag">Качество — цифрами</span><h2>Проверено, а не обещано</h2>
 <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:38px">
-<div class="card"><b>44 / 44</b><span>автопроверок в 13 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
+<div class="card"><b>55 / 55</b><span>автопроверок в 16 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
 <div class="card"><b class="ok">120 / 120</b><span>синтетических запросов «как пишут люди»: 15 типов, 3 языка, опечатки, невыполнимые</span></div>
 <div class="card"><b class="ok">115 / 120</b><span>ответов без единой выдумки: судья сверяет каждое «почему» с данными (было 106)</span></div></div>

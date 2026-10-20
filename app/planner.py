@@ -932,7 +932,7 @@ def _no_plan_advice(A, B, start, window, direct_walk, ctx) -> str:
             return near
         # посидеть не выходит — но посмотреть одно место снаружи или взять кофе с собой обычно успеваешь
         warm = "indoor" in ctx.prefs or ctx.cold != "ok" or ctx.i.get("mobility") == "limited"
-        quick = (None if warm else _glance(A, ctx)) or _grab_and_go(A, start, ctx, {"кафе"}, 0.6 if warm else 1.0)
+        quick = (None if warm else _glance(A, ctx)) or _grab_and_go(A, start, ctx, {"кафе"}, 0.9 if warm else 1.0)
         if quick:
             return quick
         return ("Рядом нет подходящих мест, до которых можно дойти и вернуться за это время"
