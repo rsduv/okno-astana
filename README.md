@@ -35,7 +35,7 @@ Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, к
   группы, коляска, мороз, ночь, 3 языка, невыполнимые) с ожидаемым ответом и автопроверкой · вход —
   [data/dataset/synthetic_queries.jsonl](data/dataset/synthetic_queries.jsonl), повторить — `scripts/synthetic.py`
 - **Сравнение с обычным ИИ-чатботом:** [docs/benchmark.md](docs/benchmark.md) — 30 одинаковых запросов, одна проверка
-- **Демо-видео:** https://youtu.be/v6skg5M2-OQ (запись — скриптом `scripts/record_demo.py`)
+- **Демо-видео (2:20, свежее):** https://youtu.be/1-TEkxFoSQM · первая версия от 19.10: https://youtu.be/v6skg5M2-OQ
 
 ## Как проверить за 2 минуты
 1. Открыть сайт → разрешить геопозицию (или нажать на карту). Нажать **💡 примеры** → «ЭКСПО → Хан Шатыр к 19:00».
