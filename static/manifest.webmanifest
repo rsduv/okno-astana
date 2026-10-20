@@ -1,0 +1,23 @@
+{
+ "name": "Окно — свободное время в Астане",
+ "short_name": "Окно",
+ "start_url": "/",
+ "display": "standalone",
+ "background_color": "#090d12",
+ "theme_color": "#090d12",
+ "lang": "ru",
+ "description": "1–3 реальных места по пути: открыты, когда дойдёшь, и ты точно успеешь.",
+ "icons": [
+  {
+   "src": "/static/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/static/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}

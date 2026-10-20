@@ -41,6 +41,7 @@ def shots():
         go(q("Хан Шатырдың жанындамын, бір сағат бар, кофе ішкім келеді", "16:00"), "kk")
         go(q("Я у Байтерека, есть 3 часа, хочу провести время интересно", "13:30"), "event",
            after=lambda: (pg.evaluate("document.getElementById('deck').scrollTo({top:5000})"), pg.wait_for_timeout(800)))
+        go(q("Я у Хан Шатыра, друг в ЭКСПО, где встретиться выпить кофе?", "15:00"), "meet")
         go(q("Я у Хан Шатыра, хочу на квиз сегодня вечером", "19:00"), "quiz",
            after=lambda: (pg.evaluate("document.getElementById('deck').scrollTo({top:5000})"), pg.wait_for_timeout(800)))
         # «Где я?» по фото: тестовое фото Байтерека (Wikimedia Commons) → Gemini Vision → старт
@@ -168,11 +169,12 @@ def html(b):
 <div><img class="shot sm" src="img/event.png" style="object-position:left bottom"><div class="cap">Афиша: концерт в Опере помещается в окно — предложит вместо прогулки</div></div>
 <div><img class="shot sm" src="img/pin.png"><div class="cap">Нажал на здание — что здесь, фото, адрес, контакты; закладки подсвечивают дом</div></div></div>{n(5)}</section>""")
     # 5.5 новое: Gemini Vision, афиша города, LRT
-    add(f"""<section class="s"><span class="tag">Ещё фишки</span><h2>Фото вместо адреса, афиша города, LRT</h2>
-<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:22px;margin-top:-6px">
-<div><img class="shot sm" src="img/photo.png"><div class="cap"><b>«Где я?» по фото</b> — Gemini Vision узнаёт Байтерек или вывеску, старт маршрута — там. Фото не сохраняется</div></div>
-<div><img class="shot sm" src="img/quiz.png" style="object-position:left bottom"><div class="cap"><b>Афиша города</b>: ~80 событий (выставки, квизы, концерты) — только по теме и если помещаются в окно</div></div>
-<div><img class="shot sm" src="img/lrt.png"><div class="cap"><b>LRT</b>: линия и 18 станций из OSM; на длинных отрезках — «можно на LRT» с честной оценкой</div></div></div>{n(6)}</section>""")
+    add(f"""<section class="s"><span class="tag">Ещё фишки</span><h2>Встреча посередине, фото вместо адреса, афиша, LRT</h2>
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px 26px;margin-top:-12px">
+<div><img class="shot sm" src="img/meet.png"><div class="cap"><b>Встретиться посередине</b>: «я у Хан Шатыра, друг в ЭКСПО» → кафе, куда обоим ~15 мин; путь друга на карте</div></div>
+<div><img class="shot sm" src="img/photo.png"><div class="cap"><b>«Где я?» по фото</b> — Gemini Vision узнаёт Байтерек или вывеску; старт — там. Фото не сохраняется</div></div>
+<div><img class="shot sm" src="img/quiz.png" style="object-position:left bottom"><div class="cap"><b>Афиша города</b>: ~80 событий — выставки, квизы, концерты; только по теме и если помещаются в окно</div></div>
+<div><img class="shot sm" src="img/lrt.png"><div class="cap"><b>LRT</b>: линия и 18 станций (OSM); на длинных отрезках — «можно на LRT» с честной оценкой</div></div></div>{n(6)}</section>""")
     # 6. качество
     bad, closed, rush, late, unv = b["bad"], b["closed"], b["rush"], b["late"], b["unver"]
     add(f"""<section class="s"><span class="tag">Качество — цифрами</span><h2>Проверено, а не обещано</h2>

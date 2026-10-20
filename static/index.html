@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Окно</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#090d12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Окно">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
+<meta name="description" content="Окно — помощник по свободному времени в Астане: 1–3 реальных места по пути, открытых, когда ты дойдёшь, и так, чтобы ты точно успел.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%234cc9f0%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 font-family=%22Arial%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22%2308111a%22%3EО%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -910,21 +917,21 @@ if(!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(phCycle, 
 const INTRO = {
  ru:{t:"Окно — куда сходить в Астане", lead:"Есть свободное время между делами? «Окно» найдёт 1–3 места рядом или по пути — открытых, когда ты дойдёшь, и так, чтобы ты точно успел.",
   steps:[["message-square-text","Напиши или скажи","Где ты, куда нужно и к скольки. Например: «Я у Байтерека, к 19:00 в Хан Шатыр» или «есть час, хочу кофе»."],
-   ["map-pin","Или ткни в карту","Отметь, где ты, — или нажми «я здесь». Дом и работу можно сохранить в закладки."],
+   ["map-pin","Или ткни в карту, или сфотографируй","Отметь, где ты, нажми «я здесь» — или сфотографируй ориентир: Gemini узнает место. Дом и работу можно сохранить в закладки."],
    ["sparkles","Получишь план","Места с «почему», временем на месте и «что там делать». Часы работы — с источником и уверенностью."],
    ["info","«Как посчитано?»","Внизу плана: какие данные использованы и что ИИ, а что — факты из базы мест."]],
   priv:"Твою точную геопозицию не храним: точка округляется до ~150 м, закладки живут только в твоём браузере.", try:"Попробовать пример", ok:"Понятно",
   ex:"Я у Mega Silk Way, хочу прогуляться минут 45 и вернуться"},
  en:{t:"Okno — where to go in Astana", lead:"Free time between things? Okno finds 1–3 places nearby or on your way — open when you arrive, timed so you won't be late.",
   steps:[["message-square-text","Type or say it","Where you are, where you need to be and by when. E.g. “I'm at Baiterek, need to be at Khan Shatyr by 19:00” or “I have an hour, want coffee”."],
-   ["map-pin","Or tap the map","Mark where you are, or press “I'm here”. Save home and work as bookmarks."],
+   ["map-pin","Or tap the map, or snap a photo","Mark where you are, press “I'm here” — or snap a landmark: Gemini will recognise the place. Save home and work as bookmarks."],
    ["sparkles","Get a plan","Places with a “why”, time to spend and what to do there. Opening hours come with a source and confidence."],
    ["info","“How was this computed?”","At the bottom of the plan: which data was used, what is AI text and what are facts from the places database."]],
   priv:"We don't store your exact location: the point is rounded to ~150 m, bookmarks live only in your browser.", try:"Try an example", ok:"Got it",
   ex:"I'm at Mega Silk Way, want a 45 minute walk and come back"},
  kk:{t:"Окно — Астанада қайда бару керек", lead:"Істер арасында бос уақыт бар ма? «Окно» жақын маңнан немесе жолыңнан 1–3 орын табады — сен барғанда ашық болатын және кешікпейтіндей.",
   steps:[["message-square-text","Жаз немесе айт","Қайдасың, қайда және сағат нешеге. Мысалы: «Бәйтеректің жанындамын, 19:00-ге Хан Шатырға» немесе «бір сағат бар, кофе ішкім келеді»."],
-   ["map-pin","Немесе картаны түрт","Қайда екеніңді белгіле немесе «мен осындамын» бас. Үй мен жұмысты бетбелгіге сақтауға болады."],
+   ["map-pin","Немесе картаны түрт, не суретке түсір","Қайда екеніңді белгіле, «мен осындамын» бас — не бағдарды суретке түсір: Gemini орынды таниды. Үй мен жұмысты бетбелгіге сақтауға болады."],
    ["sparkles","Жоспар аласың","Орындар: «неге», қанша уақыт және не істеу керек. Жұмыс уақыты — дереккөзімен және сенімділігімен."],
    ["info","«Қалай есептелді?»","Жоспардың төменгі жағында: қандай деректер қолданылды, не ЖИ мәтіні, не орындар базасындағы факт."]],
   priv:"Нақты орналасқан жеріңді сақтамаймыз: нүкте ~150 м-ге дейін дөңгелектенеді, бетбелгілер тек сенің браузеріңде.", try:"Мысалды көру", ok:"Түсінікті",
