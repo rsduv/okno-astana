@@ -186,6 +186,22 @@ def photo(req: PhotoReq, request: Request):
             "confidence": d.get("confidence"), "what": d.get("what")}
 
 
+@app.get("/api/events/today")
+def events_today():
+    """«Сегодня в городе»: события из афиш на сегодня — для значков на карте (выставки на период — если идут сегодня)."""
+    day = datetime.now(KZ).strftime("%Y-%m-%d")
+    out = []
+    for e in events.EVENTS:
+        if e.get("range"):
+            if not (e["date"] <= day <= e.get("until", e["date"])) or not re.search(r"выстав|exhibit|көрме", f"{e.get('kind', '')} {e['title']}", re.I):
+                continue
+        elif e["date"] != day:
+            continue
+        out.append({"title": e["title"], "time": e.get("time"), "until": e.get("until"), "kind": e.get("kind"), "venue": e["venue"],
+                    "price": e.get("price"), "url": e["url"], "lat": e["lat"], "lon": e["lon"], "source": e.get("source")})
+    return out[:40]
+
+
 @app.get("/api/lrt")
 def lrt_map():
     """Линия LRT и станции для карты (OSM, scripts/collect_city.py)."""
