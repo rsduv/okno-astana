@@ -107,7 +107,10 @@ def main():
             pg.evaluate("t => { setTime(t); }", t)
             pg.fill("#q", "")
             pg.click("#q")
-            pg.type("#q", text, delay=delay)
+            try:
+                pg.type("#q", text, delay=delay, timeout=60000)
+            except Exception:   # браузер подтормозил — вставляем текст целиком, запись не роняем
+                pg.fill("#q", text)
             w(400)
             pg.click("#go")
             pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000)
