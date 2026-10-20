@@ -694,6 +694,7 @@ mapReady.then(async () => {
         geometry:{type:"Point", coordinates:[e.lon, e.lat]}, properties:{i}}))}});
       map.addLayer({id:"ev-today", type:"circle", source:"ev-today", paint:{"circle-radius":["interpolate",["linear"],["zoom"],10,4,15,8],
         "circle-color":"#ff6fa5", "circle-stroke-color":"#0b0f14", "circle-stroke-width":2, "circle-opacity":.95}});
+      if(state.last && state.last.steps) mapQuiet(true);   // маршрут уже на карте — точки событий не мешают ему
       map.on("mouseenter", "ev-today", () => map.getCanvas().style.cursor = "pointer");
       map.on("mouseleave", "ev-today", () => map.getCanvas().style.cursor = "");
       map.on("click", "ev-today", ev => {
@@ -721,6 +722,7 @@ mapReady.then(async () => {
         layout:{"text-field":["concat","LRT · ",["get", LANG === "en" ? "en" : LANG === "kk" ? "kk" : "ru"]], "text-font":["Noto Sans Regular"],
           "text-size":11, "text-offset":[0,1.1], "text-anchor":"top", "text-optional":true},
         paint:{"text-color":"#f6c27a", "text-halo-color":"#0b0f14", "text-halo-width":1.4, "text-opacity":.9}});
+      if(state.last && state.last.steps) mapQuiet(true);
     }
   } catch(e) {}
   map.addLayer({id:"walk-glow", type:"line", source:"route-walk", layout:{"line-cap":"round","line-join":"round"},
@@ -1228,7 +1230,10 @@ function planText(r){
 }
 
 // ---------- маршрут на карте ----------
-function clearRoute(){ markers.forEach(m=>m.remove()); markers=[];
+function mapQuiet(on){   // маршрут на карте — без лишнего: события сегодня и подписи станций LRT прячем
+  ["ev-today", "lrt-name"].forEach(id => { try { if(map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "none" : "visible"); } catch(e) {} });
+}
+function clearRoute(){ markers.forEach(m=>m.remove()); markers=[]; mapQuiet(false);
   ["route-walk","route-taxi","route-friend"].forEach(id=>map.getSource(id)?.setData({type:"FeatureCollection",features:[]})); }
 function mk(inner, cls, lngLat, i){
   const el = document.createElement("div");
@@ -1240,7 +1245,7 @@ function mk(inner, cls, lngLat, i){
 }
 let animId = 0;
 async function drawRoute(r){
-  await mapReady; clearRoute();
+  await mapReady; clearRoute(); mapQuiet(true);
   const color = r.weather?.simulated ? "#a8d8ff" : "#4cc9f0";
   const legs = r.steps.filter(x=>x.type==="leg");
   const bounds = new maplibregl.LngLatBounds();
@@ -1284,7 +1289,13 @@ applyLang();
   $("#q").value = u.get("q");
   if(u.get("t")) setTime(u.get("t"));
   if(u.get("w")==="cold") setWeather("cold");
-  run();
+  (async () => {
+    try {
+      const st = navigator.permissions ? (await navigator.permissions.query({name:"geolocation"})).state : "prompt";
+      if(st !== "denied") for(let i = 0; i < 50 && !me; i++) await new Promise(r => setTimeout(r, 100));   // до 5 с
+    } catch(e) {}
+    run();
+  })();
 })();
 </script>
 </body>
