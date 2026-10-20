@@ -23,7 +23,7 @@ def notes_from_pitch() -> list[str]:
     notes = {}
     for i in range(1, len(parts) - 1, 2):
         notes[int(parts[i])] = re.split(r"\n---|\n### ", parts[i + 1])[0].strip()
-    return [notes.get(i, "") for i in range(1, 12)]
+    return [notes.get(i, "") for i in range(1, 13)]
 
 
 def main():

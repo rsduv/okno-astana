@@ -41,6 +41,18 @@ def shots():
         go(q("Хан Шатырдың жанындамын, бір сағат бар, кофе ішкім келеді", "16:00"), "kk")
         go(q("Я у Байтерека, есть 3 часа, хочу провести время интересно", "13:30"), "event",
            after=lambda: (pg.evaluate("document.getElementById('deck').scrollTo({top:5000})"), pg.wait_for_timeout(800)))
+        go(q("Я у Хан Шатыра, хочу на квиз сегодня вечером", "19:00"), "quiz",
+           after=lambda: (pg.evaluate("document.getElementById('deck').scrollTo({top:5000})"), pg.wait_for_timeout(800)))
+        # «Где я?» по фото: тестовое фото Байтерека (Wikimedia Commons) → Gemini Vision → старт
+        pg.goto(URL); pg.wait_for_timeout(2500)
+        pg.set_input_files("#camIn", str(ROOT / "tests" / "photo_bayterek.jpg"))
+        pg.wait_for_function("() => !document.getElementById('cam').classList.contains('busy')", timeout=60000)
+        pg.wait_for_timeout(2600)
+        pg.screenshot(path=str(IMG / "photo.png"))
+        # LRT на карте
+        pg.goto(URL); pg.wait_for_timeout(2500)
+        pg.evaluate("map.jumpTo({center:[71.432,51.118],zoom:12.6,pitch:0,bearing:0})"); pg.wait_for_timeout(4000)
+        pg.screenshot(path=str(IMG / "lrt.png"))
         pg.goto(URL); pg.wait_for_timeout(2500)
         pg.evaluate("map.jumpTo({center:[71.4305,51.1283],zoom:16.4,pitch:55,bearing:-25})"); pg.wait_for_timeout(3000)
         xy = pg.evaluate("(()=>{const q=map.project([71.4305,51.1283]);return [q.x,q.y]})()")
@@ -155,6 +167,12 @@ def html(b):
 <div><img class="shot sm" src="img/kk.png"><div class="cap">Запрос на казахском — интерфейс и ответ на казахском</div></div>
 <div><img class="shot sm" src="img/event.png" style="object-position:left bottom"><div class="cap">Афиша: концерт в Опере помещается в окно — предложит вместо прогулки</div></div>
 <div><img class="shot sm" src="img/pin.png"><div class="cap">Нажал на здание — что здесь, фото, адрес, контакты; закладки подсвечивают дом</div></div></div>{n(5)}</section>""")
+    # 5.5 новое: Gemini Vision, афиша города, LRT
+    add(f"""<section class="s"><span class="tag">Ещё фишки</span><h2>Фото вместо адреса, афиша города, LRT</h2>
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:22px;margin-top:-6px">
+<div><img class="shot sm" src="img/photo.png"><div class="cap"><b>«Где я?» по фото</b> — Gemini Vision узнаёт Байтерек или вывеску, старт маршрута — там. Фото не сохраняется</div></div>
+<div><img class="shot sm" src="img/quiz.png" style="object-position:left bottom"><div class="cap"><b>Афиша города</b>: ~80 событий (выставки, квизы, концерты) — только по теме и если помещаются в окно</div></div>
+<div><img class="shot sm" src="img/lrt.png"><div class="cap"><b>LRT</b>: линия и 18 станций из OSM; на длинных отрезках — «можно на LRT» с честной оценкой</div></div></div>{n(6)}</section>""")
     # 6. качество
     bad, closed, rush, late, unv = b["bad"], b["closed"], b["rush"], b["late"], b["unver"]
     add(f"""<section class="s"><span class="tag">Качество — цифрами</span><h2>Проверено, а не обещано</h2>
@@ -167,7 +185,7 @@ def html(b):
 <table><tr><th></th><th>Claude (чат)</th><th>Gemini без данных</th><th>Окно = Gemini + RAG</th></tr>
 <tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">{bad[0]}</td><td class="warn">{bad[1]}</td><td class="y">{bad[2]}</td></tr>
 <tr><td>Закрыто · не успеть · опоздание</td><td class="warn">{closed[0]} · {rush[0]} · {late[0]}</td><td class="warn">{closed[1]} · {rush[1]} · {late[1]}</td><td class="y">{closed[2]} · {rush[2]} · {late[2]}</td></tr>
-<tr><td>Советов, которые невозможно проверить</td><td class="warn">{unv[0]}%</td><td class="warn">{unv[1]}%</td><td class="y">{unv[2]}%</td></tr></table>{n(6)}</section>""")
+<tr><td>Советов, которые невозможно проверить</td><td class="warn">{unv[0]}%</td><td class="warn">{unv[1]}%</td><td class="y">{unv[2]}%</td></tr></table>{n(7)}</section>""")
     # 7. отличия
     Y, N = '<td class="y">да</td>', '<td class="no">—</td>'
     add(f"""<section class="s"><span class="tag">Чем мы отличаемся</span><h2>Мы не конкурируем с картами — мы решаем «что успеть»</h2>
@@ -179,7 +197,7 @@ def html(b):
 <tr><td>Казахский · русский · английский</td><td>только EN</td><td>RU</td>{Y}{Y}</tr>
 <tr><td>Афиша, помещается ли событие в окно</td>{N}{N}{N}{Y}</tr>
 <tr><td>Честно: «данных нет», источник у каждого места</td>{N}{N}{N}{Y}</tr></table>
-<p style="margin-top:26px;font-size:24px;color:#8d9aab">Ask Maps — 150+ стран с 08.2026, только на английском; ИИ-помощник 2GIS отвечает про одно место, а не строит план.</p>{n(7)}</section>""")
+<p style="margin-top:26px;font-size:24px;color:#8d9aab">Ask Maps — 150+ стран с 08.2026, только на английском; ИИ-помощник 2GIS отвечает про одно место, а не строит план.</p>{n(8)}</section>""")
     # 8. этика
     add(f"""<section class="s"><span class="tag">Этика и приватность</span><h2>Минимум данных, максимум честности</h2>
 <div class="grid" style="grid-template-columns:1fr 1fr">
@@ -191,7 +209,7 @@ def html(b):
 <li>Место выбирает алгоритм — ИИ не может придумать кафе</li>
 <li>Мороз — ограничение времени на улице; ночью — без парков</li>
 <li>Не успеть — <b class="acc">честный отказ</b> и совет, а не выдуманный маршрут</li></ul></div>
-<div class="quote">Пример: «хочу в музей» в 7 утра → «Музей Первого Президента: сегодня выходной» — и то, что открыто сейчас.</div>{n(8)}</section>""")
+<div class="quote">Пример: «хочу в музей» в 7 утра → «Музей Первого Президента: сегодня выходной» — и то, что открыто сейчас.</div>{n(9)}</section>""")
     # 9. бизнес
     add(f"""<section class="s"><span class="tag">Бизнес и польза городу</span><h2>Для кого и как внедряется</h2>
 <div class="grid" style="grid-template-columns:repeat(3,1fr)">
@@ -200,7 +218,7 @@ def html(b):
 <div class="card"><b style="font-size:40px">Партнёры</b><span>Места и афиши — с пометкой «партнёр», без влияния на правило «успеешь и открыто»</span></div></div>
 <p style="margin-top:36px">Польза городу: гости распределяются по <b class="acc">малому бизнесу по пути</b>, а не только по трём главным ТРЦ; данные о спросе — для городского планирования.</p>
 <p>Уже в прототипе: страница <b class="acc">«Спрос для города»</b> — обезличенно, что ищут люди и <b class="warn">чего им не хватило</b> (каток закрыт в нужное время, нет часов работы в данных, смотровые далеко).</p>
-<p>Себестоимость: ~0,1 цента за запрос (Gemini Flash), данные бесплатные или по ключу 2GIS.</p>{n(9)}</section>""")
+<p>Себестоимость: ~0,1 цента за запрос (Gemini Flash), данные бесплатные или по ключу 2GIS.</p>{n(10)}</section>""")
     # 10. риски и план
     add(f"""<section class="s"><span class="tag">Ограничения, риски, план</span><h2>Честно о слабых местах — и что дальше</h2>
 <div class="grid" style="grid-template-columns:1fr 1fr">
@@ -212,13 +230,13 @@ def html(b):
 <div><p style="color:#e8eef5;font-weight:700">Что дальше</p><ul style="font-size:30px">
 <li>Пилот с аэропортом NQZ или EXPO</li><li>Общественный транспорт и LRT при открытом GTFS</li>
 <li>Афиша: Ticketon, Sxodim, арены — через партнёрство</li><li>Доступность: пандусы и лифты с городскими сообществами</li>
-<li>Telegram-мини-приложение</li></ul></div></div>{n(10)}</section>""")
+<li>Telegram-мини-приложение</li></ul></div></div>{n(11)}</section>""")
     # 11. финал
     add(f"""<section class="s" style="display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center">
 <div><div class="logo">О</div><h1 style="font-size:100px">Окно</h1><p style="font-size:40px;color:#e8eef5">Свободное время — по пути и вовремя.</p>
 <p style="margin-top:40px">GitHub: <span class="acc">github.com/rsduv/okno-astana</span><br>Документ со сценариями: docs/Okno_scenarios.pdf<br>Демо-видео: YouTube (ссылка в форме сдачи)</p>
 <div class="quote">У каждого гостя Астаны есть окно. Мы делаем так, чтобы оно не пропадало.</div></div>
-<div style="display:flex;justify-content:center"><img class="shot" src="img/phone.png" style="width:auto;height:880px"></div>{n(11)}</section>""")
+<div style="display:flex;justify-content:center"><img class="shot" src="img/phone.png" style="width:auto;height:880px"></div>{n(12)}</section>""")
     return f"""<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Окно — презентация</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet"><style>{CSS}</style></head>
 <body>{''.join(S)}</body></html>"""

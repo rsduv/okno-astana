@@ -202,6 +202,17 @@ check("афиша: «квиз» → квиз", [e["title"] for e in r1][:1] == [
 check("афиша: детский утренник взрослому не предлагаем", all("утренник" not in e["title"] for e in r2))
 check("афиша: выставка днём — да, в 19:30 (закрыта) — нет",
       any("Айвазовский" in e["title"] for e in r3) and not any("Айвазовский" in e["title"] for e in r4))
+check("рейтинг в тексте — только настоящий из 2GIS",
+      llm._rating_fix("Парк с рейтингом 5 в 2GIS, для детей", {}) == "Парк, для детей"
+      and "4,7 в 2GIS" in llm._rating_fix("Кафе с рейтингом 4.9 в 2GIS", {"рейтинг_2гис": "4.7 (120 оценок)"}))
+# «встретиться посередине»: место, куда обоим добираться примерно одинаково, открыто к встрече
+r = api.post("/api/plan", json={"text": "Я у Хан Шатыра, друг в ЭКСПО, где встретиться выпить кофе?", "now": "15:00", "saved": {},
+                                "parsed": {"origin": "Хан Шатыр", "destination": "ЭКСПО", "return_to_origin": False, "deadline": None,
+                                           "duration_min": None, "prefs": ["coffee"], "language": "ru", "via": []}}).json()
+mt = r.get("meet") or {}
+check("встреча посередине: путь друга есть, разница во времени дороги небольшая, место открыто",
+      not r.get("error") and r.get("friend") and abs(mt.get("you_min", 0) - mt.get("friend_min", 99)) <= 10
+      and all(s["hours"]["status"] == "open" for s in r["steps"] if s["type"] == "stop"))
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

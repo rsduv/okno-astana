@@ -296,7 +296,7 @@ def _tidy(t: str) -> str:
     return re.sub(r"\s{2,}", " ", t).strip()
 
 
-NEAR = re.compile(r"\b(совсем |прямо )?рядом( с тобой)?\b|в двух шагах|в паре шагов|\b(right )?next door\b|\bsteps away\b|\bjust around the corner\b|\bжанында\b|\bқасында\b|іргесінде", re.I)
+NEAR = re.compile(r"\b(совсем |прямо )?рядом( с тобой)?\b|в двух шагах|в паре шагов|\bпрямо у( тебя| вас)?\b|\bу самого\b|\b(right )?next door\b|\bsteps away\b|\bjust around the corner\b|\bжанында\b|\bқасында\b|іргесінде", re.I)
 
 
 def _near_fix(text: str, reach: str | None, lang: str | None) -> str:
@@ -310,6 +310,25 @@ def _near_fix(text: str, reach: str | None, lang: str | None) -> str:
         ((f"{m.group(1)} min walk away" if m else "a short taxi ride away") if lang == "en" else
          (f"{m.group(1)} минут жаяу" if m else "таксимен"))
     return NEAR.sub(how, text, count=1)
+
+
+RATING = re.compile(r"\s*,?\s*(?:с\s+)?(?:высоким\s+)?(?:рейтинг\w*|rated|rating|бағасы)?\s*(\d(?:[.,]\d)?)\s*(?:★|звезд\w*)?\s*(?:в|in|по|on)\s+2GIS\w*"
+                    r"|\s*,?\s*(?:в|in|по|on)\s+2GIS[^.,;—]{0,40}?(?:рейтинг\w*|rating|rated)\s*(\d(?:[.,]\d)?)", re.I)
+
+
+def _rating_fix(text: str, facts: dict) -> str:
+    """Рейтинг в тексте — только настоящий из 2GIS: число не то — подставляем верное; рейтинга в данных нет — убираем фразу."""
+    if not text:
+        return text
+    real = str((facts or {}).get("рейтинг_2гис", "")).split(" ")[0]
+
+    def fix(m):
+        if not real:
+            return ""
+        num = m.group(1) or m.group(2)
+        return m.group(0).replace(num, real.replace(".", ","))
+    out = RATING.sub(fix, text)
+    return re.sub(r"\s{2,}", " ", re.sub(r"\s+([,.;])", r"\1", out)).strip(" ,;—") or text
 
 
 def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
@@ -347,8 +366,10 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     by_id = {x.get("id"): x for x in ((d or {}).get("stops") or []) if isinstance(x, dict)}
     for s in stops:
         x = by_id.get(s["id"]) or {}
-        s["why"] = _near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")) or _why_fallback(s, intent.get("language"))
-        s["todo"] = _near_fix(_tidy(x.get("todo")), reach.get(s["id"]), intent.get("language")) or _todo_fallback(s, intent.get("language"))
+        s["why"] = _rating_fix(_near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")), s.get("facts")) \
+            or _why_fallback(s, intent.get("language"))
+        s["todo"] = _rating_fix(_near_fix(_tidy(x.get("todo")), reach.get(s["id"]), intent.get("language")), s.get("facts")) \
+            or _todo_fallback(s, intent.get("language"))
         s["text_source"] = "ai" if x else "template"
         key = {"en": "name_en", "kk": "name_kk"}.get(intent.get("language"))
         if key and not s.get(key) and isinstance(x.get("name"), str) and 2 <= len(x["name"]) <= 80:

@@ -52,7 +52,8 @@ def wanted_cats(text: str, parsed: dict) -> list[str]:
     return [c for c in explicit_cats(text) if not any(re.search(rx, where) for rx, cc in EXPLICIT if cc == c)]
 
 
-KEY_NOTE = re.compile(r"Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня|Вместо такси")
+MEET = re.compile(r"встрет|встреч|пересеч|увидеться|\bmeet\b|meet up|кездес")   # «где встретиться с другом?»
+KEY_NOTE = re.compile(r"Встреча в|Гололёд|Туман|Ощущается|Вылет|Поезд|не назвал время|Такси или пешком|Выходишь в|выходной|без такси|не нашёл|Воздух|лучше прийти|Лучший вид|Просил|казахская кухня|Вместо такси")
 # события: за сколько прийти заранее и почему
 EVENT_BUFFER = {"concert": (25, "Концерт", "досмотр и очередь на вход"), "match": (30, "Матч", "досмотр на стадионе"),
                 "theatre": (20, "Спектакль", "гардероб, после третьего звонка не пускают"),
@@ -465,7 +466,30 @@ def _make_plan(req: PlanReq, request: Request):
               "kazakh_food": bool(re.search(r"национальн\w* (?:кухн|ед|блюд|тағам)|казахск\w* (?:кухн|ед|блюд)|местн\w* (?:еду|кухн|блюд)|традицион|qazaq|kazakh|national food|local food|"
                                             r"traditional|ұлттық тағам|қазақ тағам|қазақша тағам|бешбармак|beshbarmak|кымыз|қымыз|kumis|kymyz", req.text.lower()))}
     t2 = time.time()
-    if via:
+    # «встретиться посередине»: я у Хан Шатыра, друг в ЭКСПО — где встретиться?
+    friend = None
+    tl = (req.text or "").lower()
+    if MEET.search(tl):
+        m = re.search(r"(?:друг|подруг|коллег|мам|пап|брат|сестр|жена|муж|парень|девушк|сын|доч|friend|colleague|досы|құрб|әріптес)\w*"
+                      r"\s+(?:сейчас\s+|будет\s+|now\s+)?(?:у|в|на|около|возле|из|от|at|in|near|from)\s+([^,.;!?]+)", tl)
+        cand = [m.group(1)] if m else []
+        cand += [n for n in geo.landmarks_in_order(req.text or "") if n != origin.get("label")]
+        for c in cand:
+            f = geo.find_place(c, planner.POIS, req.saved)
+            if f and geo.haversine_km((f["lat"], f["lon"]), (origin["lat"], origin["lon"])) > 0.5:
+                friend = f
+                break
+    if friend:
+        result = planner.meet(intent, now, w, friend)
+        if result.get("meet"):
+            mp = next(s for s in result["steps"] if s["type"] == "stop")
+            destination = {"lat": mp["lat"], "lon": mp["lon"], "label": f"встреча: {mp['name']}"}
+            intent["destination"] = destination
+            now = datetime.strptime(result["start_at"], "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+            deadline = now + timedelta(minutes=result["summary"]["window_min"])
+            travel_note = None
+            parsed = {**parsed, "destination": None, "deadline": None, "via": []}
+    elif via:
         intent["via"] = via
         raw = llm.resolve_times(parsed, now)[0] if parsed.get("deadline") else None   # срок без запаса на вход/регистрацию
         result = planner.plan_chain(intent, now, w, has_deadline=bool(parsed.get("deadline")), hard_deadline=raw)

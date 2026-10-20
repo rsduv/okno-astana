@@ -1048,6 +1048,81 @@ def plan_chain(intent: dict, now: datetime, w: dict, has_deadline: bool = False,
             "considered": {"candidates": len(seq), "plans": 1, "pois_total": len(POIS), "rejected": {}, "rejected_ex": {}}}
 
 
+MEET_DEFAULT = {"кафе", "ресторан", "торговый центр"}
+
+
+def _travel_min(a, b, t: datetime, ctx: Ctx) -> tuple[float, str]:
+    walk = geo.walk_min_est(a, b) * ctx.pace
+    if walk <= ctx.max_leg:
+        return walk, "walk"
+    return geo.car_min_est(a, b, t) + geo.TAXI_WAIT_MIN, "taxi"
+
+
+def meet(intent: dict, now: datetime, w: dict, friend: dict) -> dict:
+    """«Встретиться посередине»: место, куда обоим добираться примерно одинаково и которое открыто, когда вы придёте.
+    Цена места = самый долгий путь из двух + половина разницы − «качество» места (тот же счёт, что у обычных остановок)."""
+    ctx = Ctx(intent, now, w)
+    A = (intent["origin"]["lat"], intent["origin"]["lon"])
+    F = (friend["lat"], friend["lon"])
+    cats = (ctx.wanted - {"достопримечательность", "памятник", "парк", "сад", "фонтан", "смотровая", "детская площадка"}) \
+        if ctx.prefs else set(MEET_DEFAULT)
+    cats = cats or set(MEET_DEFAULT)
+    mid = ((A[0] + F[0]) / 2, (A[1] + F[1]) / 2)
+    span = geo.haversine_km(A, F)
+    stay = 60
+    cand = []
+    for p in POIS:
+        if p["category"] not in cats or p.get("unnamed"):
+            continue
+        pt = (p["lat"], p["lon"])
+        if geo.haversine_km(mid, pt) > max(1.2, span * 0.45):
+            continue
+        sc = stop_score(p, ctx)
+        if sc is None:
+            continue
+        ta, ma = _travel_min(A, pt, now, ctx)
+        tf, mf = _travel_min(F, pt, now, ctx)
+        meet_t = now + timedelta(minutes=max(ta, tf))
+        st, conf, _ = interval_status(p.get("tags"), p["category"], meet_t, meet_t + timedelta(minutes=stay))
+        if st != "open":
+            continue
+        cand.append((max(ta, tf) + 0.5 * abs(ta - tf) - sc * 3, p, ta, ma, tf, mf))
+    if not cand:
+        return {"error": "Открытого места посередине, куда вам обоим удобно добраться, в данных не нашёл. "
+                         "Попробуй другое время или напиши, где хотите встретиться."}
+    cand.sort(key=lambda x: x[0])
+    _, p, ta, ma, tf, mf = cand[0]
+    meet_t = now + timedelta(minutes=max(ta, tf))
+    start = meet_t - timedelta(minutes=ta)    # кому ближе — тот выходит позже, чтобы прийти одновременно
+    ctx.bonus = {p["id"]: stay}
+    best = refine([p], A, (p["lat"], p["lon"]), start, start + timedelta(hours=8), ctx)
+    if not best:
+        return {"error": "Не получилось посчитать дорогу до места встречи — попробуй ещё раз."}
+    fr = geo.route(F, (p["lat"], p["lon"]), "foot" if mf == "walk" else "car")   # путь друга — для карты
+    coords = fr["coords"] if fr else [[F[1], F[0]], [p["lon"], p["lat"]]]
+    f_start = meet_t - timedelta(minutes=tf)
+    how = lambda m, mode: f"~{round(m)} мин {'пешком' if mode == 'walk' else 'на такси'}"  # noqa: E731
+    alt = [c[1]["name"] for c in cand[1:4] if c[1]["name"] != p["name"]][:2]
+    notes = [f"Встреча в «{p['name']}» в {_fmt(meet_t)}: тебе {how(ta, ma)} — выходи в {_fmt(start)}; "
+             f"из «{friend['label']}» {how(tf, mf)} — выходить в {_fmt(f_start)}. Место выбрано так, чтобы дорога у обоих была примерно равной.",
+             *([f"Ещё варианты посередине: {', '.join(alt)}."] if alt else [])]
+    if best["taxis"] or mf == "taxi":
+        f_, label = geo.traffic_factor(now)
+        notes.append(f"Время на такси — оценка с поправкой на пробки ({label}, ×{f_}) и подачу машины ~{geo.TAXI_WAIT_MIN} мин.")
+    return {
+        "steps": best["steps"], "notes": notes,
+        "summary": {"arrive": _fmt(best["finish"]), "buffer_min": 0, "outdoor_min": best["outdoor"],
+                    "walk_km": best["walk_km"], "max_outdoor_leg": best["max_outdoor_leg"], "taxis": best["taxis"],
+                    "window_min": round((best["finish"] - start).total_seconds() / 60)},
+        "cold": ctx.cold, "max_leg": ctx.max_leg, "start_at": _fmt(start),
+        "considered": {"candidates": len(cand), "plans": len(cand), "pois_total": len(POIS), "rejected": ctx.rejected,
+                       "rejected_ex": {}},
+        "friend": {"label": friend["label"], "lat": F[0], "lon": F[1], "mode": mf, "min": round(tf), "leave": _fmt(f_start),
+                   "coords": coords},
+        "meet": {"name": p["name"], "time": _fmt(meet_t), "you_min": round(ta), "friend_min": round(tf)},
+    }
+
+
 def plan_after_first(intent: dict, now: datetime, w: dict, first: dict) -> dict:
     """«Сначала в музей, потом что-то ещё»: человек начинает с названного места (побыть там), остальное подбираем после него."""
     ctx = Ctx(intent, now, w)

@@ -136,16 +136,29 @@ def main():
         cap("Кофейня рядом, вернуться к Хан Шатыру через час — <b>RU · KZ · EN</b>", 3800)
         pg.click("#langs button[data-l='ru']")
         w(800)
-        # 6. афиша
-        mark("Афиша Astana Opera: событие помещается в окно")
-        cap("<b>Афиша</b>: события с официального сайта Astana Opera — только если помещаются в окно")
-        ask("Я у Байтерека, есть 3 часа, хочу провести время интересно", "13:30")
-        scroll_deck(2000, 2400)
+        # 5.5 «Где я?» по фото
+        mark("«Где я?» по фото — Gemini Vision")
+        pg.evaluate("() => { clearRoute(); document.getElementById('deck').innerHTML=''; document.getElementById('sum').className='sum glass'; state.last=null; }")
+        cap("Турист не знает, как называется место? <b>Сфотографируй</b> — кнопка с камерой")
+        w(1800)
+        pg.set_input_files("#camIn", str(ROOT / "tests" / "photo_bayterek.jpg"))
+        pg.wait_for_function("() => !document.getElementById('cam').classList.contains('busy')", timeout=60000)
+        w(1200)
+        cap("<b>Gemini Vision</b> узнал Байтерек — старт маршрута там. Фото не сохраняется", 3600)
+        ask("Есть час, хочу кофе и вернуться", "15:00")
+        cap("Маршрут — от места на фото", 3000)
+        uncap()
+        # 6. афиша города
+        mark("Афиша города: выставки, квизы, концерты")
+        pg.evaluate("() => clearPoint()")   # старт с фото больше не нужен — дальше места из текста запроса
+        cap("<b>Афиша города</b>: Astana Opera + sxodim.com — выставки, квизы, концерты. Только по теме и если помещается в окно")
+        ask("Я у Байтерека, есть 2 часа, хочу на выставку", "14:00")
+        scroll_deck(5000, 2400)
         ev = pg.evaluate("() => (state.last.events || [])[0] || null")
         if ev and not ev.get("later"):
-            cap(f"«{ev['title']}» в {ev['time']} <b>успеваешь</b> — от тебя ~{ev['go_min']} мин, после — успеешь к сроку. Ссылка на билеты", 4800)
+            cap(f"«{ev['title'][:60]}» — дойдёшь к {ev['time']}, ~{ev['go_min']} мин {'пешком' if ev['mode'] == 'walk' else 'на такси'}, и успеешь вернуться. Цена и билеты", 5200)
         else:
-            cap("Если событие не помещается в окно — его не предлагаем; спросишь про театр — покажем ближайшие даты", 4800)
+            cap("Если событие не помещается в окно — его не предлагаем, показываем ближайшие даты", 4800)
         scroll_deck(0, 900)
         uncap()
         # 6.5 LRT

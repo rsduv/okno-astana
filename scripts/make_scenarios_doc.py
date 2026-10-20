@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import base64
 import json
 import re
 import subprocess
@@ -136,6 +137,33 @@ def chk_closed_honest(r):
     return ("Честно: музеи сейчас закрыты — предлагает открытое", bool(re.search(r"закрыт|выходной", notes)) and not any(s["category"] == "музей" for s in stops(r)))
 
 
+def chk_photo(r):
+    ph = r.get("_photo") or {}
+    return ("Фото узнано: Байтерек (Gemini Vision), старт маршрута — там",
+            bool(ph.get("found")) and "Байтерек" in ph.get("label", "") and "Байтерек" in (r.get("origin") or {}).get("label", ""))
+
+
+def chk_quiz(r):
+    return ("В афише — квиз (городская афиша sxodim.com), по теме запроса",
+            any(re.search(r"квиз|quiz", f"{e['title']} {e.get('kind', '')}", re.I) for e in r.get("events") or []))
+
+
+def chk_exhibition(r):
+    return ("Выставка, которая идёт сегодня и помещается в окно",
+            any(re.search(r"выстав", f"{e['title']} {e.get('kind', '')}", re.I) and not e.get("later") for e in r.get("events") or []))
+
+
+def chk_no_kids_event(r):
+    return ("Детские события взрослому не предлагаются", all(not re.search(r"дет|утренник", f"{e['title']} {e.get('kind', '')}", re.I)
+                                                          for e in r.get("events") or []))
+
+
+def chk_meet(r):
+    m = r.get("meet") or {}
+    return ("Встреча посередине: разница в дороге ≤ 10 мин, у каждого — время выхода",
+            bool(m) and abs(m["you_min"] - m["friend_min"]) <= 10 and any("выходить в" in n for n in (r.get("notes_original") or r.get("notes") or [])))
+
+
 def chk_refusal(r):
     return ("Честный отказ с практическим советом", bool(r.get("error")) and bool(re.search(r"такси|просто иди|не успеть", r["error"])))
 
@@ -187,6 +215,24 @@ SCENARIOS = [
      "expect": "Только пешком, вернуться к ЭКСПО; если по-настоящему необычного открытого места рядом нет — честно сказать, а не выдумывать "
                "(«Музей будущего» в сфере Нур Алем сейчас не работает: сфера стала центром ИИ Alem.ai, в 2GIS — только как памятник).",
      "checks": [chk_on_time, chk_walk_only, chk_loop, chk_open]},
+    {"id": "S13", "title": "«Где я?» по фото: турист сфотографировал Байтерек и пишет «есть час, хочу кофе»",
+     "case": "мультимодальность (Gemini Vision) · турист не знает названий",
+     "photo": "tests/photo_bayterek.jpg",
+     "text": "Есть час, хочу кофе и вернуться", "now": "15:00", "weather": "now",
+     "expect": "По фото узнать место (Байтерек), поставить там старт и построить маршрут «кофе и обратно» за час. Фото не сохраняется.",
+     "checks": [chk_photo, chk_loop, chk_on_time, chk_open]},
+    {"id": "S14", "title": "«Хочу на квиз сегодня вечером»", "case": "интеграция с локальными событиями",
+     "text": "Я у Хан Шатыра, хочу на квиз сегодня вечером", "now": "19:00", "weather": "now",
+     "expect": "Показать квизы из городской афиши (sxodim.com) с местом, временем и ценой; если в окно не помещаются — ближайшие.",
+     "checks": [chk_quiz, chk_no_kids_event]},
+    {"id": "S15", "title": "«Есть 2 часа, хочу на выставку»", "case": "временные выставки",
+     "text": "Я у Байтерека, есть 2 часа, хочу на выставку", "now": "14:00", "weather": "now",
+     "expect": "Предложить выставку, которая идёт сегодня, если успеваешь дойти, посмотреть и вернуться до закрытия.",
+     "checks": [chk_exhibition, chk_on_time, chk_open]},
+    {"id": "S16", "title": "«Я у Хан Шатыра, друг в ЭКСПО — где встретиться выпить кофе?»", "case": "группы: встретиться посередине",
+     "text": "Я у Хан Шатыра, друг в ЭКСПО, где встретиться выпить кофе?", "now": "15:00", "weather": "now",
+     "expect": "Открытое кафе примерно посередине: дорога у обоих почти одинаковая, у каждого — когда выходить; путь друга на карте.",
+     "checks": [chk_meet, chk_open]},
     {"id": "S12", "title": "«Хочу в музей» в 7 утра", "case": "закрытые места / неполные данные",
      "text": "Хочу в музей, я у Байтерека, есть 2 часа", "now": "07:00", "weather": "now",
      "expect": "Не отправлять в закрытый музей: сказать, что в это время музеи закрыты (с часами ближайшего), и предложить то, что открыто.",
@@ -217,7 +263,15 @@ def main():
     meta = httpx.get(f"{API}/api/meta", timeout=30).json()
     out, total, passed, rows = [], 0, 0, []
     for sc in SCENARIOS:
-        r = post({"text": sc["text"], "now": sc["now"], "weather": sc["weather"]})
+        body = {"text": sc["text"], "now": sc["now"], "weather": sc["weather"]}
+        ph = None
+        if sc.get("photo"):   # «Где я?» по фото → точка старта, как в интерфейсе
+            img = base64.b64encode((ROOT / sc["photo"]).read_bytes()).decode()
+            ph = httpx.post(f"{API}/api/photo", json={"image": "data:image/jpeg;base64," + img}, timeout=90).json()
+            if ph.get("found"):
+                body["point"] = {"lat": ph["lat"], "lon": ph["lon"], "label": ph["label"], "mine": False}
+        r = post(body)
+        r["_photo"] = ph
         res = [c(r) for c in sc["checks"]]
         total += len(res)
         passed += sum(1 for _, ok in res if ok)
@@ -252,7 +306,13 @@ def main():
     L("- **Голосовой ввод**, **фото мест** (Википедия/Wikimedia Commons), **♿ доступность** и **телефон/сайт** из OpenStreetMap.")
     L("- **Погода на часы маршрута** (почасовой прогноз), предупреждения про **туман и гололёд**; демо зимы — нажатием на плашку погоды.")
     L("- **«Спланировать позже»** — если до срока полдня, предлагает сдвинуть маршрут ближе к делу (часы мест пересчитываются).")
-    L("- **Афиша** с официального сайта Astana Opera (сбор каждый день): событие предлагается, только если целиком помещается в окно.")
+    L("- **Афиша города:** официальный сайт Astana Opera + городская афиша sxodim.com — выставки, концерты, квизы, стендап, вечеринки "
+      "(сбор каждый день). Событие предлагается, только если оно по теме запроса и целиком помещается в окно; детское — только с ребёнком.")
+    L("- **Встретиться посередине:** «я у Хан Шатыра, друг в ЭКСПО — где встретиться?» → открытое место, куда обоим добираться "
+      "примерно одинаково, у каждого — когда выходить; путь друга на карте (групповые рекомендации).")
+    L("- **«Где я?» по фото (Gemini Vision):** сфотографировал ориентир или вывеску — старт маршрута ставится там. Фото уменьшается "
+      "в браузере и не сохраняется.")
+    L("- **LRT Астаны:** линия и 18 станций на карте (OSM); для длинных отрезков на такси — подсказка «можно на LRT» с честной оценкой времени.")
     L("- **Спрос для города** (`/city`): обезличенные счётчики — что ищут люди и чего им не хватило (закрыто, далеко, нет данных); "
       "без координат и текстов запросов — основа для B2G-аналитики.\n")
     L("### Как работает RAG (высокоуровнево)\n")
@@ -307,6 +367,15 @@ def main():
         L(f"- **Вход:** «{sc['text']}» · время старта {sc['now']}"
           + (" · **погода: симуляция −25°, ветер 30 км/ч**" if sc["weather"] == "cold" else " · погода: реальная"))
         L(f"- **Ожидаемый тип ответа:** {sc['expect']}")
+        if r.get("_photo"):
+            ph = r["_photo"]
+            L(f"- **Фото (`{sc['photo']}`, Wikimedia Commons) → Gemini Vision:** "
+              + (f"узнано «{ph['label']}» (уверенность {ph.get('confidence')}): {ph.get('what')}" if ph.get("found") else "место не узнано"))
+        if r.get("events"):
+            L("- **Афиша:** " + "; ".join(f"«{e['title']}» — {e['venue']}, {e['date'][8:10]}.{e['date'][5:7]} {e['time']}"
+                                          + (f", {e['price']} ₸" if e.get("price") else "") + f" ({e.get('source')})"
+                                          + (" — ближайшее" if e.get("later") else " — помещается в окно")
+                                          for e in r["events"]))
         p = r.get("parsed", {})
         L(f"- **Как система поняла:** откуда — {p.get('origin')}, куда — {p.get('destination') or 'обратно'}, "
           f"к — {p.get('deadline') or '—'}, окно — {(r.get('summary') or {}).get('window_min') or p.get('duration_min') or '—'} мин, пожелания — {', '.join(p.get('prefs') or []) or 'нет'}, "
