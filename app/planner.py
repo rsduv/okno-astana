@@ -742,6 +742,8 @@ def _facts(p: dict) -> dict:
             out["википедия"] = w["extract"]
     elif "wikidata" in t or "wikipedia" in t:
         out["известность"] = "есть статья в Википедии — известное место города"
+    if p["name"] in VIEW_POINTS:
+        out["смотровая"] = "смотровая площадка на высоте 97 м (Википедия)"
     d = p.get("dgis")
     if d:
         if d.get("rating") and d.get("reviews"):

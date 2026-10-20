@@ -162,7 +162,7 @@ def html(b):
 <div class="card"><b>44 / 44</b><span>автопроверок в 13 тестовых сценариях (все 5 из кейса + пример из ТЗ)</span></div>
 <div class="card"><b class="ok">0</b><span>опозданий и закрытых мест на 100 случайных запросах (стресс-тест)</span></div>
 <div class="card"><b class="ok">120 / 120</b><span>синтетических запросов «как пишут люди»: 15 типов, 3 языка, опечатки, невыполнимые</span></div>
-<div class="card"><b>53</b><span>автотеста в GitHub Actions при каждом изменении; ответ ~5–9 с</span></div></div>
+<div class="card"><b class="ok">113 / 120</b><span>ответов без единой выдумки: судья сверяет каждое «почему» с данными (было 106)</span></div></div>
 <p style="margin:0 0 14px"><b style="color:#e8eef5">Те же 30 запросов — трём системам</b>, проверка одним скриптом. Средняя колонка — <b style="color:#e8eef5">та же модель Gemini, что внутри «Окна», но без наших данных</b>:</p>
 <table><tr><th></th><th>Claude (чат)</th><th>Gemini без данных</th><th>Окно = Gemini + RAG</th></tr>
 <tr><td>Ответов с ошибкой (закрыто, не успеть, опоздание)</td><td class="warn">{bad[0]}</td><td class="warn">{bad[1]}</td><td class="y">{bad[2]}</td></tr>
