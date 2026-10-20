@@ -1068,7 +1068,8 @@ function render(r){
     sum.querySelectorAll(".tryq").forEach(b => b.onclick = () => { $("#q").value = T("quick")[b.dataset.i][2]; setTime(QUICK[b.dataset.i][4]); clearPoint(); run(); });
     deck.innerHTML = evCards(r.events); clearRoute(); return;
   }
-  const s = r.summary, notes = r.notes||[], isKey = (x,i) => r.notes_key ? r.notes_key[i] : KEY.test(x);
+  const LRT_NOTE = /LRT/;   // подсказка про LRT — полезна, но не главное: в сводке не показываем, она в «Как посчитано»
+  const s = r.summary, notes = r.notes||[], isKey = (x,i) => !LRT_NOTE.test(x) && (r.notes_key ? r.notes_key[i] : KEY.test(x));
   const key = notes.filter(isKey);
   const back = r.destination.label.startsWith("обратно");
   sum.innerHTML = `
@@ -1192,7 +1193,7 @@ function showHow(r){
   }
 }
 function howList(r){
-  const notes = (r.notes||[]).filter((x,i)=>!(r.notes_key ? r.notes_key[i] : KEY.test(x)));
+  const notes = (r.notes||[]).filter((x,i)=>/LRT/.test(x) || !(r.notes_key ? r.notes_key[i] : KEY.test(x)));
   const data = r._dataTr && r._dataTr[LANG] ? r.data_used.map((x,i)=>r._dataTr[LANG][i] ?? x) : (r.data_used||[]);
   return notes.concat(data);
 }

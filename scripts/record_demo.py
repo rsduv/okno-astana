@@ -27,6 +27,18 @@ CAP_CSS = """
 #title .k{display:flex;gap:26px;margin-top:22px}
 #title .k div{padding:18px 26px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);font-size:26px;text-align:center}
 #title .k b{display:block;font-size:46px;color:#4cc9f0}
+#cap{background:rgba(6,9,14,.94);font-size:31px;letter-spacing:.005em}
+#title h2{margin:0;font-size:64px;letter-spacing:-.01em}
+#title .lead{font-size:34px;color:#cfd9e6;max-width:1400px;text-align:center;line-height:1.45}
+#title .flow{display:flex;align-items:stretch;gap:14px;margin-top:26px}
+#title .flow div{width:300px;padding:22px 20px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:27px;font-weight:700;text-align:left;line-height:1.3}
+#title .flow div small{display:block;margin-top:10px;font-size:21px;font-weight:500;color:#aab8c8;line-height:1.4}
+#title .flow div.ai{border-color:rgba(139,108,255,.6)} #title .flow div.code{border-color:rgba(76,201,240,.6)}
+#title .flow i{align-self:center;font-style:normal;font-size:40px;color:#4cc9f0}
+#title .road{display:grid;grid-template-columns:1fr 1fr;gap:18px 40px;margin-top:24px;max-width:1500px}
+#title .road div{font-size:28px;line-height:1.4;text-align:left;padding-left:44px;position:relative}
+#title .road div:before{content:"→";position:absolute;left:0;color:#4cc9f0;font-weight:800}
+#title .road b{color:#fff}
 """
 
 
@@ -52,6 +64,14 @@ def main():
             k = "".join(f"<div><b>{a}</b>{b}</div>" for a, b in (kpis or []))
             pg.evaluate("""([h, s, k]) => { let t = document.getElementById('title'); if(!t){ t = document.createElement('div'); t.id='title'; document.body.appendChild(t); }
                 t.style.opacity = 1; t.innerHTML = `<h1>${h}</h1><p>${s}</p>` + (k ? `<div class="k">${k}</div>` : ''); }""", [h1, sub, k])
+            w(ms)
+            pg.evaluate("() => { const t = document.getElementById('title'); t.style.opacity = 0; setTimeout(() => t.remove(), 700); }")
+            w(700)
+
+        def slide(html, ms):
+            """Слайд поверх записи: проблема, как работает, что дальше."""
+            pg.evaluate("""h => { let t = document.getElementById('title'); if(!t){ t = document.createElement('div'); t.id='title'; document.body.appendChild(t); }
+                t.style.opacity = 1; t.innerHTML = h; }""", html)
             w(ms)
             pg.evaluate("() => { const t = document.getElementById('title'); t.style.opacity = 0; setTimeout(() => t.remove(), 700); }")
             w(700)
@@ -82,6 +102,11 @@ def main():
         mark("Окно — что это")
         w(2500)
         title("Окно", "Свободное время в Астане — по пути и вовремя.<br>RAG-помощник: реальные места, часы работы на момент прихода, погода и пробки.")
+        # 0.2 проблема
+        mark("Зачем: свободное окно между делами")
+        slide("""<h2>Зачем</h2><p class="lead">40 минут до встречи, 2 часа до вылета, час с ребёнком — <b>свободное окно</b> между делами.<br>
+            Обычный ИИ-чатбот советует места, но не знает, <b>открыты ли они к твоему приходу</b> и <b>успеешь ли ты</b> к сроку.</p>
+            <div class="k"><div><b>4–5 из 30</b>ответов чат-бота<br>с ошибкой: закрыто, не успеть</div><div><b>0 из 30</b>у «Окна» на тех же<br>запросах, та же проверка</div></div>""", 7500)
         # 0.5 карточка первого визита
         mark("Первое открытие: что это и как пользоваться")
         pg.evaluate("() => showIntro()")
@@ -90,6 +115,20 @@ def main():
         uncap()
         pg.click("#introOk")
         w(700)
+        # 0.7 сегодня в городе
+        mark("Сегодня в городе: события на карте")
+        pg.evaluate("map.jumpTo({center:[71.43,51.14],zoom:12.2,pitch:0,bearing:0})")
+        w(2500)
+        cap("Розовые точки — <b>события сегодня</b> из афиш города: выставки, концерты, квизы")
+        xy = pg.evaluate("() => { const f = map.getLayer('ev-today') && map.queryRenderedFeatures({layers:['ev-today']})[0]; if(!f) return null; const q = map.project(f.geometry.coordinates); return [q.x, q.y]; }")
+        if xy:
+            pg.mouse.click(xy[0], xy[1])
+            w(1200)
+            cap("Нажал — время, цена, место и ссылка на билеты", 3600)
+            pg.evaluate("() => document.querySelectorAll('.maplibregl-popup').forEach(e => e.remove())")
+        else:
+            w(2500)
+        uncap()
         # 1. где я
         mark("Само знает, где ты и какая погода")
         cap("«Окно» само определяет, <b>где ты</b> — адресом, с округлением до ~150 м — и какая <b>погода</b> сейчас", 4200)
@@ -105,6 +144,16 @@ def main():
         cap("У каждого места — <b>почему</b>, <b>что делать</b>, часы <b>на момент прихода</b> и источник (OSM · 2GIS · Википедия)", 4500)
         scroll_deck(420, 2600)
         scroll_deck(0, 1200)
+        # 2.5 QR
+        mark("QR: маршрут на телефоне")
+        cap("Построил на компьютере — <b>QR-код</b>: навёл телефон, и тот же маршрут у тебя")
+        pg.click("#shareLink")
+        pg.wait_for_function("() => document.querySelector('#qrImg canvas, #qrImg img')", timeout=20000)
+        w(3600)
+        cap("Точная геопозиция в ссылку <b>не попадает</b> — только запрос и время", 3000)
+        pg.click("#qrOk")
+        w(500)
+        uncap()
         # 3. как посчитано
         mark("«Как посчитано?» — прозрачность RAG, почему не другие места")
         cap("«Как посчитано?» — честно показываем, что сделал ИИ, а что алгоритм")
@@ -116,6 +165,17 @@ def main():
         cap("«Почему не другие места»: сколько отсеяно — <b>закрыто к приходу, не успеть, мороз</b>", 3800)
         pg.click("#closeHow")
         w(500)
+        # 3.5 как это работает
+        mark("Как это работает: RAG по шагам")
+        slide("""<h2>Как это работает</h2>
+            <div class="flow">
+              <div>1. Запрос<small>текстом, голосом или фото · RU / KZ / EN</small></div><i>→</i>
+              <div class="ai">2. Gemini понимает<small>откуда, куда, к скольки, с кем, пожелания</small></div><i>→</i>
+              <div class="code">3. Поиск по базе<small>1465 мест (OSM, 2GIS, Wikidata) · часы на момент прихода · погода · маршруты</small></div><i>→</i>
+              <div class="ai">4. Gemini объясняет<small>«почему» и «что делать» — только по фактам</small></div><i>→</i>
+              <div class="code">5. Проверка кодом<small>рейтинг, «рядом», «круглосуточно» сверяются с данными</small></div>
+            </div>
+            <p class="lead" style="margin-top:30px;font-size:30px">Места выбирает <b>алгоритм</b>, поэтому ИИ не может придумать кафе, которого нет.</p>""", 9500)
         # 4. мороз
         mark("Мороз −25° (демо): маршрут через тёплые места")
         cap("Октябрь, +2°. А если <b>−25° и ветер</b>? Нажимаем на плашку погоды (демо зимы)")
@@ -217,12 +277,21 @@ def main():
         pg.evaluate("() => window.scrollTo({top: 600, behavior: 'smooth'})")
         w(2600)
         uncap()
+        # 8.8 что дальше
+        mark("Что дальше: пилот и развитие")
+        slide("""<h2>Что дальше</h2><div class="road">
+            <div><b>Пилот</b> с аэропортом NQZ или EXPO: транзитные пассажиры и гости событий</div>
+            <div><b>Расписания LRT и автобусов</b> (GTFS) — точное время вместо оценки</div>
+            <div><b>Официальные API афиш</b> и временных закрытий — данные от площадок</div>
+            <div><b>Спрос для города</b>: что ищут люди и чего не хватает — для акимата и Visit Astana</div>
+            <div><b>Доступность</b>: проверенные пандусы и лифты вместе с городскими сообществами</div>
+            <div><b>Бизнес</b>: партнёрские места и бронирование, B2G-аналитика</div></div>""", 9000)
         # 9. итог
         mark("Итоги проверок")
         title("Окно", "Проверено, а не обещано",
-              [("115 / 120", "ответов без выдумок<br>(судья сверяет с данными)"), ("120 / 120", "синтетических<br>запросов"),
+              [("55 / 55", "автопроверок<br>в 16 сценариях"), ("до 115 / 120", "ответов без выдумок<br>(судья-ИИ сверяет с данными)"),
                ("0 из 30", "ответов с ошибкой<br>(тот же Gemini без данных — 4)"), ("RU · KZ · EN", "три языка")],
-              ms=6500)
+              ms=7000)
         w(500)
         ctx.close()
         b.close()
