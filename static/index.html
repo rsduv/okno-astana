@@ -1129,7 +1129,9 @@ function render(r){
   $("#icsBtn").onclick = () => downloadIcs(r);
   $("#shareLink").onclick = () => {
     // ссылка на тот же запрос: текст, время старта, погода; точная точка пользователя в ссылку не попадает
-    const u = new URL(location.origin + location.pathname);
+    // локальная копия (демо, запись видео) — ссылка и QR всё равно ведут на публичный сайт, иначе с телефона не откроется
+    const base = /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname) ? "https://okno-astana.onrender.com/" : location.origin + location.pathname;
+    const u = new URL(base);
     u.searchParams.set("q", state.lastReq?.text || $("#q").value);
     u.searchParams.set("t", state.nowOverride || r.now);
     if(state.weather === "cold") u.searchParams.set("w", "cold");
