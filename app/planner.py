@@ -351,6 +351,11 @@ def stop_score(p: dict, ctx: Ctx, arrive: datetime | None = None) -> float | Non
         if wc == "no":
             return None
         s += 0.8 if wc == "yes" else (0.3 if wc == "limited" else -0.4)
+        # пожилым и на коляске — тёплое место, где можно посидеть, лучше памятника на улице
+        if cat in ("кафе", "ресторан", "торговый центр", "музей", "галерея", "библиотека", "театр", "книжный"):
+            s += 1.0
+        elif cat in OUTDOOR:
+            s -= 1.0
     outdoor = is_outdoor(p)
     if outdoor and ctx.cold == "severe":
         return None
@@ -552,7 +557,7 @@ def _candidates(A, B, start, deadline, ctx: Ctx, exclude: set, required: set):
     d_label = (ctx.i.get("destination") or {}).get("label", "")
     # «где поесть / кофе / с ребёнком» у ЭКСПО — кафе в двух минутах и есть лучший ответ; «рядом с началом не предлагаем»
     # нужно только для прогулки, чтобы она не кончалась у порога
-    errand = bool(ctx.prefs & {"food", "coffee", "work", "kids", "night", "shopping"})
+    errand = bool(ctx.prefs & {"food", "coffee", "work", "kids", "night", "shopping"}) or ctx.i.get("mobility") == "limited"
     out = []
     for p in POIS:
         if p["id"] in exclude:

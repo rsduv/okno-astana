@@ -162,7 +162,9 @@ def history_table(clean, n, avg, label):
     """Было → стало: каждый прогон оценки и что исправили по его замечаниям."""
     hist = json.loads(HISTORY.read_text(encoding="utf-8")) if HISTORY.exists() else []
     if label:
-        hist = [h for h in hist if h["label"] != label] + [{"label": label, "n": n, "clean": clean, "avg": {k: round(v, 2) for k, v in avg.items()}}]
+        old = next((h for h in hist if h["label"] == label), {})
+        hist = [h for h in hist if h["label"] != label] + [{**old, "label": label, "n": n, "clean": clean,
+                                                            "avg": {k: round(v, 2) for k, v in avg.items()}}]
         HISTORY.write_text(json.dumps(hist, ensure_ascii=False, indent=1), encoding="utf-8")
     if len(hist) < 2:
         return []

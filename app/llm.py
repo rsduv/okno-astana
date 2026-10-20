@@ -296,7 +296,7 @@ def _tidy(t: str) -> str:
     return re.sub(r"\s{2,}", " ", t).strip()
 
 
-NEAR = re.compile(r"\b(совсем |прямо )?рядом( с тобой)?\b|в двух шагах|в паре шагов|\bпрямо у( тебя| вас)?\b|\bу самого\b|\b(right )?next door\b|\bsteps away\b|\bjust around the corner\b|\bжанында\b|\bқасында\b|іргесінде", re.I)
+NEAR = re.compile(r"\b(совсем |прямо )?рядом(?! с [А-ЯЁA-Z«\d])( с тобой)?\b|в двух шагах|в паре шагов|\bпрямо у( тебя| вас)?(?! [А-ЯЁA-Z«])\b|\bу самого\b|\b(right )?next door\b|\bsteps away\b|\bjust around the corner\b|\bжанында\b|\bқасында\b|іргесінде", re.I)
 
 
 def _near_fix(text: str, reach: str | None, lang: str | None) -> str:
