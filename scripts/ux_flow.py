@@ -16,7 +16,7 @@ with sync_playwright() as p:
         pg.click("#deck .card[data-i='1'] .swap"); pg.wait_for_selector(".sum .l1, .sum .err", timeout=90000); pg.wait_for_timeout(4000)
         pg.screenshot(path=OUT + name + "_3swap.png")
         pg.click("#how"); pg.wait_for_timeout(800); pg.screenshot(path=OUT + name + "_4how.png")
-        pg.click("#closeHow"); pg.fill("#q", "jdjdjd"); pg.click("#go"); pg.wait_for_selector(".sum .err", timeout=60000); pg.wait_for_timeout(500)
+        pg.click("#closeHow"); pg.fill("#q", "jdjdjd"); pg.click("#go"); pg.wait_for_selector(".sum .err", timeout=150000); pg.wait_for_timeout(500)
         pg.screenshot(path=OUT + name + "_5err.png")
         if name == "desk":   # карточка «что здесь» → закладка: метка, кнопка и подсветка здания — сразу, без перезагрузки
             pg.evaluate("map.jumpTo({center:[71.4305,51.1283],zoom:16.4,pitch:50})"); pg.wait_for_timeout(2500)
