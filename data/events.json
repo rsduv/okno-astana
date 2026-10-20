@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-19",
+ "updated": "2026-10-20",
  "events": [
   {
    "id": "opera/676/2026-10-26",
@@ -161,6 +161,21 @@
    "kind": "Опера",
    "age": 10,
    "url": "https://astanaopera.kz/afisha/707",
+   "source": "astanaopera.kz",
+   "venue": "Астана Опера",
+   "lat": 51.13546,
+   "lon": 71.410659
+  },
+  {
+   "id": "opera/702/2026-11-18",
+   "title": "Паганини. Дресс-код виртуозности",
+   "date": "2026-11-18",
+   "time": "19:00",
+   "minutes": 115,
+   "hall": "Камерный зал",
+   "kind": "Концерт",
+   "age": 10,
+   "url": "https://astanaopera.kz/afisha/702",
    "source": "astanaopera.kz",
    "venue": "Астана Опера",
    "lat": 51.13546,
