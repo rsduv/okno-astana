@@ -281,6 +281,9 @@ EXPLAIN = """Ты — «Окно», городской помощник по А�
 - «рейтинг_2гис» и «отметки_2гис» — настоящие данные 2GIS: можно опираться, называя источник («в 2GIS отмечено: можно с ноутбуком»,
   «4,7 в 2GIS»). Если в отметках есть «Можно с ноутбуком» — это ответ на «розетка/поработать», но про сами розетки всё равно честно: уточнить на месте.
 - Если «надёжность_часов» = estimate — не говори «точно открыто», говори «обычно открыто до …».
+- Не пиши «единственный», «самый», «круглосуточно», «лучший в городе» — этого нет в фактах (часы показывает интерфейс).
+- Рейтинг — не причина сам по себе: «почему» объясняет, чем место подходит ЭТОМУ человеку (просьба, время, погода, по пути),
+  а рейтинг 2GIS можно добавить в конце как подтверждение. «Почему» из одного рейтинга — плохо.
 Язык ответа: %s. Тон — дружелюбный, коротко, без восклицательных знаков и эмодзи. Пиши простым грамотным языком, как живой
 человек: «сфотографируй», а не «залей кадры»; без канцелярита («осуществите», «оцените»); обращение на «ты» по всему ответу.
 На казахском — простой литературный язык без калек с русского (обращение «сен»); на английском — plain English.
@@ -331,6 +334,20 @@ def _rating_fix(text: str, facts: dict) -> str:
     return re.sub(r"\s{2,}", " ", re.sub(r"\s+([,.;])", r"\1", out)).strip(" ,;—") or text
 
 
+CLAIMS = re.compile(r"\b(единственн\w*|круглосуточн\w*|самы[йеая]\s+лучш\w*|лучш\w+\s+в\s+городе|only|24/7)\s*", re.I)
+
+
+def _claims_fix(text: str, hours_text: str) -> str:
+    """«Единственное открытое», «круглосуточное» — преувеличения, если в данных этого нет: убираем слово."""
+    if not text:
+        return text
+    h = (hours_text or "").lower()
+    out = CLAIMS.sub(lambda m: m.group(0) if ("кругло" in m.group(1).lower() or "24/7" in m.group(1)) and
+                     ("круглосуточно" in h or "24/7" in h) else "", text)
+    out = re.sub(r"\s{2,}", " ", out).strip()
+    return out[:1].upper() + out[1:] if out else text
+
+
 def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     stops = [s for s in result["steps"] if s["type"] == "stop"]
     reach, prev = {}, None
@@ -366,7 +383,8 @@ def explain(request_text: str, intent: dict, result: dict, w: dict) -> dict:
     by_id = {x.get("id"): x for x in ((d or {}).get("stops") or []) if isinstance(x, dict)}
     for s in stops:
         x = by_id.get(s["id"]) or {}
-        s["why"] = _rating_fix(_near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")), s.get("facts")) \
+        s["why"] = _claims_fix(_rating_fix(_near_fix(_tidy(x.get("why")), reach.get(s["id"]), intent.get("language")), s.get("facts")),
+                               s["hours"]["text"]) \
             or _why_fallback(s, intent.get("language"))
         s["todo"] = _rating_fix(_near_fix(_tidy(x.get("todo")), reach.get(s["id"]), intent.get("language")), s.get("facts")) \
             or _todo_fallback(s, intent.get("language"))

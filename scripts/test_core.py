@@ -221,6 +221,8 @@ r = api.post("/api/plan", json={"text": "Я у Хан Шатыра, друг в 
                                            "duration_min": None, "prefs": ["coffee"], "language": "ru",
                                            "via": [{"place": "ЭКСПО", "stay_min": None}]}}).json()
 check("встреча: место друга, разобранное ИИ как «пункт по пути», всё равно даёт встречу посередине", bool(r.get("meet")))
+check("«единственное / круглосуточное» без данных — убирается",
+      llm._claims_fix("Единственное открытое круглосуточное заведение", "12:00–04:00") == "Открытое заведение")
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))

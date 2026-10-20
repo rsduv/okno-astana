@@ -87,7 +87,8 @@ def rule_checks(r):
             val = next(g for g in m.groups() if g).replace(",", ".")
             if not rat.startswith(val):
                 bad.append(f"{st['name']}: рейтинг {val} в тексте, а в 2GIS — {rat or 'нет данных'}")
-        near = re.search(r"\bрядом\b|в двух шагах|прямо у|right next|next door|steps away|жанында", text, re.I)
+        # «рядом с Ак Ордой» — где находится место, а не обещание «близко к тебе»; такое не считаем
+        near = re.search(r"\bрядом\b(?! с [А-ЯЁA-Z«\d])|в двух шагах|прямо у(?! [А-ЯЁA-Z«])|right next|next door|steps away|жанында", text, re.I)
         if near and prev and (prev["mode"] != "walk" or prev["min"] > 10):
             bad.append(f"{st['name']}: «{near.group(0)}», а добираться {prev['mode']} {prev['min']} мин")
     return bad
