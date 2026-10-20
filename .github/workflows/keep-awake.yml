@@ -1,16 +1,26 @@
 # Бесплатный хостинг Render «засыпает» через 15 минут без посетителей, и первое открытие ждёт ~30–50 секунд.
-# Пока жюри смотрит проекты, раз в 10 минут заглядываем на сайт, чтобы он не спал.
+# Пока жюри смотрит проекты, заглядываем на сайт раз в 10 минут. Частые расписания GitHub запускает с большими
+# задержками, поэтому один запуск сам работает ~5,8 часа (пинг каждые 10 минут), а расписание раз в 4 часа запускает следующий.
 name: Не давать сайту уснуть
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "15 */4 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: true
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 355
     steps:
-      - name: Открыть сайт
-        run: curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" --max-time 120 https://okno-astana.onrender.com/api/meta || true
+      - name: Открывать сайт каждые 10 минут
+        run: |
+          end=$(( $(date +%s) + 345*60 ))
+          while [ $(date +%s) -lt $end ]; do
+            curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" --max-time 120 https://okno-astana.onrender.com/api/meta || true
+            sleep 600
+          done
