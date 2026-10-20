@@ -378,6 +378,8 @@ def stay_of(p: dict, ctx: "Ctx") -> int:
         return ctx.work_stay
     if getattr(ctx, "short_explicit", False) and p["category"] in ctx.explicit:
         return 10
+    if p["name"] in VIEW_POINTS and (getattr(ctx, "window", 0) or 0) >= 60:
+        return 30   # Байтерек — это подъём на смотровую 97 м, а не фото у подножия
     if getattr(ctx, "quick_food", False) and p["category"] in ("кафе", "ресторан", "фастфуд"):
         return 12   # окно впритык: быстро перекусить, а не обед на 50 минут
     if p["category"] in ("парк", "сад") and p["category"] in getattr(ctx, "explicit", ()):

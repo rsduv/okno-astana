@@ -483,7 +483,8 @@ def _make_plan(req: PlanReq, request: Request):
         result = planner.meet(intent, now, w, friend)
         if result.get("meet"):
             mp = next(s for s in result["steps"] if s["type"] == "stop")
-            destination = {"lat": mp["lat"], "lon": mp["lon"], "label": f"встреча: {mp['name']}"}
+            word = {"en": "meet", "kk": "кездесу"}.get(parsed.get("language"), "встреча")
+            destination = {"lat": mp["lat"], "lon": mp["lon"], "label": f"{word}: {mp['name']}"}
             intent["destination"] = destination
             now = datetime.strptime(result["start_at"], "%H:%M").replace(year=now.year, month=now.month, day=now.day)
             deadline = now + timedelta(minutes=result["summary"]["window_min"])
