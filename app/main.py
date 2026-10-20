@@ -471,7 +471,8 @@ def _make_plan(req: PlanReq, request: Request):
     # «встретиться посередине»: я у Хан Шатыра, друг в ЭКСПО — где встретиться?
     friend = None
     tl = (req.text or "").lower()
-    if MEET.search(tl) and not parsed.get("via") and not re.search(r"\bпотом\b|\bзатем\b|\bthen\b|\bсосын\b|\bкейін\b", tl):
+    # ИИ иногда записывает место друга как промежуточный пункт («via: ЭКСПО») — один такой пункт не мешает
+    if MEET.search(tl) and len(parsed.get("via") or []) <= 1 and not re.search(r"\bпотом\b|\bзатем\b|\bthen\b|\bсосын\b|\bкейін\b", tl):
         m = re.search(r"(?<!\bс )(?<!\bwith )(?:друг|подруг|коллег|мам|пап|брат|сестр|жена|муж|парень|девушк|сын|доч|friend|colleague|досы|құрб|әріптес)\w*"
                       r"\s+(?:сейчас\s+|будет\s+|now\s+)?(?:у|в|на|около|возле|из|от|at|in|near|from)\s+([^,.;!?]+)", tl)
         cand = [m.group(1)] if m else []

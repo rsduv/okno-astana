@@ -216,6 +216,11 @@ check("встреча посередине: путь друга есть, раз
 r = trip("Мы с другом у Абу Даби Плазы. Сначала в Мега Силк Вэй поесть, потом в АИТУ на встречу к 16:00", "13:30",
          ["Мега Силк Вэй"], dest="АИТУ", origin="Абу Даби Плаза", deadline="16:00")
 check("«идём с другом… на встречу к 16:00» — обычный маршрут, не «встретиться посередине»", not r.get("meet") and not r.get("error"))
+r = api.post("/api/plan", json={"text": "Я у Хан Шатыра, друг в ЭКСПО, где встретиться выпить кофе?", "now": "15:00", "saved": {},
+                                "parsed": {"origin": "Хан Шатыр", "destination": None, "return_to_origin": False, "deadline": None,
+                                           "duration_min": None, "prefs": ["coffee"], "language": "ru",
+                                           "via": [{"place": "ЭКСПО", "stay_min": None}]}}).json()
+check("встреча: место друга, разобранное ИИ как «пункт по пути», всё равно даёт встречу посередине", bool(r.get("meet")))
 cs = api.get("/api/city").json()
 check("API: спрос для города — только счётчики, без координат и текстов",
       cs["requests"] >= 2 and cs["refusals"] >= 1 and "lat" not in str(cs) and "ЭКСПО" not in str(cs))
