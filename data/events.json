@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-20",
+ "updated": "2026-10-21",
  "events": [
   {
    "id": "opera/676/2026-10-26",
@@ -71,6 +71,21 @@
    "kind": "Концерт",
    "age": 5,
    "url": "https://astanaopera.kz/afisha/705",
+   "source": "astanaopera.kz",
+   "venue": "Астана Опера",
+   "lat": 51.13546,
+   "lon": 71.410659
+  },
+  {
+   "id": "opera/709/2026-11-06",
+   "title": "ВЕЧЕР БАЛЕТА Гала-балет & «Мәңгіліктің төрт сыры»",
+   "date": "2026-11-06",
+   "time": "19:00",
+   "minutes": 90,
+   "hall": "Большой зал",
+   "kind": "Балет",
+   "age": 10,
+   "url": "https://astanaopera.kz/afisha/709",
    "source": "astanaopera.kz",
    "venue": "Астана Опера",
    "lat": 51.13546,
