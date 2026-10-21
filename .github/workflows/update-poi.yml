@@ -4,8 +4,6 @@
 name: Обновление базы мест (OSM)
 
 on:
-  schedule:
-    - cron: "0 3 * * 1"   # каждый понедельник, 08:00 по Астане
   workflow_dispatch:
 
 permissions:

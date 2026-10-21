@@ -3,8 +3,6 @@
 name: Обновление афиши
 
 on:
-  schedule:
-    - cron: "0 0 * * *"   # каждый день, 05:00 по Астане
   workflow_dispatch:
 
 permissions:

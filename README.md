@@ -1,5 +1,7 @@
 # Окно — помощник по свободному времени в Астане
 
+> **Статус:** проект хакатона Build with AI (AITU × GDG Astana, 16–22.10.2026), трек AI for Smart City. Решение сдано 19–20.10; в топ-10 не прошло. Код оставлен как есть — рабочий и с документацией.
+
 Build with AI Hackathon (AITU × GDG Astana), трек **AI for Smart City**, кейс НИЦ Smart City «ИИ-помощник по прогулкам».
 
 > «Я в ЭКСПО, к 19:00 надо быть в Хан Шатыре» → 1–3 места по пути, которые ты **точно успеешь**:
@@ -98,14 +100,14 @@ python -m uvicorn app.main:app --port 8010
 ## Структура
 - `scripts/collect_osm.py` — автоматический сбор мест из OpenStreetMap → `data/poi.json`;
   `scripts/collect_wiki.py` — известные места и описания из Wikidata/Википедии → `data/wiki.json`.
-  **GitHub Actions** (`.github/workflows/update-poi.yml`) обновляет обе базы каждый понедельник.
-  `scripts/collect_events.py` — афиша Astana Opera → `data/events.json` (GitHub Actions `update-events.yml` — каждый день).
+  Обновление — `.github/workflows/update-poi.yml` (запуск вручную из вкладки Actions).
+  `scripts/collect_events.py` — афиша Astana Opera → `data/events.json` (`update-events.yml`, запуск вручную).
 - `scripts/collect_2gis.py` — популярные места из 2GIS по своему ключу (локально, в репозиторий не публикуется).
 - `app/events.py` — афиша в окне · `app/citystats.py` — спрос для города (только счётчики) · `app/planner.py` — планировщик · `app/hours.py` — часы работы · `app/geo.py` — маршруты, погода, воздух, геокодер ·
   `app/dgis.py` — 2GIS (места, пробки, лимиты) · `app/llm.py` — Gemini · `app/main.py` — API.
 - `static/index.html` — интерфейс (MapLibre + OpenFreeMap, иконки Lucide).
 - Проверки: `scripts/stress.py` (инварианты «не опоздал» и «всё открыто»), `scripts/qa.py` (38 живых фраз), `scripts/benchmark.py` (сравнение с чатботом),
-  `scripts/test_core.py` (43 проверки: ядро + API, запускаются в GitHub Actions), `scripts/record_demo.py` (демо-видео), `scripts/make_slides.py` (презентация),
+  `scripts/test_core.py` (68 проверок: ядро + API, запускаются в GitHub Actions), `scripts/make_slides.py` (презентация),
   `scripts/ux_flow.py` (прогон интерфейса), `scripts/make_scenarios_doc.py` (документ со сценариями).
 
 ## Приватность и честность
